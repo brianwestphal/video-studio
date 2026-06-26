@@ -28,8 +28,9 @@ and [`requirements-summary.md`](requirements-summary.md) for status.
 ├── tools/
 │   ├── render-caption.mjs      # caption/CTA → animated SVG (Chromium pipeline)
 │   ├── caption-format.mjs      # pure arg-parse + SVG/HTML assembly (unit-tested)
-│   ├── export-project.mjs      # editor handoff: cut spec → segments/overlays/manifest/rebuild.sh (I/O)
-│   └── export-manifest.mjs     # pure manifest + ffmpeg-command + rebuild-script logic (unit-tested)
+│   ├── export-project.mjs      # editor handoff: cut spec → segments/overlays/manifest/rebuild.sh/fcpxml (I/O)
+│   ├── export-manifest.mjs     # pure manifest + ffmpeg-command + rebuild-script logic (unit-tested)
+│   └── fcpxml.mjs              # pure FCPXML generation from the manifest (unit-tested)
 ├── skills/
 │   └── video-studio/SKILL.md   # the pipeline Claude follows — primary interface
 ├── tests/
@@ -39,11 +40,12 @@ and [`requirements-summary.md`](requirements-summary.md) for status.
 │   ├── resumable-error.test.ts # unit tests for src/resumable-error.ts
 │   ├── caption-format.test.ts  # unit tests for tools/caption-format.mjs
 │   ├── export-manifest.test.ts # unit tests for tools/export-manifest.mjs
+│   ├── fcpxml.test.ts          # unit tests for tools/fcpxml.mjs
 │   └── packaging.test.ts       # guards machine-path leaks + the promo-assets packaging
 ├── promo-assets/               # worked-example assembly scripts (sources shipped via promo-assets/*.{mjs,sh}; generated SVGs + nested node_modules excluded)
 ├── docs/
 │   ├── requirements.md         # source-of-truth requirements (shipped pipeline)
-│   ├── editor-handoff.md       # DESIGN: export segments + overlays + manifest/FCPXML (VS-20/21)
+│   ├── editor-handoff.md       # export segments + overlays + manifest + FCPXML (shipped, VS-24/25)
 │   ├── multiple-sources.md     # DESIGN: draw from many files/folders (VS-18)
 │   ├── multicam.md             # DESIGN: audio-synced multi-cam (VS-19, deferred)
 │   ├── releasing.md            # release + npm trusted-publisher setup
@@ -106,7 +108,7 @@ used by the `gen-readme-*` scripts).
 Coverage is enforced (100% l/b/f/s) on the pure modules in `vitest.config.ts`
 `coverage.include`: `src/scene-math.ts`, `src/resumable-error.ts`,
 `src/analyzer-cli.ts`, `src/analyzer-state.ts`, `tools/caption-format.mjs`,
-`tools/export-manifest.mjs`. The
+`tools/export-manifest.mjs`, `tools/fcpxml.mjs`. The
 I/O code (`analyzer.ts` orchestration, `ffmpeg.ts`, `ollama.ts`, the `bin/`
 launcher, `render-caption.mjs`'s Chromium path) is manual-test territory.
 
@@ -137,7 +139,7 @@ launcher, `render-caption.mjs`'s Chromium path) is manual-test territory.
 | Ollama/ffmpeg error → fix-and-resume message | `src/resumable-error.ts` (`classifyOllamaError`) |
 | caption arg parsing / SVG-HTML assembly | `tools/caption-format.mjs` |
 | caption Chromium render pipeline | `tools/render-caption.mjs` |
-| editor-handoff export (segments/overlays/manifest/rebuild) | `tools/export-project.mjs` (I/O) + `tools/export-manifest.mjs` (pure) |
+| editor-handoff export (segments/overlays/manifest/rebuild) | `tools/export-project.mjs` (I/O) + `tools/export-manifest.mjs` + `tools/fcpxml.mjs` (pure) |
 | tool detection / brew install / skill install / launch | `bin/video-studio.mjs` |
 | the editing pipeline Claude runs | `skills/video-studio/SKILL.md` |
 | what the toolkit must do | `docs/requirements.md` |

@@ -86,7 +86,7 @@ When the user wants to add their own transitions/grade in Final Cut Pro (or anot
 ```bash
 node "$TOOLKIT/tools/export-project.mjs" "$WORK/cut.json" --out "<video-dir>/teaser.studio-export"
 ```
-The cut spec's `clips` reference each source by path + in/out seconds (`audio: keep|silent`); `overlays` reference the alpha `.mov`s you rendered in Step 4 with the clip they sit over + offset. Hand the user the export folder (import the segments/overlays into FCP, or run `rebuild.sh`). FCPXML output is coming (VS-25).
+The cut spec's `clips` reference each source by path + in/out seconds (`audio: keep|silent`); `overlays` reference the alpha `.mov`s you rendered in Step 4 with the clip they sit over + offset. The export also writes a **`<name>.fcpxml`** — the user can import that straight into Final Cut Pro (segments on the storyline, overlays as connected clips) for their transition pass, or run `rebuild.sh` to re-composite the exact cut.
 
 ## Output conventions
 - Write finished cuts next to the source (e.g. `<video-dir>/teaser.mp4`). Scratch encodes can go in a work dir or `/tmp`, **but keep the AI-interpretation intermediates**: the scene breakdown (`$DATADIR/timeline.json`, with descriptions) and the whisper transcripts (`$DATADIR/transcripts/`) are a durable record of how the model read the footage — don't bury them in `/tmp`.

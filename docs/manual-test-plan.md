@@ -80,7 +80,7 @@ Write a cut spec (see [`editor-handoff.md`](editor-handoff.md)) referencing real
 | 5.2 | Inspect `manifest.json` | Segments in cut order with cumulative target ranges (`HH:MM:SS:FF` + seconds + frames) + source file/in/out + audio keep/silent; overlays with target range, position, and over-segment ref; project total matches. |
 | 5.3 | Probe a segment / overlay codec | Segment is `prores` `yuv422p10le`; overlay is `prores` profile 4444 with an alpha pixel format. |
 | 5.4 | `bash out/rebuild.sh rebuilt.mov` | Re-composites the exact cut — duration equals `manifest.project.totalTimecode`; frame-sampling shows overlays composited at their target times. |
-| 5.5 | Import the segments/overlays (or the rebuilt cut) into Final Cut Pro | Clips conform at the project fps; overlays carry transparency. |
+| 5.5 | Import `<name>.fcpxml` into Final Cut Pro | Segments land on the primary storyline in order at their target ranges; overlays appear as connected clips (lane 1) above their segments; clips conform at the project fps with no warnings; overlays carry transparency. |
 
 ## Automated Coverage Summary
 
@@ -106,6 +106,8 @@ Covered by unit tests (do **not** re-test by hand):
 - **`tools/export-manifest.mjs`** — `buildManifest`, `framesToTimecode`,
   `segmentArgs`, `overlayArgs`, `rebuildScript` (`tests/export-manifest.test.ts`).
   100% coverage. The ffmpeg execution in `export-project.mjs` is §5 above.
+- **`tools/fcpxml.mjs`** — `buildFcpxml`, `frameDuration`, `rationalTime`
+  (`tests/fcpxml.test.ts`). 100% coverage; FCP import itself is §5 below.
 
 Everything else in the tables above is genuinely manual because it shells out to
 ffmpeg/whisper/ollama or launches a browser. If you find a way to automate one of

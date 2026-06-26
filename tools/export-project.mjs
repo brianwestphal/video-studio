@@ -25,7 +25,9 @@
 import { execFileSync } from "node:child_process";
 import { chmodSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, isAbsolute, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import { buildManifest, overlayArgs, rebuildScript, segmentArgs } from "./export-manifest.mjs";
+import { buildFcpxml } from "./fcpxml.mjs";
 
 function parseArgs(argv) {
   let spec, out;
@@ -82,8 +84,12 @@ function main() {
   writeFileSync(rb, rebuildScript(manifest));
   chmodSync(rb, 0o755);
 
-  console.log(`\nWrote manifest.json + rebuild.sh. Final cut length: ${manifest.project.totalTimecode}.`);
-  console.log(`Import the pieces into your NLE, or run ${outDir}/rebuild.sh to re-composite the exact cut.`);
+  // Final Cut Pro X import: file:// URLs to the exported pieces in this folder.
+  const fcpxml = buildFcpxml(manifest, (file) => pathToFileURL(resolve(outDir, file)).href);
+  writeFileSync(resolve(outDir, `${manifest.project.name}.fcpxml`), fcpxml);
+
+  console.log(`\nWrote manifest.json + rebuild.sh + ${manifest.project.name}.fcpxml. Final cut length: ${manifest.project.totalTimecode}.`);
+  console.log(`Import the .fcpxml into Final Cut Pro, or run ${outDir}/rebuild.sh to re-composite the exact cut.`);
 }
 
 main();

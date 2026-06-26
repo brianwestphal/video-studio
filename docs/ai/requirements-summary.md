@@ -15,7 +15,7 @@ sync with the requirements doc and code; the source wins on conflict.
 | Overlay generator | R5.1–R5.5 | **Shipped** |
 | The skill | R6.1–R6.5 | **Shipped** |
 | Quality gates | R7.1–R7.4 | **Shipped** |
-| Editor handoff (segments + overlays + manifest/FCPXML) | [`editor-handoff.md`](../editor-handoff.md) | **Partial** — export + manifest + rebuild shipped (VS-24); FCPXML pending (VS-25) |
+| Editor handoff (segments + overlays + manifest/FCPXML) | [`editor-handoff.md`](../editor-handoff.md) | **Shipped** — export + manifest + rebuild (VS-24) + FCPXML (VS-25) |
 | Multiple source videos | [`multiple-sources.md`](../multiple-sources.md) | **Design only** (VS-18) |
 | Multi-cam editing | [`multicam.md`](../multicam.md) | **Design only** (VS-19, deferred) |
 
@@ -51,10 +51,10 @@ follow-up tickets.
 - **Quality gates (R7)** — Shipped. Vitest 100% on the two pure modules; manual
   test plan for the pipeline; `npm run check` + CI; tag-driven release with
   provenance.
-- **Editor handoff (Partial)** — segment export (ProRes 422 HQ) + overlay export
-  (ProRes 4444 alpha) + JSON manifest + `rebuild.sh` are **shipped** via
-  `tools/export-project.mjs` (pure logic + 100% tests in `tools/export-manifest.mjs`,
-  VS-24). The **FCPXML** half is still pending (VS-25). See
+- **Editor handoff (Shipped)** — `tools/export-project.mjs` turns a cut spec into
+  segment files (ProRes 422 HQ) + overlay files (ProRes 4444 alpha) + a JSON
+  manifest + `rebuild.sh` (VS-24) **and** a Final Cut Pro `.fcpxml` (VS-25). Pure
+  logic + 100% tests in `tools/export-manifest.mjs` + `tools/fcpxml.mjs`. See
   [`editor-handoff.md`](../editor-handoff.md).
 - **Multiple sources / multi-cam (Design only)** — draw from a pool of
   files/folders ([`multiple-sources.md`](../multiple-sources.md), VS-26); and

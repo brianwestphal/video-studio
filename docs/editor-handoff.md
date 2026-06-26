@@ -1,10 +1,11 @@
 # Editor Handoff — export segments + overlays for manual finishing
 
-Status: **Partially implemented.** Segment + overlay export, the JSON manifest,
-and `rebuild.sh` are shipped (VS-24 — `tools/export-project.mjs`, pure logic in
-`tools/export-manifest.mjs`). The **FCPXML** (§6) is still pending (VS-25). Covers
-VS-20 (export ordered segments) and VS-21 (export overlays as separate files),
-which share the manifest/FCPXML design, so they're specified together here.
+Status: **Implemented.** `tools/export-project.mjs` emits segments (ProRes 422 HQ)
++ overlays (ProRes 4444 alpha) + `manifest.json` + `rebuild.sh` (VS-24) **and**
+an FCPXML for Final Cut Pro import (VS-25). Pure logic + 100% tests in
+`tools/export-manifest.mjs` and `tools/fcpxml.mjs`. Covers VS-20 (export ordered
+segments) and VS-21 (export overlays as separate files), which share the
+manifest/FCPXML design, so they're specified together here.
 
 ## Cut spec (input)
 

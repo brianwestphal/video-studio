@@ -19,6 +19,7 @@ export default defineConfig({
         "src/analyzer-state.ts",
         "tools/caption-format.mjs",
         "tools/export-manifest.mjs",
+        "tools/fcpxml.mjs",
       ],
       thresholds: {
         lines: 100,
