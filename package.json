@@ -35,6 +35,8 @@
     "src",
     "skills",
     "tools",
+    "promo-assets/*.mjs",
+    "promo-assets/*.sh",
     "tsconfig.json",
     "README.md",
     "CHANGELOG.md",

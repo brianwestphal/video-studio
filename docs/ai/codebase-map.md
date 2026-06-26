@@ -28,7 +28,7 @@ and [`requirements-summary.md`](requirements-summary.md) for status.
 ├── tests/
 │   ├── scene-math.test.ts      # unit tests for src/scene-math.ts
 │   └── caption-format.test.ts  # unit tests for tools/caption-format.mjs
-├── promo-assets/               # worked-example assembly scripts (NOT yet shipped — see VS-8)
+├── promo-assets/               # worked-example assembly scripts (sources shipped via promo-assets/*.{mjs,sh}; generated SVGs + nested node_modules excluded)
 ├── docs/
 │   ├── requirements.md         # source-of-truth requirements
 │   ├── releasing.md            # release + npm trusted-publisher setup
@@ -93,9 +93,9 @@ ffmpeg/whisper/ollama/Chromium code is manual-test territory.
   `bin/`+`tools/`+`tests/**.mjs`. Ignores `dist`, `coverage`, `analysis-data`,
   `frames`, `promo-assets`.
 - `vitest.config.ts` — node env; coverage `include` + 100% thresholds.
-- Analyzer tuning constants: `SCENE_THRESHOLD = 0.4` (`src/analyzer.ts`),
-  `MIN_SCENE_SEC = 1.0`, `DEFAULT_MODEL = "gemma4:12b"` (`src/scene-math.ts` /
-  `src/analyzer.ts`).
+- Analyzer tuning constants: `SCENE_THRESHOLD = 0.4` and
+  `DEFAULT_MODEL = "gemma4:12b"` (`src/analyzer.ts`); `MIN_SCENE_SEC = 1.0`
+  (`src/scene-math.ts`).
 
 ## Where do I look for X?
 

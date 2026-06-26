@@ -43,11 +43,14 @@ open items below are packaging / polish, not missing core behavior.
 
 ## Known gaps / follow-ups
 
-- **`promo-assets/` not shipped (VS-8)** — `SKILL.md` references
-  `$TOOLKIT/promo-assets/*` worked examples, but they're not in package.json
-  `files` (and contain ~1.5 MB of generated SVGs + a nested `node_modules`).
-  Packaging + the machine-specific `OUT_DIR` paths in the example scripts need a
-  fix before re-adding to `files`. → **Partial** for "shipped worked examples".
+- **`promo-assets/` packaging (VS-8) — Resolved.** The three example *sources*
+  now ship via the `promo-assets/*.mjs` + `promo-assets/*.sh` globs (generated
+  SVGs, the nested `node_modules`, and the nested `package.json` are excluded),
+  so the `$TOOLKIT/promo-assets/*` references in `SKILL.md` resolve for
+  npm-installed users. The example scripts were made portable (published
+  `domotion-svg` instead of a local checkout; env-configurable `ICONS_DIR` /
+  `OUT_DIR` / `TMPDIR` / `SRC`; no machine paths). Guarded by
+  `tests/packaging.test.ts`.
 - **No automated coverage of the pipeline** — by design (external tools); this
   is the manual test plan's job. Re-evaluate if a reliable harness becomes
   feasible.

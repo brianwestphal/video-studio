@@ -5,10 +5,16 @@
 # B-roll/end-card segments are silent (music to be added later).
 set -euo pipefail
 
-SRC="/Users/westphal/Desktop/chat-with-carol/chat-with-carol.mov"
-A="/tmp/claude"            # overlay assets: wordmark.mov, cap2.mov, cap3.mov, cap6.mov
-W="/tmp/claude/teaser"     # work dir
-OUT="/Users/westphal/Desktop/chat-with-carol/teaser.mp4"
+# WORKED EXAMPLE for one specific recording — the cut points below are pinned to
+# that source. Override the paths via env to adapt it to your own footage:
+#   SRC     source video            (required — set to your own .mov/.mp4)
+#   ASSETS  overlay alpha .movs dir  (wordmark.mov, cap2.mov, cap3.mov, cap6.mov)
+#   WORK    scratch dir
+#   OUT     final teaser path        (default: teaser.mp4 next to SRC)
+SRC="${SRC:?set SRC to your source video, e.g. SRC=~/clip.mov}"
+A="${ASSETS:-${TMPDIR:-/tmp}/video-studio-teaser/assets}"   # overlay assets: wordmark.mov, cap2.mov, cap3.mov, cap6.mov
+W="${WORK:-${TMPDIR:-/tmp}/video-studio-teaser/work}"       # work dir
+OUT="${OUT:-$(dirname "$SRC")/teaser.mp4}"
 mkdir -p "$W"
 
 # common encode params so segments concat cleanly

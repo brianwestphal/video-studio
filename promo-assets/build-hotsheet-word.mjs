@@ -14,20 +14,26 @@
  * Icons are embedded as <img> data-URIs (each its own SVG document) to avoid the
  * shared-id collision in the icon set (linearGradient-2 / path-1).
  *
+ * This is a WORKED EXAMPLE — it expects the ten `<ICONS_DIR>/hotsheet-icon*.svg`
+ * variants to exist (point ICONS_DIR at your own icon set). Paths are
+ * env-configurable:
+ *   ICONS_DIR  icon source dir   (default: ./icons next to this script)
+ *   OUT_DIR    where the .svg lands (default: this script's dir)
+ *   TMPDIR     scratch html dir   (default: /tmp)
+ *
  * Run (Chromium needs the OS sandbox relaxed):
- *   node promo-assets/build-hotsheet-word.mjs
+ *   ICONS_DIR=~/my-icons node promo-assets/build-hotsheet-word.mjs
  */
-import { createRequire } from "node:module";
-const require = createRequire("/Users/westphal/Documents/domotion/package.json");
-const { chromium } = require("@playwright/test");
 import { readFileSync, writeFileSync, mkdirSync, rmSync } from "node:fs";
+import { dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+import { chromium } from "@playwright/test";
+import { captureElementTree, embedRemoteImages, elementTreeToSvgInner, generateAnimatedSvg, optimizeSvg } from "domotion-svg";
 
-const D = await import("/Users/westphal/Documents/domotion/dist/index.js");
-const { captureElementTree, embedRemoteImages, elementTreeToSvgInner, generateAnimatedSvg, optimizeSvg } = D;
-
-const ICONS = process.env.HOME + "/Desktop/icons-temp";
-const OUT_DIR = "/Users/westphal/Documents/video-scene-analyzer/promo-assets";
-const TMP = "/tmp/claude";
+const HERE = dirname(fileURLToPath(import.meta.url));
+const ICONS = process.env.ICONS_DIR || `${HERE}/icons`;
+const OUT_DIR = process.env.OUT_DIR || HERE;
+const TMP = process.env.TMPDIR || "/tmp";
 const OUTPUT = `${OUT_DIR}/hotsheet-word.svg`;
 
 // ── fixed layout geometry (this is what keeps the logo from moving) ──────────

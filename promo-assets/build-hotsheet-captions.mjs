@@ -12,20 +12,25 @@
  *
  * Swap the placeholder link by editing FULL_VIDEO_URL below.
  *
+ * This is a WORKED EXAMPLE — it expects `<ICONS_DIR>/hotsheet-icon.svg` to exist
+ * (point ICONS_DIR at your own icon set). Paths are env-configurable:
+ *   ICONS_DIR  icon source dir   (default: ./icons next to this script)
+ *   OUT_DIR    where .svgs land   (default: this script's dir)
+ *   TMPDIR     scratch html dir   (default: /tmp)
+ *
  * Run (Chromium needs the OS sandbox relaxed):
- *   node promo-assets/build-hotsheet-captions.mjs
+ *   ICONS_DIR=~/my-icons node promo-assets/build-hotsheet-captions.mjs
  */
-import { createRequire } from "node:module";
-const require = createRequire("/Users/westphal/Documents/domotion/package.json");
-const { chromium } = require("@playwright/test");
 import { readFileSync, writeFileSync, mkdirSync, rmSync } from "node:fs";
+import { dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+import { chromium } from "@playwright/test";
+import { captureElementTree, embedRemoteImages, elementTreeToSvgInner, generateAnimatedSvg, optimizeSvg } from "domotion-svg";
 
-const D = await import("/Users/westphal/Documents/domotion/dist/index.js");
-const { captureElementTree, embedRemoteImages, elementTreeToSvgInner, generateAnimatedSvg, optimizeSvg } = D;
-
-const ICONS = process.env.HOME + "/Desktop/icons-temp";
-const OUT_DIR = "/Users/westphal/Documents/video-scene-analyzer/promo-assets";
-const TMP = "/tmp/claude";
+const HERE = dirname(fileURLToPath(import.meta.url));
+const ICONS = process.env.ICONS_DIR || `${HERE}/icons`;
+const OUT_DIR = process.env.OUT_DIR || HERE;
+const TMP = process.env.TMPDIR || "/tmp";
 const WIDTH = 1920;
 const HEIGHT = 1080;
 const FU = 1000 / 24; // one frame at 24fps
