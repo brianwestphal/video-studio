@@ -27,7 +27,9 @@ and [`requirements-summary.md`](requirements-summary.md) for status.
 │   └── scene-math.ts           # pure fps/timecode/scene-merge math (unit-tested)
 ├── tools/
 │   ├── render-caption.mjs      # caption/CTA → animated SVG (Chromium pipeline)
-│   └── caption-format.mjs      # pure arg-parse + SVG/HTML assembly (unit-tested)
+│   ├── caption-format.mjs      # pure arg-parse + SVG/HTML assembly (unit-tested)
+│   ├── export-project.mjs      # editor handoff: cut spec → segments/overlays/manifest/rebuild.sh (I/O)
+│   └── export-manifest.mjs     # pure manifest + ffmpeg-command + rebuild-script logic (unit-tested)
 ├── skills/
 │   └── video-studio/SKILL.md   # the pipeline Claude follows — primary interface
 ├── tests/
@@ -36,6 +38,7 @@ and [`requirements-summary.md`](requirements-summary.md) for status.
 │   ├── analyzer-state.test.ts  # unit tests for src/analyzer-state.ts
 │   ├── resumable-error.test.ts # unit tests for src/resumable-error.ts
 │   ├── caption-format.test.ts  # unit tests for tools/caption-format.mjs
+│   ├── export-manifest.test.ts # unit tests for tools/export-manifest.mjs
 │   └── packaging.test.ts       # guards machine-path leaks + the promo-assets packaging
 ├── promo-assets/               # worked-example assembly scripts (sources shipped via promo-assets/*.{mjs,sh}; generated SVGs + nested node_modules excluded)
 ├── docs/
@@ -102,7 +105,8 @@ used by the `gen-readme-*` scripts).
 
 Coverage is enforced (100% l/b/f/s) on the pure modules in `vitest.config.ts`
 `coverage.include`: `src/scene-math.ts`, `src/resumable-error.ts`,
-`src/analyzer-cli.ts`, `src/analyzer-state.ts`, `tools/caption-format.mjs`. The
+`src/analyzer-cli.ts`, `src/analyzer-state.ts`, `tools/caption-format.mjs`,
+`tools/export-manifest.mjs`. The
 I/O code (`analyzer.ts` orchestration, `ffmpeg.ts`, `ollama.ts`, the `bin/`
 launcher, `render-caption.mjs`'s Chromium path) is manual-test territory.
 
@@ -133,6 +137,7 @@ launcher, `render-caption.mjs`'s Chromium path) is manual-test territory.
 | Ollama/ffmpeg error → fix-and-resume message | `src/resumable-error.ts` (`classifyOllamaError`) |
 | caption arg parsing / SVG-HTML assembly | `tools/caption-format.mjs` |
 | caption Chromium render pipeline | `tools/render-caption.mjs` |
+| editor-handoff export (segments/overlays/manifest/rebuild) | `tools/export-project.mjs` (I/O) + `tools/export-manifest.mjs` (pure) |
 | tool detection / brew install / skill install / launch | `bin/video-studio.mjs` |
 | the editing pipeline Claude runs | `skills/video-studio/SKILL.md` |
 | what the toolkit must do | `docs/requirements.md` |

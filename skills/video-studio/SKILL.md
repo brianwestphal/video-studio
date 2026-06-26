@@ -81,6 +81,13 @@ For **9:16**, change `$W:$H` to `1080:1920` and reframe sources with `crop`/`sca
 - Check audio levels per segment: `ffmpeg -i seg.mp4 -af volumedetect -f null -` (soundbites loud, B-roll ~ -91dB silent).
 - **Re-whisper soundbite segments** to confirm the words are clean and complete (no clipped first/last word).
 
+## Step 7 — (optional) Export for manual finishing in an NLE
+When the user wants to add their own transitions/grade in Final Cut Pro (or another editor) instead of a finished render, export the **pieces** instead of compositing. Write a cut spec (the segments you chose + the overlays you rendered) and run the export tool — it emits each segment as ProRes 422 HQ, each overlay as ProRes 4444 (alpha), a `manifest.json` of target time ranges, and a `rebuild.sh` that reproduces the exact cut. See [`docs/editor-handoff.md`](../../docs/editor-handoff.md) for the cut-spec shape.
+```bash
+node "$TOOLKIT/tools/export-project.mjs" "$WORK/cut.json" --out "<video-dir>/teaser.studio-export"
+```
+The cut spec's `clips` reference each source by path + in/out seconds (`audio: keep|silent`); `overlays` reference the alpha `.mov`s you rendered in Step 4 with the clip they sit over + offset. Hand the user the export folder (import the segments/overlays into FCP, or run `rebuild.sh`). FCPXML output is coming (VS-25).
+
 ## Output conventions
 - Write finished cuts next to the source (e.g. `<video-dir>/teaser.mp4`). Scratch encodes can go in a work dir or `/tmp`, **but keep the AI-interpretation intermediates**: the scene breakdown (`$DATADIR/timeline.json`, with descriptions) and the whisper transcripts (`$DATADIR/transcripts/`) are a durable record of how the model read the footage — don't bury them in `/tmp`.
 - Save the assembly as a shell script alongside the output so the user can re-run/tweak.

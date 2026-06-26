@@ -1,8 +1,33 @@
 # Editor Handoff — export segments + overlays for manual finishing
 
-Status: **Design only** (not yet implemented). Covers VS-20 (export ordered
-segments) and VS-21 (export overlays as separate files), which share the manifest
-and FCPXML design, so they're specified together here.
+Status: **Partially implemented.** Segment + overlay export, the JSON manifest,
+and `rebuild.sh` are shipped (VS-24 — `tools/export-project.mjs`, pure logic in
+`tools/export-manifest.mjs`). The **FCPXML** (§6) is still pending (VS-25). Covers
+VS-20 (export ordered segments) and VS-21 (export overlays as separate files),
+which share the manifest/FCPXML design, so they're specified together here.
+
+## Cut spec (input)
+
+`export-project <cut-spec.json> [--out <dir>]` consumes a small JSON the skill
+writes after designing the cut (source paths resolve relative to the spec file):
+
+```json
+{
+  "project": { "fps": 24, "width": 1920, "height": 1080, "name": "teaser" },
+  "clips": [
+    { "source": "a.mov", "in": 36.18, "out": 39.20, "audio": "keep" },
+    { "source": "a.mov", "in": 1189.0, "out": 1191.25, "audio": "silent" }
+  ],
+  "overlays": [
+    { "file": "cap.mov", "overClip": 0, "atOffset": 0.5, "position": "lower-third" }
+  ]
+}
+```
+
+`clips` are in cut order (`in`/`out` in seconds; `audio` is `keep`|`silent`).
+Each `overlay` references an already-rendered alpha clip (`file`) and sits over
+clip `overClip` starting `atOffset` seconds into it; its duration is taken from
+the file unless `duration` is given.
 
 > **Early concept.** Design intent for a pre-1.0 feature; details may change.
 

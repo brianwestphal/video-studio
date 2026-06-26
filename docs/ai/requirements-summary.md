@@ -15,7 +15,7 @@ sync with the requirements doc and code; the source wins on conflict.
 | Overlay generator | R5.1–R5.5 | **Shipped** |
 | The skill | R6.1–R6.5 | **Shipped** |
 | Quality gates | R7.1–R7.4 | **Shipped** |
-| Editor handoff (segments + overlays + manifest/FCPXML) | [`editor-handoff.md`](../editor-handoff.md) | **Design only** (VS-20/21) |
+| Editor handoff (segments + overlays + manifest/FCPXML) | [`editor-handoff.md`](../editor-handoff.md) | **Partial** — export + manifest + rebuild shipped (VS-24); FCPXML pending (VS-25) |
 | Multiple source videos | [`multiple-sources.md`](../multiple-sources.md) | **Design only** (VS-18) |
 | Multi-cam editing | [`multicam.md`](../multicam.md) | **Design only** (VS-19, deferred) |
 
@@ -51,13 +51,15 @@ follow-up tickets.
 - **Quality gates (R7)** — Shipped. Vitest 100% on the two pure modules; manual
   test plan for the pipeline; `npm run check` + CI; tag-driven release with
   provenance.
-- **Editor handoff / multiple sources / multi-cam (Design only)** — three new
-  functional areas specified but not built: export segments (ProRes 422 HQ) +
-  overlays (ProRes 4444) + a JSON manifest and FCPXML for a Final Cut Pro
-  finishing pass ([`editor-handoff.md`](../editor-handoff.md)); draw from a pool
-  of files/folders ([`multiple-sources.md`](../multiple-sources.md)); and
-  FCP-style audio-synced multi-cam ([`multicam.md`](../multicam.md), deferred).
-  Implementation tracked by follow-up tickets.
+- **Editor handoff (Partial)** — segment export (ProRes 422 HQ) + overlay export
+  (ProRes 4444 alpha) + JSON manifest + `rebuild.sh` are **shipped** via
+  `tools/export-project.mjs` (pure logic + 100% tests in `tools/export-manifest.mjs`,
+  VS-24). The **FCPXML** half is still pending (VS-25). See
+  [`editor-handoff.md`](../editor-handoff.md).
+- **Multiple sources / multi-cam (Design only)** — draw from a pool of
+  files/folders ([`multiple-sources.md`](../multiple-sources.md), VS-26); and
+  FCP-style audio-synced multi-cam ([`multicam.md`](../multicam.md), VS-27,
+  deferred). Specified but not built.
 
 ## Known gaps / follow-ups
 

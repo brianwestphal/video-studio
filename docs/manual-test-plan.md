@@ -70,6 +70,18 @@ example in `promo-assets/`.
 | 4.3 | Re-whisper the soundbite segments | Words are clean and complete — no clipped first/last word. |
 | 4.4 | 9:16 social variant | 1080×1920 output; talking-head framing survives the crop. |
 
+## 5. Editor handoff export (`tools/export-project.mjs`)
+
+Write a cut spec (see [`editor-handoff.md`](editor-handoff.md)) referencing real source clips + a rendered alpha overlay, then:
+
+| # | Step | Expected |
+|---|------|----------|
+| 5.1 | `node tools/export-project.mjs cut.json --out out/` | Creates `out/segments/seg-NNN.mov` (ProRes 422 HQ, `yuv422p10le`), `out/overlays/ov-NNN.mov` (ProRes 4444, alpha), `out/manifest.json`, and an executable `out/rebuild.sh`. |
+| 5.2 | Inspect `manifest.json` | Segments in cut order with cumulative target ranges (`HH:MM:SS:FF` + seconds + frames) + source file/in/out + audio keep/silent; overlays with target range, position, and over-segment ref; project total matches. |
+| 5.3 | Probe a segment / overlay codec | Segment is `prores` `yuv422p10le`; overlay is `prores` profile 4444 with an alpha pixel format. |
+| 5.4 | `bash out/rebuild.sh rebuilt.mov` | Re-composites the exact cut — duration equals `manifest.project.totalTimecode`; frame-sampling shows overlays composited at their target times. |
+| 5.5 | Import the segments/overlays (or the rebuilt cut) into Final Cut Pro | Clips conform at the project fps; overlays carry transparency. |
+
 ## Automated Coverage Summary
 
 Covered by unit tests (do **not** re-test by hand):
@@ -91,6 +103,9 @@ Covered by unit tests (do **not** re-test by hand):
 - **`tools/caption-format.mjs`** — `parseArgs`, `namespaceSvgIds`, `iconImg`,
   `block`, `wrapPos`, `buildPage`, `buildSpecs` (`tests/caption-format.test.ts`).
   100% coverage.
+- **`tools/export-manifest.mjs`** — `buildManifest`, `framesToTimecode`,
+  `segmentArgs`, `overlayArgs`, `rebuildScript` (`tests/export-manifest.test.ts`).
+  100% coverage. The ffmpeg execution in `export-project.mjs` is §5 above.
 
 Everything else in the tables above is genuinely manual because it shells out to
 ffmpeg/whisper/ollama or launches a browser. If you find a way to automate one of
