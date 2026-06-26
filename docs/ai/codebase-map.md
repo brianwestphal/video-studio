@@ -39,7 +39,10 @@ and [`requirements-summary.md`](requirements-summary.md) for status.
 │   └── packaging.test.ts       # guards machine-path leaks + the promo-assets packaging
 ├── promo-assets/               # worked-example assembly scripts (sources shipped via promo-assets/*.{mjs,sh}; generated SVGs + nested node_modules excluded)
 ├── docs/
-│   ├── requirements.md         # source-of-truth requirements
+│   ├── requirements.md         # source-of-truth requirements (shipped pipeline)
+│   ├── editor-handoff.md       # DESIGN: export segments + overlays + manifest/FCPXML (VS-20/21)
+│   ├── multiple-sources.md     # DESIGN: draw from many files/folders (VS-18)
+│   ├── multicam.md             # DESIGN: audio-synced multi-cam (VS-19, deferred)
 │   ├── releasing.md            # release + npm trusted-publisher setup
 │   ├── manual-test-plan.md     # manual checklist for the external-tool pipeline
 │   ├── media/                  # README demo media (docs-only; gitignored binaries) — from Tears of Steel (CC BY 3.0)
@@ -133,6 +136,7 @@ launcher, `render-caption.mjs`'s Chromium path) is manual-test territory.
 | tool detection / brew install / skill install / launch | `bin/video-studio.mjs` |
 | the editing pipeline Claude runs | `skills/video-studio/SKILL.md` |
 | what the toolkit must do | `docs/requirements.md` |
+| design-only feature specs (export/FCPXML, multi-source, multi-cam) | `docs/editor-handoff.md`, `docs/multiple-sources.md`, `docs/multicam.md` |
 | how to release | `docs/releasing.md` + `scripts/release.sh` |
 | manual pipeline tests | `docs/manual-test-plan.md` |
 | README demo media + how it's regenerated | `docs/media/` + `scripts/gen-readme-media.sh` |

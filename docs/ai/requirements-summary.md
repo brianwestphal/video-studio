@@ -13,11 +13,16 @@ sync with the requirements doc and code; the source wins on conflict.
 | Launcher | R3.1–R3.7 | **Shipped** |
 | Scene analyzer | R4.1–R4.8 | **Shipped** |
 | Overlay generator | R5.1–R5.5 | **Shipped** |
-| The skill | R6.1–R6.4 | **Shipped** |
+| The skill | R6.1–R6.5 | **Shipped** |
 | Quality gates | R7.1–R7.4 | **Shipped** |
+| Editor handoff (segments + overlays + manifest/FCPXML) | [`editor-handoff.md`](../editor-handoff.md) | **Design only** (VS-20/21) |
+| Multiple source videos | [`multiple-sources.md`](../multiple-sources.md) | **Design only** (VS-18) |
+| Multi-cam editing | [`multicam.md`](../multicam.md) | **Design only** (VS-19, deferred) |
 
-Overall: the toolkit is functionally complete for its early-concept scope. The
-open items below are packaging / polish, not missing core behavior.
+The core single-source pipeline is functionally complete for its early-concept
+scope. The three design-only areas above (a more flexible, FCP-interoperable
+editor) are specified but not built — see their docs and the implementation
+follow-up tickets.
 
 ## Per-area notes
 
@@ -46,6 +51,13 @@ open items below are packaging / polish, not missing core behavior.
 - **Quality gates (R7)** — Shipped. Vitest 100% on the two pure modules; manual
   test plan for the pipeline; `npm run check` + CI; tag-driven release with
   provenance.
+- **Editor handoff / multiple sources / multi-cam (Design only)** — three new
+  functional areas specified but not built: export segments (ProRes 422 HQ) +
+  overlays (ProRes 4444) + a JSON manifest and FCPXML for a Final Cut Pro
+  finishing pass ([`editor-handoff.md`](../editor-handoff.md)); draw from a pool
+  of files/folders ([`multiple-sources.md`](../multiple-sources.md)); and
+  FCP-style audio-synced multi-cam ([`multicam.md`](../multicam.md), deferred).
+  Implementation tracked by follow-up tickets.
 
 ## Known gaps / follow-ups
 
