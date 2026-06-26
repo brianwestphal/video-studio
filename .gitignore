@@ -4,6 +4,12 @@ node_modules/
 # Build output
 dist/
 
+# Test coverage
+coverage/
+
+# Release script resume state
+.release-state.json
+
 # Runtime / analysis artifacts
 analysis-data/
 frames/
@@ -16,3 +22,7 @@ npm-debug.log*
 .DS_Store
 .idea/
 .vscode/
+.claude/settings.local.json
+/.hotsheet/*
+!/.hotsheet/settings.json
+.mcp.json

@@ -1,0 +1,24 @@
+import { defineConfig } from "vitest/config";
+
+export default defineConfig({
+  test: {
+    environment: "node",
+    include: ["tests/**/*.test.ts", "tests/**/*.test.mjs"],
+    exclude: ["node_modules/**", "dist/**"],
+    coverage: {
+      provider: "v8",
+      reporter: ["text", "html", "lcov"],
+      // Coverage is enforced on the *pure, unit-testable* logic. The ffmpeg /
+      // whisper / ollama / chromium orchestration in analyzer.ts, the launcher
+      // (bin/), and render-caption.mjs cannot be exercised without those
+      // external tools — they are covered by docs/manual-test-plan.md instead.
+      include: ["src/scene-math.ts", "tools/caption-format.mjs"],
+      thresholds: {
+        lines: 100,
+        functions: 100,
+        branches: 100,
+        statements: 100,
+      },
+    },
+  },
+});

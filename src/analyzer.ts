@@ -5,13 +5,13 @@ import { spawn } from "child_process";
 import * as fs from "fs";
 import * as path from "path";
 
+import { buildScenes, formatTimecode, parseFps, type Scene } from "./scene-math.js";
+
 // Scene-detection tuning:
 //  - SCENE_THRESHOLD: ffmpeg `scene` score (0..1) a frame must exceed to count as a cut.
 //    Higher = fewer, more distinct scenes. 0.3-0.4 is a good starting range.
-//  - MIN_SCENE_SEC: collapse boundaries closer together than this to avoid flicker/
-//    fast-cut over-segmentation.
+// (MIN_SCENE_SEC lives in scene-math.ts, alongside buildScenes which uses it.)
 const SCENE_THRESHOLD = 0.4;
-const MIN_SCENE_SEC = 1.0;
 
 const DEFAULT_DATA_DIR = "./analysis-data";
 const DEFAULT_MODEL = "gemma4:12b";
@@ -28,13 +28,6 @@ interface Config {
 interface VideoInfo {
   duration: number; // seconds
   fps: number; // frames per second
-}
-
-// Scene boundaries are stored as exact frame indices for frame-level accuracy.
-// The range is [startFrame, endFrame) — endFrame is the first frame of the next scene.
-interface Scene {
-  startFrame: number;
-  endFrame: number;
 }
 
 // Everything we persist between runs so a re-run can resume instead of redoing work.
@@ -208,16 +201,6 @@ function stateMatchesVideo(state: PersistedState, videoPath: string, stat: fs.St
 // ffmpeg: duration probe + scene-boundary detection
 // ---------------------------------------------------------------------------
 
-// Parse an ffprobe frame-rate string like "24/1" or "30000/1001" into fps.
-function parseFps(rate: string | undefined): number {
-  if (!rate) return NaN;
-  const m = /^(\d+(?:\.\d+)?)(?:\/(\d+(?:\.\d+)?))?$/.exec(rate.trim());
-  if (!m) return NaN;
-  const num = parseFloat(m[1]!);
-  const den = m[2] ? parseFloat(m[2]) : 1;
-  return den ? num / den : NaN;
-}
-
 // Probe duration (seconds) and frame rate — both needed for frame-accurate output.
 function getVideoInfo(videoPath: string): Promise<VideoInfo> {
   return new Promise((resolve, reject) => {
@@ -274,28 +257,6 @@ function detectSceneChanges(videoPath: string, threshold: number): Promise<numbe
       resolve(times);
     });
   });
-}
-
-// Convert detected cut times (seconds) into frame-accurate [startFrame, endFrame)
-// scene ranges, snapping each cut to the nearest frame and merging boundaries
-// closer together than MIN_SCENE_SEC.
-function buildScenes(cutTimes: number[], totalFrames: number, fps: number): Scene[] {
-  const minGap = Math.max(1, Math.round(MIN_SCENE_SEC * fps));
-  const cutFrames = cutTimes.map((t) => Math.round(t * fps));
-  const starts = [0, ...cutFrames].filter((f) => f < totalFrames).sort((a, b) => a - b);
-
-  const merged: number[] = [];
-  for (const f of starts) {
-    const prev = merged[merged.length - 1];
-    if (prev === undefined || f - prev >= minGap) {
-      merged.push(f);
-    }
-  }
-
-  return merged.map((startFrame, i) => ({
-    startFrame,
-    endFrame: i + 1 < merged.length ? merged[i + 1]! : totalFrames,
-  }));
 }
 
 function extractFrameAt(videoPath: string, timeSec: number, outPath: string): Promise<string> {
@@ -360,23 +321,6 @@ async function analyzeFrame(imagePath: string, prompt: string, model: string): P
   });
 
   return response.message.content.trim();
-}
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-const pad = (n: number) => n.toString().padStart(2, "0");
-
-// Frame index → SMPTE-style HH:MM:SS:FF timecode (non-drop; assumes integer/CFR fps).
-function formatTimecode(frame: number, fps: number): string {
-  const fpsInt = Math.round(fps);
-  const totalSeconds = Math.floor(frame / fpsInt);
-  const ff = frame % fpsInt;
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
-  return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}:${pad(ff)}`;
 }
 
 // ---------------------------------------------------------------------------
