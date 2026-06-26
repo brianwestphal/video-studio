@@ -39,7 +39,10 @@ open items below are packaging / polish, not missing core behavior.
   and unit-tested to 100%; the Chromium render stays in `render-caption.mjs`.
 - **The skill (R6)** — Shipped as `skills/video-studio/SKILL.md`. This is prose
   guidance for Claude rather than executable code, so it's verified by review +
-  the manual test plan, not unit tests.
+  the manual test plan, not unit tests. **R6.5** (keep the AI-interpretation
+  intermediates — `timeline.json` descriptions + `<dataDir>/transcripts/`) is a
+  skill-guidance convention; committed examples live in `docs/samples/`
+  (`tears-of-steel.scenes.json` + `.transcript.{json,txt}`).
 - **Quality gates (R7)** — Shipped. Vitest 100% on the two pure modules; manual
   test plan for the pipeline; `npm run check` + CI; tag-driven release with
   provenance.

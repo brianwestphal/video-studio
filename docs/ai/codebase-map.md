@@ -42,13 +42,18 @@ and [`requirements-summary.md`](requirements-summary.md) for status.
 │   ├── requirements.md         # source-of-truth requirements
 │   ├── releasing.md            # release + npm trusted-publisher setup
 │   ├── manual-test-plan.md     # manual checklist for the external-tool pipeline
+│   ├── media/                  # README demo media (docs-only; gitignored binaries) — from Tears of Steel (CC BY 3.0)
+│   ├── samples/                # committed reference samples (scene descriptions + transcript) from Tears of Steel
 │   └── ai/
 │       ├── codebase-map.md         # ← this file
 │       └── requirements-summary.md # synthesized requirements status
 ├── .github/workflows/
 │   ├── ci.yml                  # lint/typecheck/test/build on push+PR
 │   └── release.yml             # tag-driven GitHub Release + npm publish (OIDC)
-├── scripts/release.sh          # interactive stable + --beta release flow
+├── scripts/
+│   ├── release.sh              # interactive stable + --beta release flow
+│   ├── gen-readme-media.sh     # regenerate README demo media from external/tears-of-steel.mp4
+│   └── gen-readme-samples.sh   # regenerate the README transcript sample (whisper)
 ├── eslint.config.mjs           # flat ESLint config (TS + Node-ESM passes)
 ├── vitest.config.ts            # unit tests + 100% coverage on the pure modules
 ├── tsconfig.json               # NodeNext, strict; rootDir src/ → outDir dist/
@@ -57,7 +62,9 @@ and [`requirements-summary.md`](requirements-summary.md) for status.
 ```
 
 Generated/ignored: `dist/`, `coverage/`, `node_modules/`, `analysis-data/`,
-`frames/`, `.release-state.json`, `.hotsheet/` (except settings).
+`frames/`, `.release-state.json`, `.hotsheet/` (except settings), and
+`external/` (the gitignored sample video, e.g. `external/tears-of-steel.mp4`,
+used by the `gen-readme-*` scripts).
 
 ## Entry points
 
@@ -70,7 +77,7 @@ Generated/ignored: `dist/`, `coverage/`, `node_modules/`, `analysis-data/`,
 
 ## Data shapes (analyzer)
 
-- **Persisted state** `<dataDir>/state.json` (`PersistedState`, `STATE_VERSION = 2`,
+- **Persisted state** `<dataDir>/state.json` (`PersistedState`, `STATE_VERSION = 3`,
   both in `src/analyzer-state.ts`): `version`, `videoPath`, `videoSize`,
   `videoMtimeMs`, `duration`, `fps`, `scenes: {startFrame,endFrame}[]`,
   `descriptions: Record<sceneIndex,string>`. Reused only if path+size+mtime match
@@ -107,7 +114,7 @@ launcher, `render-caption.mjs`'s Chromium path) is manual-test territory.
 - `vitest.config.ts` — node env; coverage `include` + 100% thresholds.
 - Analyzer tuning constants: `SCENE_THRESHOLD = 0.4` (`src/analyzer.ts`);
   `DEFAULT_MODEL = "gemma4:12b"` + `DEFAULT_DATA_DIR` (`src/analyzer-cli.ts`);
-  `STATE_VERSION = 2` (`src/analyzer-state.ts`); `MIN_SCENE_SEC = 1.0`
+  `STATE_VERSION = 3` (`src/analyzer-state.ts`); `MIN_SCENE_SEC = 1.0`
   (`src/scene-math.ts`).
 
 ## Where do I look for X?
@@ -128,6 +135,8 @@ launcher, `render-caption.mjs`'s Chromium path) is manual-test territory.
 | what the toolkit must do | `docs/requirements.md` |
 | how to release | `docs/releasing.md` + `scripts/release.sh` |
 | manual pipeline tests | `docs/manual-test-plan.md` |
+| README demo media + how it's regenerated | `docs/media/` + `scripts/gen-readme-media.sh` |
+| sample scene descriptions / transcript | `docs/samples/` + `scripts/gen-readme-samples.sh` |
 
 ## Update triggers
 

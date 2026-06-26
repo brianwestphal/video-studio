@@ -29,13 +29,14 @@ ffmpeg -y -i "$DATADIR/frames/scene-%04d.jpg" -vf "scale=320:-1,tile=6x6" "$WORK
 View the contact sheet(s), write each scene's `description` back into `video-scenes.json`, and use it (with the transcript) to pick segments. (Offline alternative: `--describe ollama --model gemma4:12b` fills descriptions locally — see env notes.)
 
 ## Step 2 — Word-level timing with whisper (for soundbites)
-Caption/transcript timestamps drift at the phrase level. For any spoken soundbite, get exact word boundaries: extract a short clip around the region and transcribe with `--word_timestamps`.
+Caption/transcript timestamps drift at the phrase level. For any spoken soundbite, get exact word boundaries: extract a short clip around the region and transcribe with `--word_timestamps`. **Keep the transcripts** — write them next to the analysis data (`$DATADIR/transcripts/`), not to throwaway `/tmp`. They're a durable record of how the audio was read and are reusable across cuts.
 ```bash
-ffmpeg -y -ss $CLIP_START -i "$VIDEO" -t 12 -ac 1 -ar 16000 "$WORK/sb.wav"
-TMPDIR=/tmp whisper "$WORK/sb.wav" --model large-v3-turbo --device cpu --language en \
-  --word_timestamps True --output_format json --output_dir "$WORK/wh"
+mkdir -p "$DATADIR/transcripts"
+ffmpeg -y -ss $CLIP_START -i "$VIDEO" -t 12 -ac 1 -ar 16000 "$DATADIR/transcripts/sb-$CLIP_START.wav"
+TMPDIR=/tmp whisper "$DATADIR/transcripts/sb-$CLIP_START.wav" --model large-v3-turbo --device cpu --language en \
+  --word_timestamps True --output_format json --output_dir "$DATADIR/transcripts"
 ```
-Parse `segments[].words[]` (`{word,start,end}`); **absolute time = clip_start + word.start**. Pick in/out on word boundaries (start ~40–80ms before the first word; end just after the last word, before the next word begins). Use `--device cpu` (the GPU is usually busy with Ollama).
+Parse `segments[].words[]` (`{word,start,end}`); **absolute time = clip_start + word.start**. Pick in/out on word boundaries (start ~40–80ms before the first word; end just after the last word, before the next word begins). Use `--device cpu` (the GPU is usually busy with Ollama). See [`docs/samples/`](../../docs/samples/) for an example transcript + scene breakdown.
 
 ## Step 3 — Design the cut
 Read `video-scenes.json` + the transcript. Principles:
@@ -81,6 +82,6 @@ For **9:16**, change `$W:$H` to `1080:1920` and reframe sources with `crop`/`sca
 - **Re-whisper soundbite segments** to confirm the words are clean and complete (no clipped first/last word).
 
 ## Output conventions
-- Write finished cuts next to the source (e.g. `<video-dir>/teaser.mp4`), intermediates under a work dir or `/tmp`.
+- Write finished cuts next to the source (e.g. `<video-dir>/teaser.mp4`). Scratch encodes can go in a work dir or `/tmp`, **but keep the AI-interpretation intermediates**: the scene breakdown (`$DATADIR/timeline.json`, with descriptions) and the whisper transcripts (`$DATADIR/transcripts/`) are a durable record of how the model read the footage — don't bury them in `/tmp`.
 - Save the assembly as a shell script alongside the output so the user can re-run/tweak.
 - Keep CTAs editable: put a `{{PLACEHOLDER}}` URL in the caption text and tell the user how to swap it.

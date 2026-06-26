@@ -1,0 +1,16 @@
+# Tears of Steel — transcript excerpt (~0:18–1:18)
+# Source: Tears of Steel (© Blender Foundation, CC BY 3.0 — mango.blender.org)
+# video-studio / whisper large-v3-turbo, word-level timing; times = absolute video time
+
+[00:00:23.00 → 00:00:24.30]  You're a jerk, Tom.
+[00:00:24.50 → 00:00:26.88]  Look, Celia, we have to follow our passions.
+[00:00:27.24 → 00:00:30.00]  You have your robotics, and I just want to be awesome in space.
+[00:00:30.42 → 00:00:34.32]  Why don't you just admit that you're freaked out by my robot hand?
+[00:00:34.54 → 00:00:35.82]  I'm not freaked out by it.
+[00:00:37.32 → 00:00:38.28]  All right, fine.
+[00:00:38.56 → 00:00:39.42]  I'm freaked out.
+[00:00:39.42 → 00:00:42.32]  I'm having nightmares that I'm being chased by these giant robotic claws.
+[00:00:42.32 → 00:00:43.38]  Whatever, Tom.
+[00:00:44.16 → 00:00:44.92]  We're done.
+[00:00:49.16 → 00:00:53.62]  Robots' memories synced and locked.
+[00:00:59.74 → 00:01:02.24]  This is pretty freaky.

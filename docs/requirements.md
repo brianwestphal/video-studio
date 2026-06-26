@@ -6,7 +6,7 @@ AI assistants live in [`ai/codebase-map.md`](ai/codebase-map.md) and
 [`ai/requirements-summary.md`](ai/requirements-summary.md); the manual test
 checklist is [`manual-test-plan.md`](manual-test-plan.md).
 
-> ⚠️ **Early concept.** Requirements here describe current intent for a pre-1.0
+> **Early concept.** Requirements here describe current intent for a pre-1.0
 > experiment and may change.
 
 ## 1. Purpose
@@ -91,9 +91,14 @@ timeline or edit decision list.
   (≤15min, light trims).
 - **R6.3** Always produce a finished file and **verify** it (sample frames,
   check audio levels, re-whisper soundbites). Never stop at a timeline.
-- **R6.4** Output conventions: finished cuts next to the source, intermediates
+- **R6.4** Output conventions: finished cuts next to the source, scratch encodes
   under a work dir; save the assembly as a re-runnable shell script; keep CTAs
   editable via a `{{PLACEHOLDER}}` URL.
+- **R6.5** Retain the AI-interpretation intermediates as durable artifacts (not
+  `/tmp` scratch): the scene breakdown (`timeline.json` with descriptions) and
+  the whisper transcripts (`<dataDir>/transcripts/`). They record how the model
+  read the footage and are reusable across cuts. See [`ai/`](ai/) summaries and
+  the committed examples in [`samples/`](samples/).
 
 ## 7. Quality gates
 

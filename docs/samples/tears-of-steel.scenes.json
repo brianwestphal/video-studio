@@ -1,0 +1,87 @@
+{
+  "source": "Tears of Steel (© Blender Foundation, CC BY 3.0 — mango.blender.org)",
+  "note": "Representative excerpt of video-studio scene analysis. Boundaries + timecodes are the analyzer's real output for this film (104 scenes total); the descriptions were written by Claude viewing each scene's extracted frame (the default --describe none flow).",
+  "scenes": [
+    {
+      "scene": 5,
+      "start": "00:00:25:00",
+      "end": "00:00:40:06",
+      "startSeconds": 25,
+      "endSeconds": 40.25,
+      "framePath": "analysis-data/frames/scene-0005.jpg",
+      "description": "Two young people face off on an arched Amsterdam canal bridge with black wrought-iron railings — a dark-haired young man in a leather jacket and graphic tee, and an auburn-haired woman in a blue-and-black athletic jacket whose hand is thrown up mid-gesture. Leafy summer trees and brick canal houses frame a tense, animated conversation in bright daylight."
+    },
+    {
+      "scene": 10,
+      "start": "00:00:56:16",
+      "end": "00:01:04:11",
+      "startSeconds": 56.667,
+      "endSeconds": 64.458,
+      "framePath": "analysis-data/frames/scene-0010.jpg",
+      "description": "Extreme close-up of a surgeon wearing a multi-lens optical loupe over one eye, leaning in over an exposed human brain on a tray and working it with fine instruments. Magenta surgical light and a tangle of tubing wrap the scene in a clinical, unsettling sci-fi-medical mood."
+    },
+    {
+      "scene": 16,
+      "start": "00:01:24:20",
+      "end": "00:01:56:17",
+      "startSeconds": 84.833,
+      "endSeconds": 116.708,
+      "framePath": "analysis-data/frames/scene-0016.jpg",
+      "description": "A makeshift rooftop hideout in cool blue light: a white-haired, bearded old man rests on layered bedding beside a guttering candle and a folded newspaper, while behind him a figure lies prone behind a sniper rifle, watching out over the balustrade. A quiet, watchful lull in a city under siege."
+    },
+    {
+      "scene": 20,
+      "start": "00:02:23:07",
+      "end": "00:02:52:07",
+      "startSeconds": 143.292,
+      "endSeconds": 172.292,
+      "framePath": "analysis-data/frames/scene-0020.jpg",
+      "description": "The dark-haired young man, now in a blue-and-yellow leather jacket over a printed shirt, walks in profile along a tree-lined Amsterdam canal past an orange directional sign and a low bridge. An unhurried daytime establishing shot of the city."
+    },
+    {
+      "scene": 33,
+      "start": "00:04:17:22",
+      "end": "00:04:55:03",
+      "startSeconds": 257.917,
+      "endSeconds": 295.125,
+      "framePath": "analysis-data/frames/scene-0033.jpg",
+      "description": "The interior of a grand old cathedral reclaimed by nature — a towering baroque pipe organ and stone columns draped in green ivy, lit in moody blue. A lone figure in dark clothing hangs mid-air at the center, dwarfed by the overgrown architecture."
+    },
+    {
+      "scene": 50,
+      "start": "00:05:41:05",
+      "end": "00:05:48:10",
+      "startSeconds": 341.208,
+      "endSeconds": 348.417,
+      "framePath": "analysis-data/frames/scene-0050.jpg",
+      "description": "Tight close-up of a stern man's face fitted with an elaborate cybernetic eyepiece — stacked camera lenses over his right eye and a glowing red heads-up readout. Warm key light and red cabling behind him sell a hardened, augmented operative."
+    },
+    {
+      "scene": 60,
+      "start": "00:06:17:05",
+      "end": "00:06:23:03",
+      "startSeconds": 377.208,
+      "endSeconds": 383.125,
+      "framePath": "analysis-data/frames/scene-0060.jpg",
+      "description": "A curly-haired man in glasses and a hooded jacket hunches over a workbench under a desk lamp, his face washed by translucent floating holographic UI panels in green, blue and pink — a technician absorbed in a heads-up interface."
+    },
+    {
+      "scene": 78,
+      "start": "00:07:24:21",
+      "end": "00:07:41:19",
+      "startSeconds": 444.875,
+      "endSeconds": 461.792,
+      "framePath": "analysis-data/frames/scene-0078.jpg",
+      "description": "A shaggy-haired young man in a white protective coverall, sunglasses slung on his chest, grips a complex white robotic-arm assembly inside the cavernous ribbed interior of a giant machine. Harsh industrial light; a tense moment deep inside the mech."
+    },
+    {
+      "scene": 103,
+      "start": "00:11:49:12",
+      "end": "00:12:10:08",
+      "startSeconds": 709.5,
+      "endSeconds": 730.333,
+      "framePath": "analysis-data/frames/scene-0103.jpg",
+      "description": "The aftermath: a man sits slumped atop an enormous mountain of mangled robot wreckage, cradled by twisted metal limbs under a hazy, dramatic sky — the emotional climax, exhaustion and loss amid the debris of the battle."
+    }
+  ]
+}

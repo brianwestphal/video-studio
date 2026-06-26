@@ -23,8 +23,8 @@ re-test those by hand; this doc is only for what crosses a process/tool boundary
 
 | # | Step | Expected |
 |---|------|----------|
-| 1.1 | `node bin/video-studio.mjs --check` | Prints the splash + a per-tool ✓/✗ table. Exits without installing or launching. Reports "All set." when everything is present, or "Some required tools are missing." otherwise. |
-| 1.2 | `node bin/video-studio.mjs --check` with a required tool removed from PATH | That tool shows ✗ with its `brew install …` / manual hint; exit message flags the missing required tool. |
+| 1.1 | `node bin/video-studio.mjs --check` | Prints the splash + a per-tool pass/fail table. Exits without installing or launching. Reports "All set." when everything is present, or "Some required tools are missing." otherwise. |
+| 1.2 | `node bin/video-studio.mjs --check` with a required tool removed from PATH | That tool shows as missing with its `brew install …` / manual hint; exit message flags the missing required tool. |
 | 1.3 | `node bin/video-studio.mjs --help` | Prints the splash and the usage block (lines parsed from the file header). |
 | 1.4 | `node bin/video-studio.mjs --skills-only` | Copies `skills/*` into `~/.claude/skills/`, substitutes `{{TOOLKIT_DIR}}` in each `SKILL.md`, prints one `/name → …` line per skill, exits. |
 | 1.5 | `node bin/video-studio.mjs --no-launch <dir>` | Runs tool checks + `npm install`/build + installs skills, prints "Ready", but does **not** start `claude`. |

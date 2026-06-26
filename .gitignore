@@ -1,3 +1,5 @@
+external/
+
 # Dependencies
 node_modules/
 
