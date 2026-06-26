@@ -20,6 +20,7 @@ export default defineConfig({
         "tools/caption-format.mjs",
         "tools/export-manifest.mjs",
         "tools/fcpxml.mjs",
+        "tools/sources.mjs",
       ],
       thresholds: {
         lines: 100,

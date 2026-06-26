@@ -30,7 +30,9 @@ and [`requirements-summary.md`](requirements-summary.md) for status.
 │   ├── caption-format.mjs      # pure arg-parse + SVG/HTML assembly (unit-tested)
 │   ├── export-project.mjs      # editor handoff: cut spec → segments/overlays/manifest/rebuild.sh/fcpxml (I/O)
 │   ├── export-manifest.mjs     # pure manifest + ffmpeg-command + rebuild-script logic (unit-tested)
-│   └── fcpxml.mjs              # pure FCPXML generation from the manifest (unit-tested)
+│   ├── fcpxml.mjs              # pure FCPXML generation from the manifest (unit-tested)
+│   ├── analyze-sources.mjs     # multiple-source input: files/folders → per-source analysis → sources.json (I/O)
+│   └── sources.mjs             # pure source-id + sources-manifest logic (unit-tested)
 ├── skills/
 │   └── video-studio/SKILL.md   # the pipeline Claude follows — primary interface
 ├── tests/
@@ -41,12 +43,13 @@ and [`requirements-summary.md`](requirements-summary.md) for status.
 │   ├── caption-format.test.ts  # unit tests for tools/caption-format.mjs
 │   ├── export-manifest.test.ts # unit tests for tools/export-manifest.mjs
 │   ├── fcpxml.test.ts          # unit tests for tools/fcpxml.mjs
+│   ├── sources.test.ts         # unit tests for tools/sources.mjs
 │   └── packaging.test.ts       # guards machine-path leaks + the promo-assets packaging
 ├── promo-assets/               # worked-example assembly scripts (sources shipped via promo-assets/*.{mjs,sh}; generated SVGs + nested node_modules excluded)
 ├── docs/
 │   ├── requirements.md         # source-of-truth requirements (shipped pipeline)
 │   ├── editor-handoff.md       # export segments + overlays + manifest + FCPXML (shipped, VS-24/25)
-│   ├── multiple-sources.md     # DESIGN: draw from many files/folders (VS-18)
+│   ├── multiple-sources.md     # draw from many files/folders (shipped, VS-26)
 │   ├── multicam.md             # DESIGN: audio-synced multi-cam (VS-19, deferred)
 │   ├── releasing.md            # release + npm trusted-publisher setup
 │   ├── manual-test-plan.md     # manual checklist for the external-tool pipeline
@@ -108,7 +111,7 @@ used by the `gen-readme-*` scripts).
 Coverage is enforced (100% l/b/f/s) on the pure modules in `vitest.config.ts`
 `coverage.include`: `src/scene-math.ts`, `src/resumable-error.ts`,
 `src/analyzer-cli.ts`, `src/analyzer-state.ts`, `tools/caption-format.mjs`,
-`tools/export-manifest.mjs`, `tools/fcpxml.mjs`. The
+`tools/export-manifest.mjs`, `tools/fcpxml.mjs`, `tools/sources.mjs`. The
 I/O code (`analyzer.ts` orchestration, `ffmpeg.ts`, `ollama.ts`, the `bin/`
 launcher, `render-caption.mjs`'s Chromium path) is manual-test territory.
 
@@ -140,10 +143,12 @@ launcher, `render-caption.mjs`'s Chromium path) is manual-test territory.
 | caption arg parsing / SVG-HTML assembly | `tools/caption-format.mjs` |
 | caption Chromium render pipeline | `tools/render-caption.mjs` |
 | editor-handoff export (segments/overlays/manifest/rebuild) | `tools/export-project.mjs` (I/O) + `tools/export-manifest.mjs` + `tools/fcpxml.mjs` (pure) |
+| multiple-source input → sources.json | `tools/analyze-sources.mjs` (I/O) + `tools/sources.mjs` (pure) |
 | tool detection / brew install / skill install / launch | `bin/video-studio.mjs` |
 | the editing pipeline Claude runs | `skills/video-studio/SKILL.md` |
 | what the toolkit must do | `docs/requirements.md` |
-| design-only feature specs (export/FCPXML, multi-source, multi-cam) | `docs/editor-handoff.md`, `docs/multiple-sources.md`, `docs/multicam.md` |
+| editor-handoff + multi-source feature specs (shipped) | `docs/editor-handoff.md`, `docs/multiple-sources.md` |
+| multi-cam spec (design-only, deferred) | `docs/multicam.md` |
 | how to release | `docs/releasing.md` + `scripts/release.sh` |
 | manual pipeline tests | `docs/manual-test-plan.md` |
 | README demo media + how it's regenerated | `docs/media/` + `scripts/gen-readme-media.sh` |

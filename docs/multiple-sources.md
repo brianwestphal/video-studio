@@ -1,6 +1,6 @@
 # Multiple Source Videos
 
-Status: **Design only** (not yet implemented). Covers VS-18.
+Status: **Implemented** (VS-26 — `tools/analyze-sources.mjs`, pure logic in `tools/sources.mjs`). Covers VS-18.
 
 > **Early concept.** Design intent for a pre-1.0 feature; details may change.
 

@@ -82,6 +82,16 @@ Write a cut spec (see [`editor-handoff.md`](editor-handoff.md)) referencing real
 | 5.4 | `bash out/rebuild.sh rebuilt.mov` | Re-composites the exact cut — duration equals `manifest.project.totalTimecode`; frame-sampling shows overlays composited at their target times. |
 | 5.5 | Import `<name>.fcpxml` into Final Cut Pro | Segments land on the primary storyline in order at their target ranges; overlays appear as connected clips (lane 1) above their segments; clips conform at the project fps with no warnings; overlays carry transparency. |
 
+## 6. Multiple-source input (`tools/analyze-sources.mjs`)
+
+| # | Step | Expected |
+|---|------|----------|
+| 6.1 | `node tools/analyze-sources.mjs <folder-with-mixed-clips> --data-dir /tmp/vs --out /tmp/sources.json` | Recurses the folder, picks up only video files (ignores `.txt`/`.svg`/etc.), analyzes each into `/tmp/vs/<id>/`, and writes `sources.json`. |
+| 6.2 | Pass a **mix** of explicit files and folders, with a duplicate path | The duplicate is de-duped; each source gets a stable slug id (`Interview Take 1.mp4` → `interview-take-1`); colliding names disambiguate (`clip`, `clip-2`). |
+| 6.3 | Inspect `sources.json` | `sources[]` lists each id/path/fps/width/height/duration/sceneCount (fps may differ between sources); `scenes[]` is the union, each tagged with `sourceId` + source-relative timecodes. |
+| 6.4 | Re-run the same command | Per-source analysis **resumes** (the analyzer caches per file); already-extracted frames aren't redone. |
+| 6.5 | Build a cut spec drawing clips from two different sources → `export-project` | Segments extract from the correct source files; the export conforms them to the one project fps/size. |
+
 ## Automated Coverage Summary
 
 Covered by unit tests (do **not** re-test by hand):

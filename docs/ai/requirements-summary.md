@@ -16,13 +16,12 @@ sync with the requirements doc and code; the source wins on conflict.
 | The skill | R6.1–R6.5 | **Shipped** |
 | Quality gates | R7.1–R7.4 | **Shipped** |
 | Editor handoff (segments + overlays + manifest/FCPXML) | [`editor-handoff.md`](../editor-handoff.md) | **Shipped** — export + manifest + rebuild (VS-24) + FCPXML (VS-25) |
-| Multiple source videos | [`multiple-sources.md`](../multiple-sources.md) | **Design only** (VS-18) |
+| Multiple source videos | [`multiple-sources.md`](../multiple-sources.md) | **Shipped** (VS-26) |
 | Multi-cam editing | [`multicam.md`](../multicam.md) | **Design only** (VS-19, deferred) |
 
-The core single-source pipeline is functionally complete for its early-concept
-scope. The three design-only areas above (a more flexible, FCP-interoperable
-editor) are specified but not built — see their docs and the implementation
-follow-up tickets.
+The core pipeline plus the editor handoff (export + FCPXML) and multi-source
+input are shipped. Only **multi-cam** remains design-only (deferred) — see its
+doc and follow-up ticket VS-27.
 
 ## Per-area notes
 
@@ -56,10 +55,12 @@ follow-up tickets.
   manifest + `rebuild.sh` (VS-24) **and** a Final Cut Pro `.fcpxml` (VS-25). Pure
   logic + 100% tests in `tools/export-manifest.mjs` + `tools/fcpxml.mjs`. See
   [`editor-handoff.md`](../editor-handoff.md).
-- **Multiple sources / multi-cam (Design only)** — draw from a pool of
-  files/folders ([`multiple-sources.md`](../multiple-sources.md), VS-26); and
-  FCP-style audio-synced multi-cam ([`multicam.md`](../multicam.md), VS-27,
-  deferred). Specified but not built.
+- **Multiple sources (Shipped)** — `tools/analyze-sources.mjs` expands files/folders
+  into a source pool, analyzes each independently, and writes `sources.json`
+  (sources + scenes tagged with `sourceId`). Pure id/manifest logic + 100% tests
+  in `tools/sources.mjs` (VS-26). Cuts draw across sources by `(sourceId, in, out)`.
+- **Multi-cam (Design only)** — FCP-style audio-synced multi-cam
+  ([`multicam.md`](../multicam.md), VS-27, deferred). Specified but not built.
 
 ## Known gaps / follow-ups
 

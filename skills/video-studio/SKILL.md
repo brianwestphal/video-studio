@@ -22,6 +22,12 @@ node "$TOOLKIT/dist/analyzer.js" "$VIDEO" "$DATADIR" --out "$WORK/video-scenes.j
 ```
 This does a full-decode scene detection (slow, cached/resumable) and **extracts one representative frame per scene** into `$DATADIR/frames/`. Each JSON record is frame-accurate — `start`/`end` as `HH:MM:SS:FF`, plus `startFrame`/`endFrame`/`startSeconds`/`endSeconds`, a **`framePath`**, and a blank `description`.
 
+**Multiple sources?** When the user has several clips / folders to draw from, analyze them all at once:
+```bash
+node "$TOOLKIT/tools/analyze-sources.mjs" <file-or-folder>… --data-dir "$DATADIR" --out "$WORK/sources.json"
+```
+It expands folders (recursed, video extensions), gives each source a stable `id`, runs the analyzer per source, and writes `sources.json` (each source's `id`/path/fps/size + the union of scenes tagged with `sourceId`, source-relative times). Design cuts across sources by `(sourceId, in, out)`; resolve `sourceId` → the source path when you build the export cut spec (each cut clip carries its own `source`, so export/compositing already handles mixed sources — conform to one project fps/size). See [`docs/multiple-sources.md`](../../docs/multiple-sources.md).
+
 **Then describe the scenes yourself:** to get an overview cheaply, tile the per-scene frames into contact sheets and Read those, rather than 50 separate reads:
 ```bash
 ffmpeg -y -i "$DATADIR/frames/scene-%04d.jpg" -vf "scale=320:-1,tile=6x6" "$WORK/contact-%d.png"
