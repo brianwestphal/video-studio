@@ -49,7 +49,7 @@ async function runAnalysis(config: Config): Promise<void> {
   if (!state || state.scenes.length === 0) {
     console.log(`Detecting scene boundaries (threshold ${SCENE_THRESHOLD})...`);
     const [cutTimes, info] = await Promise.all([detectSceneChanges(videoPath, SCENE_THRESHOLD), getVideoInfo(videoPath)]);
-    const totalFrames = Math.round(info.duration * info.fps);
+    const totalFrames = info.totalFrames;
     const scenes = buildScenes(cutTimes, totalFrames, info.fps);
 
     state = {

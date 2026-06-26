@@ -26,6 +26,29 @@ export function parseFps(rate: string | undefined): number {
   return den ? num / den : NaN;
 }
 
+// Best estimate of the number of decodable video frames. Prefer the video
+// stream's own reported count/duration over the container's: a container can run
+// longer than its video stream (e.g. a trailing audio tail), and overcounting
+// here pushes scene boundaries — and the representative-frame seek — past the
+// last real frame, which makes ffmpeg fail. Falls back to the container duration
+// only when the stream gives us nothing usable.
+export function videoFrameCount(opts: {
+  nbFrames?: string | number | undefined;
+  streamDuration?: string | number | undefined;
+  formatDuration: number;
+  fps: number;
+}): number {
+  const toNum = (v: string | number | undefined): number => (typeof v === "string" ? parseFloat(v) : (v ?? NaN));
+
+  const nb = toNum(opts.nbFrames);
+  if (Number.isFinite(nb) && nb > 0) return Math.floor(nb);
+
+  const sd = toNum(opts.streamDuration);
+  if (Number.isFinite(sd) && sd > 0) return Math.floor(sd * opts.fps);
+
+  return Math.floor(opts.formatDuration * opts.fps);
+}
+
 // Convert detected cut times (seconds) into frame-accurate [startFrame, endFrame)
 // scene ranges, snapping each cut to the nearest frame and merging boundaries
 // closer together than `minSceneSec`.

@@ -7,7 +7,11 @@ import * as path from "path";
 
 import type { Scene } from "./scene-math.js";
 
-export const STATE_VERSION = 2; // bumped: scenes are now frame-based
+// Bump when the meaning of persisted scenes changes so stale caches are ignored:
+//   2 — scenes became frame-based
+//   3 — frame count derived from the video stream, not the container (VS-15);
+//       v2 caches can hold a phantom final scene past the last real frame.
+export const STATE_VERSION = 3;
 
 // Everything we persist between runs so a re-run can resume instead of redoing work.
 export interface PersistedState {

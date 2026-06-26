@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildScenes, formatTimecode, parseFps } from "../src/scene-math.js";
+import { buildScenes, formatTimecode, parseFps, videoFrameCount } from "../src/scene-math.js";
 
 describe("parseFps", () => {
   it("parses an integer rational like 24/1", () => {
@@ -62,6 +62,35 @@ describe("formatTimecode", () => {
   it("rounds non-integer fps to the nearest whole frame count", () => {
     // 29.97 rounds to 30; frame 30 → 1 second, 0 frames
     expect(formatTimecode(30, 29.97)).toBe("00:00:01:00");
+  });
+});
+
+describe("videoFrameCount", () => {
+  it("prefers the stream's nb_frames (as a string, the ffprobe shape)", () => {
+    // Container says 734.122s*24=17618.9 frames, but the stream only has 17529.
+    expect(videoFrameCount({ nbFrames: "17529", streamDuration: "730.375", formatDuration: 734.122, fps: 24 })).toBe(17529);
+  });
+
+  it("accepts nb_frames as a number", () => {
+    expect(videoFrameCount({ nbFrames: 100, formatDuration: 10, fps: 24 })).toBe(100);
+  });
+
+  it("falls back to the stream duration when nb_frames is missing", () => {
+    expect(videoFrameCount({ nbFrames: undefined, streamDuration: "730.375", formatDuration: 734.122, fps: 24 })).toBe(Math.floor(730.375 * 24));
+  });
+
+  it("ignores a non-positive / unparseable nb_frames", () => {
+    expect(videoFrameCount({ nbFrames: "0", streamDuration: 10, formatDuration: 12, fps: 24 })).toBe(240);
+    expect(videoFrameCount({ nbFrames: "N/A", streamDuration: 10, formatDuration: 12, fps: 24 })).toBe(240);
+  });
+
+  it("falls back to the container duration when the stream gives nothing usable", () => {
+    expect(videoFrameCount({ nbFrames: undefined, streamDuration: undefined, formatDuration: 5, fps: 24 })).toBe(120);
+    expect(videoFrameCount({ nbFrames: "N/A", streamDuration: "N/A", formatDuration: 5, fps: 24 })).toBe(120);
+  });
+
+  it("floors fractional duration-based counts (never overcounts past the last frame)", () => {
+    expect(videoFrameCount({ streamDuration: 2.99, formatDuration: 2.99, fps: 24 })).toBe(71); // 71.76 -> 71
   });
 });
 

@@ -5,14 +5,17 @@ import { spawn } from "child_process";
 import ffmpeg from "fluent-ffmpeg";
 
 import { ResumableError } from "./resumable-error.js";
-import { parseFps } from "./scene-math.js";
+import { parseFps, videoFrameCount } from "./scene-math.js";
 
 export interface VideoInfo {
-  duration: number; // seconds
+  duration: number; // seconds (container)
   fps: number; // frames per second
+  totalFrames: number; // decodable video frames (from the video stream, not the container)
 }
 
-// Probe duration (seconds) and frame rate — both needed for frame-accurate output.
+// Probe duration (seconds), frame rate, and the real video-frame count — all
+// needed for frame-accurate output. `totalFrames` comes from the video stream so
+// a longer container (e.g. an audio tail) doesn't push boundaries past EOF.
 export function getVideoInfo(videoPath: string): Promise<VideoInfo> {
   return new Promise((resolve, reject) => {
     ffmpeg.ffprobe(videoPath, (err, data) => {
@@ -26,7 +29,13 @@ export function getVideoInfo(videoPath: string): Promise<VideoInfo> {
       if (!fps || Number.isNaN(fps)) {
         return reject(new Error("Could not determine video frame rate."));
       }
-      resolve({ duration, fps });
+      const totalFrames = videoFrameCount({
+        nbFrames: vstream?.nb_frames,
+        streamDuration: vstream?.duration,
+        formatDuration: duration,
+        fps,
+      });
+      resolve({ duration, fps, totalFrames });
     });
   });
 }
