@@ -1,0 +1,56 @@
+{
+  "name": "video-studio",
+  "version": "2.0.0",
+  "description": "macOS toolkit for turning long videos into promo cuts: frame-accurate scene analysis (ffmpeg + Ollama vision), whisper word-level timing, domotion-svg title cards/overlays, and ffmpeg compositing — driven from Claude via a skill.",
+  "keywords": [
+    "video",
+    "ffmpeg",
+    "scene-detection",
+    "ollama",
+    "whisper",
+    "domotion",
+    "claude",
+    "skill"
+  ],
+  "license": "MIT",
+  "author": "Brian Westphal <brian.westphal@bleugris.com>",
+  "type": "commonjs",
+  "main": "dist/analyzer.js",
+  "types": "dist/analyzer.d.ts",
+  "bin": {
+    "video-studio": "bin/video-studio.mjs",
+    "video-scene-analyzer": "dist/analyzer.js"
+  },
+  "files": [
+    "bin",
+    "dist",
+    "src",
+    "skills",
+    "tools",
+    "tsconfig.json"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist",
+    "rebuild": "npm run clean && npm run build",
+    "watch": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "studio": "node bin/video-studio.mjs",
+    "doctor": "node bin/video-studio.mjs --check",
+    "start": "node dist/analyzer.js",
+    "prepublishOnly": "npm run rebuild"
+  },
+  "dependencies": {
+    "domotion-svg": "^0.15.0",
+    "fluent-ffmpeg": "^2.1.3",
+    "ollama": "^0.6.3"
+  },
+  "devDependencies": {
+    "@types/fluent-ffmpeg": "^2.1.28",
+    "@types/node": "^25.9.2",
+    "typescript": "^6.0.3"
+  }
+}
