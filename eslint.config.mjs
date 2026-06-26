@@ -62,9 +62,10 @@ export default [
     },
   },
 
-  // Node ESM scripts: the launcher, the caption tools, and any .mjs tests.
+  // Node ESM scripts: the launcher, the caption tools, the shipped worked-example
+  // scripts, and any .mjs tests.
   {
-    files: ["bin/**/*.mjs", "tools/**/*.mjs", "tests/**/*.mjs"],
+    files: ["bin/**/*.mjs", "tools/**/*.mjs", "promo-assets/**/*.mjs", "tests/**/*.mjs"],
     languageOptions: {
       ecmaVersion: "latest",
       sourceType: "module",
@@ -84,8 +85,9 @@ export default [
       "node_modules/**",
       "analysis-data/**",
       "frames/**",
-      // Worked-example assembly scripts, kept for reference, not linted.
-      "promo-assets/**",
+      // The worked-example .mjs sources ARE linted (see the Node-ESM block); only
+      // the example's own installed deps are skipped.
+      "promo-assets/node_modules/**",
     ],
   },
 ];

@@ -75,6 +75,18 @@ Covered by unit tests (do **not** re-test by hand):
 
 - **`src/scene-math.ts`** — `parseFps`, `buildScenes`, `formatTimecode`
   (`tests/scene-math.test.ts`). 100% coverage.
+- **`src/analyzer-cli.ts`** — `parseArgs` flag handling + validation exits
+  (`tests/analyzer-cli.test.ts`). 100% coverage. (The §1.3 `--help` and the
+  invalid-flag rows above are now unit-covered for the *analyzer* CLI; the
+  launcher's `--help` is still manual.)
+- **`src/analyzer-state.ts`** — `loadState` / `saveState` round-trip, version +
+  corrupt-file handling, `stateMatchesVideo` (`tests/analyzer-state.test.ts`).
+  100% coverage — so the §2.2/§2.3 *resume vs. start-fresh decision logic* is
+  unit-covered; the end-to-end ffmpeg resume in those rows is still manual.
+- **`src/resumable-error.ts`** — `classifyOllamaError` connection/model/generic
+  branches (`tests/resumable-error.test.ts`). 100% coverage — the §2.5/§2.6
+  error *classification* is unit-covered; the rows stay to verify the real
+  Ollama failure actually triggers them.
 - **`tools/caption-format.mjs`** — `parseArgs`, `namespaceSvgIds`, `iconImg`,
   `block`, `wrapPos`, `buildPage`, `buildSpecs` (`tests/caption-format.test.ts`).
   100% coverage.

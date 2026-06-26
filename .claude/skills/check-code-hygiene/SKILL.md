@@ -18,11 +18,13 @@ published package.
   export where there is one (`scene-math.ts` exports the scene math;
   `caption-format.mjs` exports the caption formatters). Flag a name that matches
   neither convention nor its primary export.
-- **Module layout.** Pure, testable logic belongs in `src/scene-math.ts` /
-  `tools/caption-format.mjs` (no import-time side effects). Orchestration with
-  I/O belongs in `src/analyzer.ts` / `tools/render-caption.mjs` / `bin/`. Flag
-  pure logic that has leaked back into an entry file, or a side effect that has
-  leaked into a "pure" module.
+- **Module layout.** Pure, testable logic lives in dedicated side-effect-free
+  modules: `src/scene-math.ts`, `src/analyzer-cli.ts`, `src/analyzer-state.ts`,
+  `src/resumable-error.ts`, and `tools/caption-format.mjs`. I/O / orchestration
+  belongs in `src/analyzer.ts` (the run pipeline), `src/ffmpeg.ts`, `src/ollama.ts`,
+  `tools/render-caption.mjs`, and `bin/`. Flag pure logic that has leaked back
+  into an entry/I/O file, or a side effect (fs/network/`process.exit` at module
+  scope) that has leaked into a "pure" module.
 - **Identifier casing.** camelCase values, PascalCase types, SCREAMING_SNAKE
   module constants (`SCENE_THRESHOLD`, `MIN_SCENE_SEC`, `DEFAULT_MODEL`,
   `STATE_VERSION`). Flag inconsistencies.
@@ -31,7 +33,8 @@ published package.
   enforces order; if `npm run lint` is clean, ordering is fine. The `.js`
   extension check is yours.
 - **Error message style.** The analyzer throws *resumable* errors with a message
-  + actionable instructions (`ResumableError`, `classifyOllamaError`). New
+  + actionable instructions (`ResumableError`, `classifyOllamaError`, both in
+  `src/resumable-error.ts`). New
   user-facing failures should follow that pattern; flag terse
   `throw new Error('failed')` throws on a user path.
 
@@ -49,9 +52,12 @@ published package.
   both missing-when-needed and noise-when-not.
 
 ### 3. Maintenance complexity
-- **Coupling.** `analyzer.ts` → `scene-math.ts` and `render-caption.mjs` →
-  `caption-format.mjs` are the intended one-way dependencies. Flag any new
-  cross-coupling or a back-import from a pure module into an entry file.
+- **Coupling.** Dependencies flow one way, from the orchestrator/I/O toward the
+  pure modules: `analyzer.ts` imports `analyzer-cli`/`analyzer-state`/`ffmpeg`/
+  `ollama`/`resumable-error`/`scene-math`; `ffmpeg.ts` imports `resumable-error`
+  + `scene-math`; `render-caption.mjs` imports `caption-format.mjs`. Flag any
+  back-import (a pure module importing the orchestrator or an I/O module) or a
+  new cross-coupling between two pure modules.
 - **Shared mutable state.** The analyzer's state object is threaded through
   `runAnalysis` and persisted; there should be no module-level mutable
   singletons. Flag any new one.

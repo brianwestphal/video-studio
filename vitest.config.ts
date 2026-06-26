@@ -9,10 +9,16 @@ export default defineConfig({
       provider: "v8",
       reporter: ["text", "html", "lcov"],
       // Coverage is enforced on the *pure, unit-testable* logic. The ffmpeg /
-      // whisper / ollama / chromium orchestration in analyzer.ts, the launcher
-      // (bin/), and render-caption.mjs cannot be exercised without those
-      // external tools — they are covered by docs/manual-test-plan.md instead.
-      include: ["src/scene-math.ts", "tools/caption-format.mjs"],
+      // whisper / ollama / chromium orchestration (analyzer.ts, ffmpeg.ts,
+      // ollama.ts, the launcher in bin/, render-caption.mjs) cannot be exercised
+      // without those external tools — they are covered by docs/manual-test-plan.md.
+      include: [
+        "src/scene-math.ts",
+        "src/resumable-error.ts",
+        "src/analyzer-cli.ts",
+        "src/analyzer-state.ts",
+        "tools/caption-format.mjs",
+      ],
       thresholds: {
         lines: 100,
         functions: 100,

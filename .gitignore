@@ -22,7 +22,9 @@ npm-debug.log*
 .DS_Store
 .idea/
 .vscode/
+.mcp.json
 .claude/settings.local.json
 /.hotsheet/*
 !/.hotsheet/settings.json
-.mcp.json
+/.glassbox/*
+!/.glassbox/settings.json

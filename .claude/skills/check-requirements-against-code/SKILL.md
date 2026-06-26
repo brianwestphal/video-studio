@@ -21,9 +21,12 @@ check** (don't just report them).
    implementation and confirm the behavior matches:
    - R3 (launcher) → `bin/video-studio.mjs` (flags, macOS guard, skill install +
      `{{TOOLKIT_DIR}}` substitution).
-   - R4 (analyzer) → `src/analyzer.ts` (`SCENE_THRESHOLD`, detection, frame
-     extraction, resume/state keyed to path+size+mtime, atomic writes,
-     resumable errors) + `src/scene-math.ts` (`parseFps`, `buildScenes`/
+   - R4 (analyzer) → `src/analyzer.ts` (`SCENE_THRESHOLD`, the `runAnalysis`
+     orchestration) + `src/ffmpeg.ts` (detection, probe, frame extraction) +
+     `src/analyzer-state.ts` (resume/state keyed to path+size+mtime, atomic
+     writes) + `src/resumable-error.ts` (`classifyOllamaError`) +
+     `src/analyzer-cli.ts` (flags, `DEFAULT_MODEL`) + `src/ollama.ts`
+     (`analyzeFrame`) + `src/scene-math.ts` (`parseFps`, `buildScenes`/
      `MIN_SCENE_SEC`, `formatTimecode`).
    - R5 (overlays) → `tools/render-caption.mjs` + `tools/caption-format.mjs`
      (styles, positions, options, validation, baked hold).
@@ -43,18 +46,20 @@ check** (don't just report them).
 5. **Verify `CLAUDE.md` is accurate.** Specifically the filled-in
    `specifics=testing-philosophy` and `specifics=requirements-documentation`
    blocks: the commands they list (`npm run lint/typecheck/test/check`) exist in
-   `package.json`; the coverage claim (100% on `src/scene-math.ts` +
-   `tools/caption-format.mjs`) matches `vitest.config.ts`; the doc paths they
-   name exist on disk.
+   `package.json`; the coverage claim (100% on the pure modules —
+   `src/scene-math.ts`, `src/analyzer-cli.ts`, `src/analyzer-state.ts`,
+   `src/resumable-error.ts`, `tools/caption-format.mjs`) matches
+   `vitest.config.ts` `coverage.include`; the doc paths they name exist on disk.
 
 6. **Synchronize `docs/ai/codebase-map.md`.** Confirm and edit in place:
    - The **directory tree** matches the actual tracked files (use `Glob`/`ls`).
    - **Entry points** table matches `package.json` `bin` + the tools.
-   - **Data shapes** match `PersistedState`/`SceneSegment` and `STATE_VERSION`
-     in `src/analyzer.ts`.
+   - **Data shapes** match `PersistedState`/`STATE_VERSION` (`src/analyzer-state.ts`)
+     and `SceneSegment` (`src/analyzer.ts`).
    - **Build/test/lint** commands match `package.json` scripts.
-   - **Settings / tuning constants** match the code (`SCENE_THRESHOLD`,
-     `MIN_SCENE_SEC`, `DEFAULT_MODEL`, coverage config).
+   - **Settings / tuning constants** match the code (`SCENE_THRESHOLD` in
+     `analyzer.ts`, `MIN_SCENE_SEC` in `scene-math.ts`, `DEFAULT_MODEL` in
+     `analyzer-cli.ts`, `STATE_VERSION` in `analyzer-state.ts`, coverage config).
    - **"Where do I look for X"** entries point at files that exist.
 
 7. **Synchronize `docs/ai/requirements-summary.md`.** Confirm and edit:

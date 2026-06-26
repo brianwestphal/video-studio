@@ -18,7 +18,12 @@ and [`requirements-summary.md`](requirements-summary.md) for status.
 ├── bin/
 │   └── video-studio.mjs        # launcher / doctor / skill installer (the `video-studio` bin)
 ├── src/
-│   ├── analyzer.ts             # scene analyzer entry (compiled → dist/analyzer.js, the `video-scene-analyzer` bin)
+│   ├── analyzer.ts             # scene analyzer entry + orchestration (compiled → dist/analyzer.js, the `video-scene-analyzer` bin)
+│   ├── analyzer-cli.ts         # pure CLI arg parsing + usage + Config (unit-tested)
+│   ├── analyzer-state.ts       # resumable-run state persistence (unit-tested)
+│   ├── resumable-error.ts      # ResumableError + classifyOllamaError (pure, unit-tested)
+│   ├── ffmpeg.ts               # ffprobe/ffmpeg wrappers: probe, scene-detect, frame-extract (I/O, manual-tested)
+│   ├── ollama.ts               # analyzeFrame — Ollama vision call (I/O, manual-tested)
 │   └── scene-math.ts           # pure fps/timecode/scene-merge math (unit-tested)
 ├── tools/
 │   ├── render-caption.mjs      # caption/CTA → animated SVG (Chromium pipeline)
@@ -27,7 +32,11 @@ and [`requirements-summary.md`](requirements-summary.md) for status.
 │   └── video-studio/SKILL.md   # the pipeline Claude follows — primary interface
 ├── tests/
 │   ├── scene-math.test.ts      # unit tests for src/scene-math.ts
-│   └── caption-format.test.ts  # unit tests for tools/caption-format.mjs
+│   ├── analyzer-cli.test.ts    # unit tests for src/analyzer-cli.ts
+│   ├── analyzer-state.test.ts  # unit tests for src/analyzer-state.ts
+│   ├── resumable-error.test.ts # unit tests for src/resumable-error.ts
+│   ├── caption-format.test.ts  # unit tests for tools/caption-format.mjs
+│   └── packaging.test.ts       # guards machine-path leaks + the promo-assets packaging
 ├── promo-assets/               # worked-example assembly scripts (sources shipped via promo-assets/*.{mjs,sh}; generated SVGs + nested node_modules excluded)
 ├── docs/
 │   ├── requirements.md         # source-of-truth requirements
@@ -61,11 +70,12 @@ Generated/ignored: `dist/`, `coverage/`, `node_modules/`, `analysis-data/`,
 
 ## Data shapes (analyzer)
 
-- **Persisted state** `<dataDir>/state.json` (`PersistedState`, `STATE_VERSION = 2`):
-  `version`, `videoPath`, `videoSize`, `videoMtimeMs`, `duration`, `fps`,
-  `scenes: {startFrame,endFrame}[]`, `descriptions: Record<sceneIndex,string>`.
-  Reused only if path+size+mtime match the current video.
-- **Timeline record** `<dataDir>/timeline.json` + `--out` (`SceneSegment`):
+- **Persisted state** `<dataDir>/state.json` (`PersistedState`, `STATE_VERSION = 2`,
+  both in `src/analyzer-state.ts`): `version`, `videoPath`, `videoSize`,
+  `videoMtimeMs`, `duration`, `fps`, `scenes: {startFrame,endFrame}[]`,
+  `descriptions: Record<sceneIndex,string>`. Reused only if path+size+mtime match
+  the current video.
+- **Timeline record** `<dataDir>/timeline.json` + `--out` (`SceneSegment`, in `src/analyzer.ts`):
   `start`/`end` (`HH:MM:SS:FF`), `startFrame`, `endFrame`, `startSeconds`,
   `endSeconds`, `framePath`, `description`.
 
@@ -80,9 +90,11 @@ Generated/ignored: `dist/`, `coverage/`, `node_modules/`, `analysis-data/`,
 | Everything | `npm run check` (lint → typecheck → test → build) |
 | Run launcher | `npm run studio` · doctor `npm run doctor` |
 
-Coverage is enforced (100% l/b/f/s) **only** on `src/scene-math.ts` and
-`tools/caption-format.mjs` (`vitest.config.ts` `coverage.include`). The
-ffmpeg/whisper/ollama/Chromium code is manual-test territory.
+Coverage is enforced (100% l/b/f/s) on the pure modules in `vitest.config.ts`
+`coverage.include`: `src/scene-math.ts`, `src/resumable-error.ts`,
+`src/analyzer-cli.ts`, `src/analyzer-state.ts`, `tools/caption-format.mjs`. The
+I/O code (`analyzer.ts` orchestration, `ffmpeg.ts`, `ollama.ts`, the `bin/`
+launcher, `render-caption.mjs`'s Chromium path) is manual-test territory.
 
 ## Settings / config
 
@@ -90,11 +102,12 @@ ffmpeg/whisper/ollama/Chromium code is manual-test territory.
   `exactOptionalPropertyTypes`; `rootDir: src` → `outDir: dist`.
 - `eslint.config.mjs` — `.mjs` (package is `type: commonjs`); 3 passes:
   type-aware TS on `src/**`, parser-only TS on `tests/**`, Node-ESM on
-  `bin/`+`tools/`+`tests/**.mjs`. Ignores `dist`, `coverage`, `analysis-data`,
-  `frames`, `promo-assets`.
+  `bin/`+`tools/`+`promo-assets/`+`tests/**.mjs`. Ignores `dist`, `coverage`,
+  `analysis-data`, `frames`, `promo-assets/node_modules`.
 - `vitest.config.ts` — node env; coverage `include` + 100% thresholds.
-- Analyzer tuning constants: `SCENE_THRESHOLD = 0.4` and
-  `DEFAULT_MODEL = "gemma4:12b"` (`src/analyzer.ts`); `MIN_SCENE_SEC = 1.0`
+- Analyzer tuning constants: `SCENE_THRESHOLD = 0.4` (`src/analyzer.ts`);
+  `DEFAULT_MODEL = "gemma4:12b"` + `DEFAULT_DATA_DIR` (`src/analyzer-cli.ts`);
+  `STATE_VERSION = 2` (`src/analyzer-state.ts`); `MIN_SCENE_SEC = 1.0`
   (`src/scene-math.ts`).
 
 ## Where do I look for X?
@@ -102,8 +115,12 @@ ffmpeg/whisper/ollama/Chromium code is manual-test territory.
 | Need | Look in |
 |------|---------|
 | fps parsing / timecode / scene merging | `src/scene-math.ts` |
-| scene detection, frame extraction, resume/state, Ollama | `src/analyzer.ts` |
-| analyzer CLI flags | `parseArgs` in `src/analyzer.ts` |
+| analyzer orchestration (the run pipeline) | `runAnalysis` in `src/analyzer.ts` |
+| analyzer CLI flags / usage | `src/analyzer-cli.ts` (`parseArgs`) |
+| resumable-run state load/save/match | `src/analyzer-state.ts` |
+| ffmpeg probe / scene-detect / frame-extract | `src/ffmpeg.ts` |
+| Ollama vision call | `src/ollama.ts` (`analyzeFrame`) |
+| Ollama/ffmpeg error → fix-and-resume message | `src/resumable-error.ts` (`classifyOllamaError`) |
 | caption arg parsing / SVG-HTML assembly | `tools/caption-format.mjs` |
 | caption Chromium render pipeline | `tools/render-caption.mjs` |
 | tool detection / brew install / skill install / launch | `bin/video-studio.mjs` |

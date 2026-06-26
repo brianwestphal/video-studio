@@ -29,8 +29,11 @@ open items below are packaging / polish, not missing core behavior.
   `{{TOOLKIT_DIR}}` substitution.
 - **Scene analyzer (R4)** — Shipped. Frame-accurate detection, resumable
   state keyed to path+size+mtime, atomic writes, classified resumable errors.
-  Pure math (fps/timecode/scene-merge) extracted to `src/scene-math.ts` and
-  unit-tested to 100%.
+  `src/analyzer.ts` is now just orchestration (149 LOC); the pure/testable logic
+  is split into `src/scene-math.ts` (math), `src/analyzer-cli.ts` (arg parsing),
+  `src/analyzer-state.ts` (state persistence), and `src/resumable-error.ts`
+  (error classification) — all unit-tested to 100%. The ffmpeg/ollama wrappers
+  live in `src/ffmpeg.ts` / `src/ollama.ts` (manual-tested).
 - **Overlay generator (R5)** — Shipped. All styles/positions/options present;
   pure arg-parse + SVG/HTML assembly extracted to `tools/caption-format.mjs`
   and unit-tested to 100%; the Chromium render stays in `render-caption.mjs`.

@@ -97,8 +97,9 @@ timeline or edit decision list.
 
 ## 7. Quality gates
 
-- **R7.1** Pure logic (`src/scene-math.ts`, `tools/caption-format.mjs`) is
-  unit-tested to 100% lines/branches/functions/statements (Vitest).
+- **R7.1** Pure logic (`src/scene-math.ts`, `src/analyzer-cli.ts`,
+  `src/analyzer-state.ts`, `src/resumable-error.ts`, `tools/caption-format.mjs`)
+  is unit-tested to 100% lines/branches/functions/statements (Vitest).
 - **R7.2** The external-tool pipeline is covered by
   [`manual-test-plan.md`](manual-test-plan.md).
 - **R7.3** `npm run check` (lint → typecheck → test → build) must pass before a

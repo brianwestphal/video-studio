@@ -51,7 +51,7 @@
     "rebuild": "npm run clean && npm run build",
     "watch": "tsc --watch",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint src bin tools tests",
+    "lint": "eslint src bin tools tests promo-assets",
     "test": "vitest run --coverage",
     "test:watch": "vitest",
     "check": "npm run lint && npm run typecheck && npm test && npm run build",

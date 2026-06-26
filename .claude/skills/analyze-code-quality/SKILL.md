@@ -17,11 +17,12 @@ launcher/tools + a Claude skill), so expect a short, focused report.
    Report: total tests, pass/fail, and the coverage table. Coverage is enforced
    at **100% lines/branches/functions/statements** but only on the pure modules
    in `vitest.config.ts` `coverage.include` (`src/scene-math.ts`,
-   `tools/caption-format.mjs`). Flag any drop below 100% on those. The
-   external-tool code (analyzer pipeline, launcher, `render-caption.mjs`
-   Chromium path) is intentionally **not** covered here — it's in
-   `docs/manual-test-plan.md`; do not flag it as missing coverage, but DO check
-   the manual plan still lists it (step 6).
+   `src/analyzer-cli.ts`, `src/analyzer-state.ts`, `src/resumable-error.ts`,
+   `tools/caption-format.mjs`). Flag any drop below 100% on those. The I/O code
+   (`analyzer.ts` orchestration, `src/ffmpeg.ts`, `src/ollama.ts`, the launcher,
+   `render-caption.mjs`'s Chromium path) is intentionally **not** covered here —
+   it's in `docs/manual-test-plan.md`; do not flag it as missing coverage, but DO
+   check the manual plan still lists it (step 6).
 
 2. **Run the linter**
    ```
@@ -43,22 +44,25 @@ launcher/tools + a Claude skill), so expect a short, focused report.
 
 5. **Check for anti-patterns** (read `CLAUDE.md`, `docs/requirements.md`, and
    `docs/ai/codebase-map.md` first):
-   - **Side effects on import.** `src/analyzer.ts` and `tools/render-caption.mjs`
-     call `main()` — but each must be guarded so importing the module doesn't run
-     it (render-caption uses an `import.meta.url === process.argv[1]` guard).
-     Pure logic must stay in `src/scene-math.ts` / `tools/caption-format.mjs`
-     with **no top-level side effects** so it stays unit-testable. Flag any pure
-     helper that grows an import-time side effect.
+   - **Side effects on import.** The pure modules (`src/scene-math.ts`,
+     `src/analyzer-cli.ts`, `src/analyzer-state.ts`, `src/resumable-error.ts`,
+     `tools/caption-format.mjs`) must have **no top-level side effects** so they
+     stay unit-testable. The entry files run on execution: `src/analyzer.ts` calls
+     `main()` (it's the bin, never imported by tests), and `tools/render-caption.mjs`
+     guards its `main()` with an `import.meta.url === process.argv[1]` check. Flag
+     any pure module that grows an import-time side effect (fs/network/`process.exit`).
    - **`any` leaks.** Grep `src/` for `: any\b`, `as any\b`, `<any>`. The
-     codebase prefers `unknown` + narrowing (see `classifyOllamaError`). Flag any.
+     codebase prefers `unknown` + narrowing (see `classifyOllamaError` in
+     `src/resumable-error.ts`). Flag any.
    - **Dependency creep.** Open `package.json`; runtime `dependencies` should be
      just `domotion-svg`, `fluent-ffmpeg`, `ollama`. Anything else is a finding.
-   - **Hardcoded machine paths.** Grep for absolute `/Users/...` paths in
-     shipped code (`src/`, `bin/`, `tools/`). (Known: `promo-assets/` has them —
-     tracked in VS-8; flag any NEW ones in shipped dirs.)
+   - **Hardcoded machine paths.** Grep for absolute `/Users/...` paths in shipped
+     code (`src/`, `bin/`, `tools/`, `promo-assets/*.{mjs,sh}`, `scripts/`).
+     `tests/packaging.test.ts` already guards this — flag any new occurrence (and
+     confirm that test still runs).
    - **fps assumptions.** The toolkit is "24fps-aware but probe each video."
      Flag any new code that hardcodes 24 instead of using the probed fps.
-   - **Duplicated logic** between `analyzer.ts` and `scene-math.ts`, or
+   - **Duplicated logic** between `analyzer.ts` and its extracted modules, or
      `render-caption.mjs` and `caption-format.mjs` (the split should be clean —
      no copy of a pure function left behind in the entry file).
 
