@@ -151,7 +151,7 @@ function installSkills() {
   }
 }
 
-function launchClaude() {
+async function launchClaude() {
   console.log(`
 ${C.bold}Ready.${C.reset} In Claude, type ${paint("/video-studio", C.orange)} or just say what you want, e.g.:
   ${C.dim}"make a 15-second teaser from ~/Desktop/talk.mov"${C.reset}
@@ -160,6 +160,14 @@ ${C.bold}Ready.${C.reset} In Claude, type ${paint("/video-studio", C.orange)} or
 `);
   if (FLAGS.noLaunch) { info("--no-launch: not starting Claude. Run `claude` in your work dir when ready."); return; }
   if (!which("claude")) { warn("claude not found — install it, then run `claude` in your work dir."); return; }
+  // Claude's UI clears the terminal the instant it starts, covering the how-to
+  // above — so pause and let the user read it first. Skip when there's no TTY to
+  // read from, or when --yes asked for a no-prompt run.
+  if (process.stdin.isTTY && !FLAGS.yes) {
+    const rl = createInterface({ input: process.stdin, output: process.stdout });
+    await rl.question(`  ${paint("›", C.cyan)} Press ${C.bold}Enter${C.reset} to launch Claude…`);
+    rl.close();
+  }
   const child = spawn("claude", [], { cwd: workdir, stdio: "inherit" });
   child.on("exit", (code) => process.exit(code ?? 0));
 }
@@ -183,7 +191,7 @@ async function main() {
   }
   ensureNodeDeps();
   installSkills();
-  launchClaude();
+  await launchClaude();
 }
 
 main().catch((e) => { bad(String(e?.stack || e)); process.exit(1); });

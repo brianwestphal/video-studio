@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## Unreleased
 
+- **Launcher** — the launcher now pauses ("Press Enter to launch Claude…") so its getting-started splash is readable before Claude's UI takes over the terminal (skipped with `--yes` or no TTY).
 - **Docs & onboarding** — added a `README.md`, an MIT `LICENSE` file, and a `docs/` set (requirements, release guide, manual test plan, and AI-summary maps).
 - **Shippable worked examples** — the `promo-assets/` teaser + caption/wordmark example scripts now ship with the package and run anywhere (env-configurable paths; no hardcoded machine paths; use the published `domotion-svg`).
 - **Hardened toolkit** — ESLint + Vitest (100% coverage on the pure scene/timecode/caption logic), and a tag-driven release flow with CI publishing to npm with provenance.

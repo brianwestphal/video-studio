@@ -31,7 +31,8 @@ timeline or edit decision list.
 ## 3. Launcher (`bin/video-studio.mjs`, the `video-studio` bin)
 
 - **R3.1** Default run: check tools → install missing (with consent) → install
-  npm deps + build the analyzer → install the Claude skill(s) → launch `claude`
+  npm deps + build the analyzer → install the Claude skill(s) → pause for Enter
+  (when on a TTY, so the getting-started splash is readable) → launch `claude`
   in the work dir.
 - **R3.2** `--check` / `--doctor`: report tool status only; install nothing,
   launch nothing; exit message reflects whether required tools are missing.
