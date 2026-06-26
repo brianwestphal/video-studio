@@ -1,6 +1,6 @@
 {
   "name": "video-studio",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "macOS toolkit for turning long videos into promo cuts: frame-accurate scene analysis (ffmpeg + Ollama vision), whisper word-level timing, domotion-svg title cards/overlays, and ffmpeg compositing — driven from Claude via a skill.",
   "keywords": [
     "video",

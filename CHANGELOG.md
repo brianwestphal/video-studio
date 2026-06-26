@@ -13,6 +13,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - **Hardened toolkit** — ESLint + Vitest (100% coverage on the pure scene/timecode/caption logic), and a tag-driven release flow with CI publishing to npm with provenance.
 - **Internal** — the scene analyzer was split into focused modules (CLI, state, ffmpeg, ollama, error classification) with no change to its behavior or output.
 
+## [0.1.0] - 2026-06-27
+
+
+
+- Initial release of **video-studio** — a macOS toolkit for turning long videos into promo cuts, teasers, and social edits, drivable from Claude via `npx video-studio`.
+- Frame-accurate scene analyzer (ffmpeg scene detection + representative-frame extraction) with Claude describing frames by default, Ollama optional via `--describe ollama`; resumable, and emits `HH:MM:SS:FF` timecodes plus frame/second fields.
+- whisper word-level timing for precise soundbite in/out points.
+- domotion-svg title cards, captions, and overlays rendered to alpha video and composited with ffmpeg, with frame-sampled verification.
+- Documented the `--yes` flag for non-interactive runs.
+
+
+- Analyzer no longer aborts (ffmpeg exit 234) on files whose container runs longer than the video stream — frame count is now derived from the video stream, fixing a phantom final scene that seeked past EOF (e.g. Tears of Steel).
+- Bundled promo-asset examples now resolve correctly for users installing via npm.
+
+
+- Refreshed README leading with a Highlights block and animated hero teaser, a "How it works" pipeline, a "How the AI reads the video" walkthrough with scene-description and transcript excerpts, and a Credits section; added demo media and removed decorative emoji across the docs.
+
 ## [0.0.0] - 2026-06-26
 
 - Initial public concept release.
