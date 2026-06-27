@@ -50,6 +50,7 @@ and [`requirements-summary.md`](requirements-summary.md) for status.
 │   ├── requirements.md         # source-of-truth requirements (shipped pipeline)
 │   ├── editor-handoff.md       # export segments + overlays + manifest + FCPXML (shipped, VS-24/25)
 │   ├── multiple-sources.md     # draw from many files/folders (shipped, VS-26)
+│   ├── transitions.md          # DESIGN: AI FCP transition suggestions in the FCPXML (VS-23)
 │   ├── multicam.md             # DESIGN: audio-synced multi-cam (VS-19, deferred)
 │   ├── releasing.md            # release + npm trusted-publisher setup
 │   ├── manual-test-plan.md     # manual checklist for the external-tool pipeline
@@ -148,6 +149,7 @@ launcher, `render-caption.mjs`'s Chromium path) is manual-test territory.
 | the editing pipeline Claude runs | `skills/video-studio/SKILL.md` |
 | what the toolkit must do | `docs/requirements.md` |
 | editor-handoff + multi-source feature specs (shipped) | `docs/editor-handoff.md`, `docs/multiple-sources.md` |
+| FCP transition suggestions spec (design-only) | `docs/transitions.md` |
 | multi-cam spec (design-only, deferred) | `docs/multicam.md` |
 | how to release | `docs/releasing.md` + `scripts/release.sh` |
 | manual pipeline tests | `docs/manual-test-plan.md` |

@@ -17,11 +17,12 @@ sync with the requirements doc and code; the source wins on conflict.
 | Quality gates | R7.1–R7.4 | **Shipped** |
 | Editor handoff (segments + overlays + manifest/FCPXML) | [`editor-handoff.md`](../editor-handoff.md) | **Shipped** — export + manifest + rebuild (VS-24) + FCPXML (VS-25) |
 | Multiple source videos | [`multiple-sources.md`](../multiple-sources.md) | **Shipped** (VS-26) |
+| FCP transition suggestions | [`transitions.md`](../transitions.md) | **Design only** (VS-23) |
 | Multi-cam editing | [`multicam.md`](../multicam.md) | **Design only** (VS-19, deferred) |
 
 The core pipeline plus the editor handoff (export + FCPXML) and multi-source
-input are shipped. Only **multi-cam** remains design-only (deferred) — see its
-doc and follow-up ticket VS-27.
+input are shipped. Design-only: **FCP transition suggestions** ([`transitions.md`](../transitions.md), VS-23) and
+**multi-cam** ([`multicam.md`](../multicam.md), deferred) — see their docs + follow-up tickets.
 
 ## Per-area notes
 
@@ -59,6 +60,10 @@ doc and follow-up ticket VS-27.
   into a source pool, analyzes each independently, and writes `sources.json`
   (sources + scenes tagged with `sourceId`). Pure id/manifest logic + 100% tests
   in `tools/sources.mjs` (VS-26). Cuts draw across sources by `(sourceId, in, out)`.
+- **FCP transition suggestions (Design only)** — on FCPXML export, insert
+  AI-chosen built-in `<transition>` elements at cut points, tuned by video type +
+  stylistic heuristics. Requires adding segment **handles** to the export (a
+  prerequisite). [`transitions.md`](../transitions.md), VS-23.
 - **Multi-cam (Design only)** — FCP-style audio-synced multi-cam
   ([`multicam.md`](../multicam.md), VS-27, deferred). Specified but not built.
 
