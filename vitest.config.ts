@@ -21,6 +21,7 @@ export default defineConfig({
         "tools/export-manifest.mjs",
         "tools/fcpxml.mjs",
         "tools/sources.mjs",
+        "tools/multicam.mjs",
       ],
       thresholds: {
         lines: 100,

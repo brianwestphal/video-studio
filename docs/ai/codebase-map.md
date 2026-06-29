@@ -32,7 +32,9 @@ and [`requirements-summary.md`](requirements-summary.md) for status.
 │   ├── export-manifest.mjs     # pure manifest + ffmpeg-command + rebuild-script logic (unit-tested)
 │   ├── fcpxml.mjs              # pure FCPXML generation from the manifest (unit-tested)
 │   ├── analyze-sources.mjs     # multiple-source input: files/folders → per-source analysis → sources.json (I/O)
-│   └── sources.mjs             # pure source-id + sources-manifest logic (unit-tested)
+│   ├── sources.mjs             # pure source-id + sources-manifest logic (unit-tested)
+│   ├── sync-multicam.mjs       # multi-cam audio sync: ffmpeg mono extract + cross-correlation → multicam.json (I/O)
+│   └── multicam.mjs            # pure FFT cross-correlation + confidence/drift + group-manifest + angle-cut math (unit-tested)
 ├── skills/
 │   └── video-studio/SKILL.md   # the pipeline Claude follows — primary interface
 ├── tests/
@@ -44,6 +46,7 @@ and [`requirements-summary.md`](requirements-summary.md) for status.
 │   ├── export-manifest.test.ts # unit tests for tools/export-manifest.mjs
 │   ├── fcpxml.test.ts          # unit tests for tools/fcpxml.mjs
 │   ├── sources.test.ts         # unit tests for tools/sources.mjs
+│   ├── multicam.test.ts        # unit tests for tools/multicam.mjs
 │   └── packaging.test.ts       # guards machine-path leaks + the promo-assets packaging
 ├── promo-assets/               # worked-example assembly scripts (sources shipped via promo-assets/*.{mjs,sh}; generated SVGs + nested node_modules excluded)
 ├── docs/
@@ -51,7 +54,8 @@ and [`requirements-summary.md`](requirements-summary.md) for status.
 │   ├── editor-handoff.md       # export segments + overlays + manifest + FCPXML (shipped, VS-24/25)
 │   ├── multiple-sources.md     # draw from many files/folders (shipped, VS-26)
 │   ├── transitions.md          # DESIGN: AI FCP transition suggestions in the FCPXML (VS-23)
-│   ├── multicam.md             # DESIGN: audio-synced multi-cam (VS-19, deferred)
+│   ├── multicam.md             # audio-synced multi-cam design (VS-19); sync shipped VS-27
+│   ├── multicam-sync.md        # audio sync tool requirements + research findings (VS-27, shipped)
 │   ├── releasing.md            # release + npm trusted-publisher setup
 │   ├── manual-test-plan.md     # manual checklist for the external-tool pipeline
 │   ├── media/                  # README demo media (docs-only; gitignored binaries) — from Tears of Steel (CC BY 3.0)
@@ -112,7 +116,8 @@ used by the `gen-readme-*` scripts).
 Coverage is enforced (100% l/b/f/s) on the pure modules in `vitest.config.ts`
 `coverage.include`: `src/scene-math.ts`, `src/resumable-error.ts`,
 `src/analyzer-cli.ts`, `src/analyzer-state.ts`, `tools/caption-format.mjs`,
-`tools/export-manifest.mjs`, `tools/fcpxml.mjs`, `tools/sources.mjs`. The
+`tools/export-manifest.mjs`, `tools/fcpxml.mjs`, `tools/sources.mjs`,
+`tools/multicam.mjs`. The
 I/O code (`analyzer.ts` orchestration, `ffmpeg.ts`, `ollama.ts`, the `bin/`
 launcher, `render-caption.mjs`'s Chromium path) is manual-test territory.
 
@@ -128,7 +133,9 @@ launcher, `render-caption.mjs`'s Chromium path) is manual-test territory.
 - Analyzer tuning constants: `SCENE_THRESHOLD = 0.4` (`src/analyzer.ts`);
   `DEFAULT_MODEL = "gemma4:12b"` + `DEFAULT_DATA_DIR` (`src/analyzer-cli.ts`);
   `STATE_VERSION = 3` (`src/analyzer-state.ts`); `MIN_SCENE_SEC = 1.0`
-  (`src/scene-math.ts`).
+  (`src/scene-math.ts`); multi-cam sync defaults (sample rate 8000, accept 0.8 /
+  reject 0.5, drift-min 600 s) in `tools/sync-multicam.mjs` and
+  `DRIFT_WARN_PPM = 100` in `tools/multicam.mjs`.
 
 ## Where do I look for X?
 
@@ -145,12 +152,13 @@ launcher, `render-caption.mjs`'s Chromium path) is manual-test territory.
 | caption Chromium render pipeline | `tools/render-caption.mjs` |
 | editor-handoff export (segments/overlays/manifest/rebuild) | `tools/export-project.mjs` (I/O) + `tools/export-manifest.mjs` + `tools/fcpxml.mjs` (pure) |
 | multiple-source input → sources.json | `tools/analyze-sources.mjs` (I/O) + `tools/sources.mjs` (pure) |
+| multi-cam audio sync → multicam.json | `tools/sync-multicam.mjs` (I/O) + `tools/multicam.mjs` (pure: FFT cross-correlation, confidence, drift, angle cuts) |
 | tool detection / brew install / skill install / launch | `bin/video-studio.mjs` |
 | the editing pipeline Claude runs | `skills/video-studio/SKILL.md` |
 | what the toolkit must do | `docs/requirements.md` |
 | editor-handoff + multi-source feature specs (shipped) | `docs/editor-handoff.md`, `docs/multiple-sources.md` |
 | FCP transition suggestions spec (design-only) | `docs/transitions.md` |
-| multi-cam spec (design-only, deferred) | `docs/multicam.md` |
+| multi-cam design + audio sync spec | `docs/multicam.md` (design) + `docs/multicam-sync.md` (sync tool, shipped) |
 | how to release | `docs/releasing.md` + `scripts/release.sh` |
 | manual pipeline tests | `docs/manual-test-plan.md` |
 | README demo media + how it's regenerated | `docs/media/` + `scripts/gen-readme-media.sh` |

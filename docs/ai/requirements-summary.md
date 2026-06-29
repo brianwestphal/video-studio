@@ -18,11 +18,14 @@ sync with the requirements doc and code; the source wins on conflict.
 | Editor handoff (segments + overlays + manifest/FCPXML) | [`editor-handoff.md`](../editor-handoff.md) | **Shipped** — export + manifest + rebuild (VS-24) + FCPXML (VS-25) |
 | Multiple source videos | [`multiple-sources.md`](../multiple-sources.md) | **Shipped** (VS-26) |
 | FCP transition suggestions | [`transitions.md`](../transitions.md) | **Design only** (VS-23) |
-| Multi-cam editing | [`multicam.md`](../multicam.md) | **Design only** (VS-19, deferred) |
+| Multi-cam editing | [`multicam.md`](../multicam.md), [`multicam-sync.md`](../multicam-sync.md) | **Partial** — audio sync tool shipped (VS-27); angle handoff/FCPXML + drift correction deferred |
 
 The core pipeline plus the editor handoff (export + FCPXML) and multi-source
-input are shipped. Design-only: **FCP transition suggestions** ([`transitions.md`](../transitions.md), VS-23) and
-**multi-cam** ([`multicam.md`](../multicam.md), deferred) — see their docs + follow-up tickets.
+input are shipped. **Multi-cam audio sync** is now shipped (VS-27): the
+`sync-multicam` tool + pure DSP/manifest math; angle-switching through the skill
++ editor handoff/FCPXML and drift *correction* are deferred. Design-only: **FCP
+transition suggestions** ([`transitions.md`](../transitions.md), VS-23) — see
+its doc + follow-up tickets.
 
 ## Per-area notes
 
@@ -64,8 +67,15 @@ input are shipped. Design-only: **FCP transition suggestions** ([`transitions.md
   AI-chosen built-in `<transition>` elements at cut points, tuned by video type +
   stylistic heuristics. Requires adding segment **handles** to the export (a
   prerequisite). [`transitions.md`](../transitions.md), VS-23.
-- **Multi-cam (Design only)** — FCP-style audio-synced multi-cam
-  ([`multicam.md`](../multicam.md), VS-27, deferred). Specified but not built.
+- **Multi-cam (Partial)** — audio sync **shipped** (VS-27):
+  `tools/sync-multicam.mjs` (ffmpeg mono extract + run) over `tools/multicam.mjs`
+  (pure FFT cross-correlation, normalized-peak confidence gate, drift fit,
+  group-manifest + angle-cut math, 100% tests). Emits `multicam.json`; audio-only
+  members are the sync reference + master audio; all alignment is seconds-based
+  (mismatched fps need no special case); long-take drift is detected + flagged.
+  **Deferred:** angle-switching through the skill + editor handoff / FCPXML
+  multicam asset, drift *correction* (retime), and automatic group proposal. See
+  [`multicam.md`](../multicam.md) + [`multicam-sync.md`](../multicam-sync.md).
 
 ## Known gaps / follow-ups
 

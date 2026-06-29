@@ -92,6 +92,19 @@ Write a cut spec (see [`editor-handoff.md`](editor-handoff.md)) referencing real
 | 6.4 | Re-run the same command | Per-source analysis **resumes** (the analyzer caches per file); already-extracted frames aren't redone. |
 | 6.5 | Build a cut spec drawing clips from two different sources → `export-project` | Segments extract from the correct source files; the export conforms them to the one project fps/size. |
 
+## 7. Multi-cam audio sync (`tools/sync-multicam.mjs`)
+
+The FFT/manifest math is unit-tested (`tools/multicam.mjs`, 100%); these rows
+exercise the ffmpeg mono extraction + the real end-to-end sync.
+
+| # | Step | Expected |
+|---|------|----------|
+| 7.1 | Take one clip, make a second from it offset by a known amount (`ffmpeg -ss 2 -i a.wav b.wav`), then `node tools/sync-multicam.mjs a.wav b.wav --out /tmp/multicam.json` | `multicam.json` has one group; the second member's `offsetSeconds` matches the known offset (±a few ms), `sync: "auto"`, `confidence` near 1. |
+| 7.2 | Include an **audio-only** file (e.g. a `.wav` recorder track) among camera clips | The audio-only member is the `referenceId` **and** `masterAudioId` (offset 0); cameras sync to it. |
+| 7.3 | Include a clip with **unrelated / silent** audio | It comes back `sync: "unsynced"` with low confidence and a `--manual <id>=<sec>` re-run hint; re-running with `--manual` sets that offset and labels it `manual`. |
+| 7.4 | Mix members with **different fps** (e.g. 29.97 and 30) | Sync still succeeds (alignment is seconds-based); `projectFps` defaults to the highest member fps; each member keeps its own `fps`. |
+| 7.5 | Sync a **long take** (> `--drift-min`, default 600 s) with a clock offset that grows | The drifting member reports a non-zero `driftPpm`; past 100 ppm `driftWarning: true`. (v1 flags drift; it does not correct it.) |
+
 ## Automated Coverage Summary
 
 Covered by unit tests (do **not** re-test by hand):
@@ -118,6 +131,11 @@ Covered by unit tests (do **not** re-test by hand):
   100% coverage. The ffmpeg execution in `export-project.mjs` is §5 above.
 - **`tools/fcpxml.mjs`** — `buildFcpxml`, `frameDuration`, `rationalTime`
   (`tests/fcpxml.test.ts`). 100% coverage; FCP import itself is §5 below.
+- **`tools/multicam.mjs`** — the FFT (`fftInPlace`, `crossCorrelate`),
+  offset/confidence (`findOffset`, `offsetSeconds`), `fitDrift`, `classifySync`,
+  `selectReference`, `buildGroupManifest`, `resolveAngleCuts`
+  (`tests/multicam.test.ts`). 100% coverage. The ffmpeg mono extraction +
+  real-audio sync in `sync-multicam.mjs` is §7 above.
 
 Everything else in the tables above is genuinely manual because it shells out to
 ffmpeg/whisper/ollama or launches a browser. If you find a way to automate one of

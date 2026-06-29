@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## Unreleased
 
+- **Multi-cam audio sync** — new `sync-multicam` tool time-aligns several clips of
+  one event by their audio (pure-JS FFT cross-correlation over ffmpeg-extracted
+  mono), emitting `multicam.json` with a per-member offset + confidence. Audio-only
+  recorder tracks become the sync reference and master audio; alignment is
+  seconds-based so mismatched/non-integer frame rates (29.97 vs 30) just work;
+  weak/non-overlapping audio falls back to a manual offset; long-take clock drift
+  is detected and flagged. Pure DSP + manifest + angle-cut math in
+  `tools/multicam.mjs` (100% unit-tested). Design + research: `docs/multicam.md`,
+  `docs/multicam-sync.md`. (Angle-switching through the skill + editor
+  handoff/FCPXML and drift *correction* are deferred follow-ups.)
 - **Launcher** — the launcher now pauses ("Press Enter to launch Claude…") so its getting-started splash is readable before Claude's UI takes over the terminal (skipped with `--yes` or no TTY).
 - **Docs & onboarding** — added a `README.md`, an MIT `LICENSE` file, and a `docs/` set (requirements, release guide, manual test plan, and AI-summary maps).
 - **Shippable worked examples** — the `promo-assets/` teaser + caption/wordmark example scripts now ship with the package and run anywhere (env-configurable paths; no hardcoded machine paths; use the published `domotion-svg`).
