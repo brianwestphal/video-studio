@@ -8,6 +8,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## Unreleased
 
+- **Editor handoff (Final Cut Pro)** — `export-project` turns a cut spec into a
+  project folder of edit-grade pieces instead of a flat render: ProRes 422 HQ
+  segments, ProRes 4444 alpha overlays, a `manifest.json` of frame-accurate target
+  ranges, a `rebuild.sh` that re-composites the exact cut, and a Final Cut Pro
+  `.fcpxml` (segments on the storyline, overlays as connected clips). Pure manifest
+  + FCPXML logic in `tools/export-manifest.mjs` + `tools/fcpxml.mjs` (100% tested).
+  See `docs/editor-handoff.md`.
+- **Multiple source videos** — `analyze-sources` accepts any mix of files and
+  folders, analyzes each independently (resumable per source), and writes a
+  combined `sources.json`; a cut draws segments across sources by `(sourceId, in,
+  out)` and conforms them to one project fps/frame size on export. See
+  `docs/multiple-sources.md`.
 - **Multi-cam audio sync** — new `sync-multicam` tool time-aligns several clips of
   one event by their audio (pure-JS FFT cross-correlation over ffmpeg-extracted
   mono), emitting `multicam.json` with a per-member offset + confidence. Audio-only
@@ -41,7 +53,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - **Launcher** — the launcher now pauses ("Press Enter to launch Claude…") so its getting-started splash is readable before Claude's UI takes over the terminal (skipped with `--yes` or no TTY).
 - **Docs & onboarding** — added a `README.md`, an MIT `LICENSE` file, and a `docs/` set (requirements, release guide, manual test plan, and AI-summary maps).
 - **Shippable worked examples** — the `promo-assets/` teaser + caption/wordmark example scripts now ship with the package and run anywhere (env-configurable paths; no hardcoded machine paths; use the published `domotion-svg`).
-- **Hardened toolkit** — ESLint + Vitest (100% coverage on the pure scene/timecode/caption logic), and a tag-driven release flow with CI publishing to npm with provenance.
+- **Hardened toolkit** — ESLint + Vitest with **100% coverage enforced on all ten pure modules** (scene/timecode math, analyzer CLI/state, error classification, caption assembly, the export manifest + FCPXML, source/multicam manifests, and the multi-cam DSP), and a tag-driven release flow with CI publishing to npm with provenance.
 - **Internal** — the scene analyzer was split into focused modules (CLI, state, ffmpeg, ollama, error classification) with no change to its behavior or output.
 
 ## [0.1.0] - 2026-06-27

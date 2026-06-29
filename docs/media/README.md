@@ -37,3 +37,10 @@ nature (fallback only). Stills are ≲ ~760px wide to match the README layout.
 | `teaser-hero.gif` | The same teaser (hero fallback) | animated GIF, ~760px wide (large) |
 | `scene-analysis.png` | A per-scene contact sheet (one frame per detected scene) | PNG, ~760px wide |
 | `caption-overlay.png` | A caption / lower-third / CTA composited onto a frame | PNG, ~760px wide |
+| `editor-handoff-fcp.png` | The exported `.fcpxml` imported into Final Cut Pro — segments on the primary storyline, alpha overlays as connected clips | PNG, ≤1280px wide, ≲ 600 KB |
+| `multicam-fcp.png` | A video-studio multicam `.fcpxml` open in FCP's angle viewer — several synced angles + master audio, mid angle-switch | PNG, ≤1280px wide, ≲ 600 KB |
+
+The last two (FCP screenshots) need a Mac with Final Cut Pro + sample multi-cam
+footage — see Hot Sheet **VS-38**. The README wires them in as commented
+placeholders (`<!-- TODO(prep-major-release) … -->`); uncomment the `multicam-fcp`
+`<p align="center">` block and drop the PNGs in once captured.
