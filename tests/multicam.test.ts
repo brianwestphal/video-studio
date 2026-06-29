@@ -2,12 +2,14 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildGroupManifest,
+  atempoChain,
   clamp,
   classifySync,
   condition,
   crossCorrelate,
   crossCorrelatePhat,
   dot,
+  driftCorrection,
   DRIFT_WARN_PPM,
   envelope,
   fftInPlace,
@@ -253,6 +255,37 @@ describe("fitDrift", () => {
   });
 });
 
+describe("driftCorrection", () => {
+  it("is identity at zero drift", () => {
+    expect(driftCorrection(0)).toEqual({ rate: 1, atempo: 1 });
+  });
+  it("stretches by 1 + ppm and inverts for atempo", () => {
+    const c = driftCorrection(1000); // 1000 ppm = 0.001
+    expect(c.rate).toBeCloseTo(1.001, 9);
+    expect(c.atempo).toBeCloseTo(1 / 1.001, 9);
+  });
+});
+
+describe("atempoChain", () => {
+  it("returns a single factor when within range", () => {
+    expect(atempoChain(1)).toEqual([1]);
+    expect(atempoChain(0.999)).toEqual([0.999]);
+  });
+  it("chains factors above max so they multiply back", () => {
+    const chain = atempoChain(4);
+    expect(chain).toEqual([2, 2]);
+    expect(chain.reduce((a, b) => a * b, 1)).toBeCloseTo(4, 9);
+  });
+  it("chains factors below min so they multiply back", () => {
+    const chain = atempoChain(0.25);
+    expect(chain).toEqual([0.5, 0.5]);
+    expect(chain.reduce((a, b) => a * b, 1)).toBeCloseTo(0.25, 9);
+  });
+  it("throws on a non-positive factor", () => {
+    expect(() => atempoChain(0)).toThrow(/positive/);
+  });
+});
+
 describe("classifySync", () => {
   it("gates on accept / reject thresholds", () => {
     expect(classifySync(0.9)).toBe("auto");
@@ -325,6 +358,29 @@ describe("buildGroupManifest", () => {
     expect(cam.sync).toBe("manual");
     expect(cam.driftWarning).toBe(true);
     expect(cam.driftPpm).toBe(DRIFT_WARN_PPM + 50);
+  });
+  it("carries drift rate correction + start-anchored offset, defaulting the reference", () => {
+    const m = buildGroupManifest({
+      id: "g",
+      projectFps: 30,
+      members: [
+        { id: "rec", path: "/r.wav", kind: "audio", durationSeconds: 2000, offsetSeconds: 0, confidence: 0.99 },
+        { id: "cam", path: "/c.mov", kind: "video", durationSeconds: 1900, offsetSeconds: 1.5, confidence: 0.9, driftPpm: 200, rateCorrection: 1.0002, correctedOffsetSeconds: 1.3 },
+      ],
+    });
+    const cam = m.members.find((x) => x.id === "cam")!;
+    expect(cam.rateCorrection).toBe(1.0002);
+    expect(cam.correctedOffsetSeconds).toBe(1.3);
+    expect(cam.driftWarning).toBe(true);
+    const rec = m.members.find((x) => x.id === "rec")!;
+    expect(rec.rateCorrection).toBe(1);
+    expect(rec.correctedOffsetSeconds).toBe(0);
+  });
+  it("defaults rate correction to 1 and corrected offset to null when absent", () => {
+    const m = buildGroupManifest({ id: "g", projectFps: 30, members });
+    const cam = m.members.find((x) => x.id === "cam-a")!;
+    expect(cam.rateCorrection).toBe(1);
+    expect(cam.correctedOffsetSeconds).toBe(null);
   });
   it("uses the reference as master audio when there is no single audio-only member", () => {
     const m = buildGroupManifest({

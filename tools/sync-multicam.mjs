@@ -37,6 +37,7 @@ import {
   buildGroupManifest,
   classifySync,
   condition,
+  driftCorrection,
   findOffset,
   fitDrift,
 } from "./multicam.mjs";
@@ -120,22 +121,47 @@ function extractMono(path, sampleRate, tmpDir, id) {
 }
 
 // Estimate clock drift by measuring the offset on a window near the start and a
-// window near the end of the clip, then fitting a line. Returns drift ppm or 0
-// if the clip is too short / windows do not correlate well.
-function estimateDriftPpm(refSig, clipSig, sampleRate, opts, findOpts) {
+// window near the end of the clip, then fitting a line. Each window is matched
+// only against the REFERENCE REGION it is expected to land in (the clip window's
+// position shifted by the global offset, ± a margin) — searching the whole
+// reference would lock onto spurious far-away matches in repetitive audio.
+// `globalOffsetSamples` is the member's whole-clip offset. Returns { slopePpm,
+// startOffsetSeconds } (start-anchored offset to pair with a rate correction),
+// or { slopePpm: 0 } if the clip is too short / a window doesn't correlate well.
+function estimateDrift(refSig, clipSig, sampleRate, opts, findOpts, globalOffsetSamples) {
   const win = Math.floor(opts.window * sampleRate);
-  if (clipSig.length < win * 2) return 0;
-  const startWin = clipSig.subarray(0, win);
+  if (clipSig.length < win * 2) return { slopePpm: 0 };
+  // The reference is sliced to a bounded region around where the clip window is
+  // expected to land (± one window), then searched in full — the slice itself is
+  // the constraint, so we do NOT cap the lag (capping clipped the true peak).
+  const margin = win;
+  const localFind = { ...findOpts, maxLagSamples: null };
+
+  // Offset (seconds) of the clip window starting at clip-local index `clipStart`.
+  const measure = (clipStart) => {
+    const cw = clipSig.subarray(clipStart, clipStart + win);
+    const refCenter = Math.round(clipStart + globalOffsetSamples);
+    const lo = Math.max(0, refCenter - margin);
+    const hi = Math.min(refSig.length, refCenter + win + margin);
+    const rw = refSig.subarray(lo, hi);
+    const r = findOffset(rw, cw, localFind);
+    if (r.confidence < opts.reject) return null;
+    // cw[i] ~ rw[i + r.offset] = ref[lo + i + r.offset]; clip-local index is
+    // clipStart + i, so offset = ref_index - clip_index = lo - clipStart + r.offset.
+    return (lo - clipStart + r.offsetSamples) / sampleRate;
+  };
+
   const endStart = clipSig.length - win;
-  const endWin = clipSig.subarray(endStart);
-  const a = findOffset(refSig, startWin, findOpts);
-  const b = findOffset(refSig, endWin, findOpts);
-  if (a.confidence < opts.reject || b.confidence < opts.reject) return 0;
+  const o1 = measure(0);
+  const o2 = measure(endStart);
+  if (o1 == null || o2 == null) return { slopePpm: 0 };
+  const startAt = win / 2 / sampleRate;
   const { slopePpm } = fitDrift([
-    { atSeconds: win / 2 / sampleRate, offsetSeconds: a.offsetSamples / sampleRate },
-    { atSeconds: (endStart + win / 2) / sampleRate, offsetSeconds: b.offsetSamples / sampleRate },
+    { atSeconds: startAt, offsetSeconds: o1 },
+    { atSeconds: (endStart + win / 2) / sampleRate, offsetSeconds: o2 },
   ]);
-  return slopePpm;
+  const slope = slopePpm / 1e6;
+  return { slopePpm, startOffsetSeconds: o1 - slope * startAt };
 }
 
 function main() {
@@ -185,14 +211,17 @@ function main() {
       // override above is labeled "manual".)
       const cls = classifySync(r.confidence, { accept: opts.accept, reject: opts.reject });
       const sync = cls === "manual" ? "unsynced" : cls;
-      const driftPpm = m.durationSeconds >= opts.driftMin ? estimateDriftPpm(refSig, sig, opts.sampleRate, opts, findOpts) : 0;
+      const drift = m.durationSeconds >= opts.driftMin ? estimateDrift(refSig, sig, opts.sampleRate, opts, findOpts, r.offsetSamples) : { slopePpm: 0 };
+      const { rate } = driftCorrection(drift.slopePpm);
       return {
         ...m,
         offsetSeconds: r.offsetSamples / opts.sampleRate,
         confidence: r.confidence,
         peakRatio: Number.isFinite(r.peakRatio) ? r.peakRatio : null,
         sync,
-        driftPpm,
+        driftPpm: drift.slopePpm,
+        rateCorrection: rate,
+        correctedOffsetSeconds: drift.slopePpm !== 0 ? drift.startOffsetSeconds : null,
       };
     });
 
@@ -203,7 +232,7 @@ function main() {
     console.log(`\nWrote ${outPath}.`);
     for (const m of manifest.members) {
       const conf = m.confidence === 1 ? "" : ` conf=${m.confidence.toFixed(2)}`;
-      const drift = m.driftWarning ? ` DRIFT ${m.driftPpm.toFixed(0)}ppm` : "";
+      const drift = m.driftWarning ? ` DRIFT ${m.driftPpm.toFixed(0)}ppm → rate×${m.rateCorrection.toFixed(6)}` : "";
       console.log(`  ${m.id}: ${m.sync} offset=${m.offsetSeconds.toFixed(3)}s${conf}${drift}`);
     }
     const needManual = manifest.members.filter((m) => m.sync === "unsynced");

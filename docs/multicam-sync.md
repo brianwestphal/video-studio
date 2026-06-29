@@ -78,12 +78,18 @@ Key sources are cited in [§7](#7-research-findings--citations).
   59.97 vs 60) need no special handling. Each member keeps its own fps; the group
   records a **project fps** (default: the highest member fps) to conform to on
   output.
-- **R-MCS6 Drift detection (R-MC, "hard problem").** For long takes (longer than
-  `--drift-min`, default 600 s) the offset is measured on a window near the start
-  and near the end of the clip and a line `offset(t) = slope·t + intercept` is
-  fit; the **drift rate (ppm)** is recorded and a member is flagged
-  `driftWarning` past `DRIFT_WARN_PPM` (100 ppm). v1 **detects and flags** drift;
-  it does not yet retime to correct it (deferred).
+- **R-MCS6 Drift detection + correction (R-MC, "hard problem").** For long takes
+  (longer than `--drift-min`, default 600 s) the offset is measured on a window
+  near the start and near the end of the clip — each matched only against the
+  reference region it is expected to land in (the global offset ± a window), so
+  repetitive audio doesn't lock onto a spurious far match — and a line
+  `offset(t) = slope·t + intercept` is fit. The **drift rate (ppm)** is recorded,
+  a member past `DRIFT_WARN_PPM` (100 ppm) is flagged `driftWarning`, and a
+  **retime correction** is emitted: `rateCorrection = 1 + slope` (the factor to
+  run the member on the reference clock; `driftCorrection`/`atempoChain` give the
+  ffmpeg `atempo` chain) plus `correctedOffsetSeconds` (the start-anchored offset
+  to pair with the retime). **Applying** the retime on export/compositing lands
+  with the editor-handoff wiring (VS-29).
 - **R-MCS7 Group manifest.** Emit `multicam.json` (`{ groups: [...] }`): per
   group an `id`, `projectFps`, `referenceId`, `masterAudioId`, and `members`
   (`id`, `path`, `kind`, `fps`, `durationSeconds`, `offsetSeconds`, `confidence`,
@@ -149,7 +155,9 @@ files carry creation timestamps, else folder, else filename pattern.
           "fps": 29.97, "durationSeconds": 1795,
           "offsetSeconds": 2.5,         // cam-a started 2.5 s after the reference
           "confidence": 0.92, "peakRatio": 16.1,
-          "sync": "auto", "driftPpm": 12, "driftWarning": false
+          "sync": "auto", "driftPpm": 12, "driftWarning": false,
+          "rateCorrection": 1.000012,   // retime factor (1 = none) for the ref clock
+          "correctedOffsetSeconds": 2.49 // start-anchored offset to use WITH the retime
         }
       ]
     }
@@ -163,15 +171,17 @@ Positive ⇒ the member started **later** than the reference.
 
 ## 6. Deferred / follow-ups
 
-- **Drift correction (retime/re-clock).** v1 flags drift; correcting it (ffmpeg
-  `atempo`/resample, or a two-stage start/end re-clock à la PluralEyes) is a
-  follow-up.
-- **Skill + editor-handoff + FCPXML multicam.** Drive grouping/sync from the
-  skill, express groups in the handoff manifest, and emit a true FCPXML
-  `mc-clip` / multicam asset (a synced flat timeline is the acceptable first cut).
+- **Skill + editor-handoff + FCPXML multicam (VS-29).** Drive grouping/sync from
+  the skill, express groups in the handoff manifest, **apply the drift
+  `rateCorrection`** (atempo/setpts) + `correctedOffsetSeconds` on
+  export/compositing, and emit a true FCPXML `mc-clip` / multicam asset (a synced
+  flat timeline is the acceptable first cut).
 
-Shipped since the first cut (VS-32): **sub-sample precision** (parabolic peak
-interpolation) and the **GCC-PHAT** (`--feature phat`) phase-whitened feature.
+Shipped since the first cut: **sub-sample precision** (parabolic peak
+interpolation) and the **GCC-PHAT** (`--feature phat`) phase-whitened feature
+(VS-32); **automatic group proposal** (`propose-groups`, VS-31); **drift
+correction** computed + emitted (`rateCorrection` / `correctedOffsetSeconds`,
+VS-30 — application on export is VS-29).
 
 ## 7. Research findings + citations
 

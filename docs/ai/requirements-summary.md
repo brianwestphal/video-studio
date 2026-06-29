@@ -72,13 +72,15 @@ its doc + follow-up tickets.
   (pure FFT cross-correlation, normalized-peak confidence gate, drift fit,
   group-manifest + angle-cut math, 100% tests). Emits `multicam.json`; audio-only
   members are the sync reference + master audio; all alignment is seconds-based
-  (mismatched fps need no special case); long-take drift is detected + flagged.
-  Offsets are sub-sample-refined and a GCC-PHAT (`--feature phat`) option exists
-  for low SNR (VS-32). **Group proposal** from a source pool (folder / overlapping
-  recording windows / filename) ships as `propose-groups` +
-  `tools/multicam-groups.mjs` (VS-31). **Deferred:** angle-switching through the
-  skill + editor handoff / FCPXML multicam asset, and drift *correction* (retime).
-  See [`multicam.md`](../multicam.md) + [`multicam-sync.md`](../multicam-sync.md).
+  (mismatched fps need no special case). Offsets are sub-sample-refined and a
+  GCC-PHAT (`--feature phat`) option exists for low SNR (VS-32). **Group proposal**
+  from a source pool (folder / overlapping recording windows / filename) ships as
+  `propose-groups` + `tools/multicam-groups.mjs` (VS-31). Long-take **drift** is
+  detected, flagged, and a **retime correction computed** (`rateCorrection` +
+  start-anchored `correctedOffsetSeconds`, VS-30). **Deferred:** angle-switching
+  through the skill + editor handoff / FCPXML multicam asset, which also
+  **applies** the drift retime on export (VS-29). See
+  [`multicam.md`](../multicam.md) + [`multicam-sync.md`](../multicam-sync.md).
 
 ## Known gaps / follow-ups
 

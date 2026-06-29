@@ -62,9 +62,10 @@ findings + citations in [`multicam-sync.md` §7](multicam-sync.md#7-research-fin
 
 - **Sample-accurate sync + drift.** Audio correlation gives a good offset, but
   clocks drift over long takes; a single offset may not hold for a 30-min clip.
-  *Handled:* drift is **detected and flagged** (linear `slope·t + intercept` fit,
-  midpoint offset, ppm + `driftWarning`). **Correcting** it (retime/re-sync) is
-  deferred.
+  *Handled:* drift is **detected, flagged, and a retime correction computed**
+  (linear `slope·t + intercept` fit → ppm + `driftWarning` + `rateCorrection` +
+  start-anchored `correctedOffsetSeconds`). **Applying** the retime on export
+  lands with VS-29.
 - **Variable / non-integer frame rates** and dropped frames make frame-based
   alignment unreliable. *Handled:* all alignment is **seconds-based** via the
   audio sample clock (R-MC4), so mismatched rates need no special case.

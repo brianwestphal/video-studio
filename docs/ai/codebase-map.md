@@ -34,7 +34,7 @@ and [`requirements-summary.md`](requirements-summary.md) for status.
 │   ├── analyze-sources.mjs     # multiple-source input: files/folders → per-source analysis → sources.json (I/O)
 │   ├── sources.mjs             # pure source-id + sources-manifest logic (unit-tested)
 │   ├── sync-multicam.mjs       # multi-cam audio sync: ffmpeg mono extract + cross-correlation → multicam.json (I/O)
-│   ├── multicam.mjs            # pure FFT/GCC-PHAT cross-correlation + sub-sample peak + confidence/drift + group-manifest + angle-cut math (unit-tested)
+│   ├── multicam.mjs            # pure FFT/GCC-PHAT cross-correlation + sub-sample peak + confidence + drift fit/correction + group-manifest + angle-cut math (unit-tested)
 │   ├── propose-groups.mjs      # suggest multicam groups from sources.json (stat-based timestamps) (I/O)
 │   └── multicam-groups.mjs     # pure group-proposal heuristics: folder / time-window / filename (unit-tested)
 ├── skills/

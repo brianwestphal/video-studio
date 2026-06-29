@@ -284,6 +284,33 @@ export function fitDrift(points) {
   };
 }
 
+// Convert a measured drift rate into a retime correction. If the member's
+// offset grows by `slope = driftPpm/1e6` seconds per second of its own time,
+// then reference_time = (1 + slope)*member_time + const — so the member must be
+// time-STRETCHED by `rate = 1 + slope` to run on the reference clock. `atempo`
+// is the inverse playback-speed factor ffmpeg's atempo filter takes (output
+// duration = input / atempo, so atempo = 1/rate). For drift correction the
+// member's offset is then anchored at its START (the intercept), not the
+// midpoint. Returns { rate, atempo }.
+export function driftCorrection(driftPpm) {
+  const rate = 1 + driftPpm / 1e6;
+  return { rate, atempo: 1 / rate };
+}
+
+// Decompose an atempo factor into a chain each within ffmpeg's accepted
+// [min,max] (default 0.5..2.0), multiplying back to the original factor — ppm
+// corrections need a single element, but this keeps extreme factors valid.
+// Returns an array of factors (always length >= 1).
+export function atempoChain(factor, { min = 0.5, max = 2 } = {}) {
+  if (!(factor > 0)) throw new Error("atempo factor must be positive");
+  const chain = [];
+  let remaining = factor;
+  while (remaining > max) { chain.push(max); remaining /= max; }
+  while (remaining < min) { chain.push(min); remaining /= min; }
+  chain.push(remaining);
+  return chain;
+}
+
 // --- confidence gate ---------------------------------------------------------
 
 // Classify a normalized confidence into a sync disposition:
@@ -317,9 +344,13 @@ export function selectReference(members) {
 // Assemble the group manifest from members already carrying their measured
 // offset relative to the reference. Each input member:
 //   { id, path, kind: "video"|"audio", fps?, durationSeconds?,
-//     offsetSeconds, confidence, peakRatio?, sync?, driftPpm?, manual? }
+//     offsetSeconds, confidence, peakRatio?, sync?, driftPpm?,
+//     rateCorrection?, correctedOffsetSeconds? }
 // The reference is anchored at offset 0; the master audio is the audio-only
 // member when present, else the reference. Members are not reordered.
+// `rateCorrection` (1 = none) is the retime factor to run a drifting member on
+// the reference clock; `correctedOffsetSeconds` is the start-anchored offset to
+// use WITH that retime (vs `offsetSeconds`, the best single uncorrected offset).
 export function buildGroupManifest({ id, projectFps, members }) {
   const reference = selectReference(members);
   const audioOnly = members.filter((m) => m.kind === "audio");
@@ -344,6 +375,8 @@ export function buildGroupManifest({ id, projectFps, members }) {
         sync: isRef ? "reference" : (m.sync ?? classifySync(m.confidence)),
         driftPpm: m.driftPpm ?? null,
         driftWarning,
+        rateCorrection: isRef ? 1 : (m.rateCorrection ?? 1),
+        correctedOffsetSeconds: isRef ? 0 : (m.correctedOffsetSeconds ?? null),
       };
     }),
   };
