@@ -117,6 +117,8 @@ describe("buildFcpxml with a master audio track (multi-cam)", () => {
     expect(xml).toContain('<media-rep kind="original-media" src="file:///export/audio/master.mov"/>');
     expect(xml).toMatch(/<asset id="r4" name="master"[^>]*hasAudio="1"[^>]*\/?>/);
     expect(xml).not.toMatch(/name="master"[^>]*hasVideo/);
+    // an audio-only asset must NOT carry a (video) format, or FCP rejects its edits
+    expect(xml).not.toMatch(/name="master"[^>]*\bformat=/);
   });
 
   it("connects the master audio on lane -1 of the first segment, spanning the timeline", () => {
@@ -151,6 +153,15 @@ describe("buildMulticamFcpxml", () => {
     }
     expect(xml).toContain('src="file:///r.wav"');
     expect(xml).toContain('src="file:///a.mov"');
+  });
+
+  it("gives video assets a format but leaves the audio-only asset format-less", () => {
+    // the audio member (rec, r2) must NOT carry a video format — FCP would treat it
+    // as video, find no frames, and reject its edits ("no respective media").
+    expect(xml).toMatch(/<asset id="r2" name="r"[^>]*hasAudio="1"[^>]*>/);
+    expect(xml).not.toMatch(/<asset id="r2"[^>]*format=/);
+    // the video angles keep theirs
+    expect(xml).toMatch(/<asset id="r3"[^>]*hasVideo="1"[^>]*format="r1"/);
   });
 
   it("declares one mc-angle per member at its sync offset", () => {

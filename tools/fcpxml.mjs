@@ -64,8 +64,12 @@ export function buildFcpxml(manifest, assetSrc) {
     ref.set(file, id);
     const audio = hasAudio ? ` hasAudio="1" audioSources="1" audioChannels="2" audioRate="48000"` : "";
     const video = hasVideo ? ` hasVideo="1" videoSources="1"` : "";
+    // `format` is a VIDEO format — only video assets carry it. An audio-only asset
+    // (the master-audio track) with a video format makes FCP look for nonexistent
+    // frames and reject the edit ("Invalid edit with no respective media").
+    const format = hasVideo ? ` format="${formatId}"` : "";
     assetEls.push(
-      `    <asset id="${id}" name="${esc(baseName(file))}" start="0s" duration="${T(durationSeconds)}"${video}${audio} format="${formatId}">\n` +
+      `    <asset id="${id}" name="${esc(baseName(file))}" start="0s" duration="${T(durationSeconds)}"${video}${audio}${format}>\n` +
       `      <media-rep kind="original-media" src="${esc(assetSrc(file))}"/>\n` +
       `    </asset>`,
     );
@@ -158,8 +162,12 @@ export function buildMulticamFcpxml(group, switches, { name, width, height, tota
     const isVideo = m.kind !== "audio";
     const v = isVideo ? ` hasVideo="1" videoSources="1"` : "";
     const a = ` hasAudio="1" audioSources="1" audioChannels="2" audioRate="48000"`;
+    // A `format` (frameDuration/width/height) is a VIDEO format — putting it on an
+    // audio-only asset makes FCP treat it as video, look for frames, find none, and
+    // reject every edit that uses it ("Invalid edit with no respective media").
+    const fmt = isVideo ? ` format="${formatId}"` : "";
     return (
-      `    <asset id="${assetId.get(m.id)}" name="${esc(baseName(m.path))}" start="0s" duration="${T(m.durationSeconds)}"${v}${a} format="${formatId}">\n` +
+      `    <asset id="${assetId.get(m.id)}" name="${esc(baseName(m.path))}" start="0s" duration="${T(m.durationSeconds)}"${v}${a}${fmt}>\n` +
       `      <media-rep kind="original-media" src="${esc(assetSrc(m.path))}"/>\n` +
       `    </asset>`
     );

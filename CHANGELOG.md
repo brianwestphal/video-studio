@@ -54,7 +54,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   per-clip rounding produced at non-integer rates like 23.976 (VS-36). The master
   audio now plays from a **connected `lane="-1"` clip** under the timeline (the
   same path the flat export uses) with the spine selecting video only — routing it
-  through an `mc-source srcEnable="audio"` imported **silent** in FCP (VS-36). New
+  through an `mc-source srcEnable="audio"` imported **silent** in FCP (VS-36). The
+  audio-only asset no longer carries a (video) `format` — that made FCP treat it as
+  video, find no frames, and reject every edit using it ("Invalid edit with no
+  respective media"); the same fix is applied to the flat export's master-audio
+  asset (VS-36). New
   `render-multicam-preview` renders the same group + switches to a flat MP4 so you
   can watch the angle cut (master audio underneath, black where an angle hasn't
   rolled yet) and compare it against the FCP import without opening FCP (VS-36).
