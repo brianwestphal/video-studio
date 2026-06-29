@@ -187,16 +187,28 @@ export function buildMulticamFcpxml(group, switches, { name, width, height, tota
   // drifts by ±1 frame at non-integer rates and FCP mis-positions the spine.
   const frameOf = (s) => Math.round(s * fps);
   const Tf = (frames) => framesToTime(frames, fps);
+  // The master audio plays under the WHOLE timeline as a connected clip on lane
+  // -1 of the first mc-clip — the same pattern as the flat export's audioTrack
+  // (buildFcpxml). Routing the audio through an mc-source `srcEnable="audio"`
+  // instead leaves the timeline silent on import (FCP doesn't sound the audio
+  // angle that way), so the spine mc-clips select VIDEO only and the timeline
+  // takes its audio solely from this connected clip — no doubled angle audio.
+  const masterAssetRef = assetId.get(group.masterAudioId);
+  const audioDur = Math.min(total, master.durationSeconds ?? total);
   const clipEls = sorted.map((sw, i) => {
     if (!byId.has(sw.memberId)) throw new Error(`unknown memberId: ${sw.memberId}`);
     const tIn = sw.atSeconds;
     const tOut = i + 1 < sorted.length ? sorted[i + 1].atSeconds : total;
     const inF = frameOf(tIn);
     const outF = frameOf(tOut);
+    // offset="0s" is parent-local: the first mc-clip sits at timeline 0, so the
+    // master audio starts at the timeline (and its own clock) zero.
+    const masterAudio = i === 0
+      ? `\n        <asset-clip ref="${masterAssetRef}" lane="-1" offset="0s" name="${esc(baseName(master.path))}" start="0s" duration="${T(audioDur)}"/>`
+      : "";
     return (
       `      <mc-clip ref="${mediaId}" offset="${Tf(inF)}" name="${esc(name || group.id)}" start="${Tf(frameOf(tIn + shift))}" duration="${Tf(outF - inF)}">\n` +
-      `        <mc-source angleID="${esc(sw.memberId)}" srcEnable="video"/>\n` +
-      `        <mc-source angleID="${esc(group.masterAudioId)}" srcEnable="audio"/>\n` +
+      `        <mc-source angleID="${esc(sw.memberId)}" srcEnable="video"/>${masterAudio}\n` +
       `      </mc-clip>`
     );
   });

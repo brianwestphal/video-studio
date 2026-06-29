@@ -64,7 +64,13 @@ quick view.
   The spine `<mc-clip>`s are laid on **exact frame boundaries** (offset/duration
   in whole frames, so consecutive clips abut precisely and the last ends on the
   sequence duration) — independent per-clip second→frame rounding otherwise left
-  ±1-frame gaps/overlaps that FCP mis-positions at non-integer rates (VS-36).
+  ±1-frame gaps/overlaps that FCP mis-positions at non-integer rates (VS-36). The
+  master audio plays from a **connected clip on lane -1** of the first mc-clip
+  (the same path the flat export uses) and the spine mc-clips select **video
+  only** — routing audio through an `mc-source srcEnable="audio"` imported silent
+  in FCP (VS-36). To preview the cut without FCP, **`render-multicam-preview`**
+  renders the same group + `--switch` points to a flat MP4 (the synced angle cuts
+  with the master audio underneath) for a side-by-side comparison.
 
 ## 3. Known hard problems (how they're handled)
 
@@ -96,7 +102,9 @@ findings + citations in [`multicam-sync.md` §7](multicam-sync.md#7-research-fin
   carries the continuous master-audio track (manifest `audioTrack` + `rebuild.sh`
   mux + FCPXML connected audio lane) and applies the drift retime (`setpts`). The
   true FCPXML `<mc-clip>` multicam asset is `tools/export-multicam-fcpxml.mjs` over
-  `buildMulticamFcpxml` in `tools/fcpxml.mjs`. See [`multicam-sync.md`](multicam-sync.md).
+  `buildMulticamFcpxml` in `tools/fcpxml.mjs`. A flat watchable preview of the same
+  angle cut is `tools/render-multicam-preview.mjs` (ffmpeg I/O over the tested
+  `resolveAngleCuts`). See [`multicam-sync.md`](multicam-sync.md).
 - **Caveat:** the multicam FCPXML asset is generated to the documented schema but
   not yet round-trip-validated against a real FCP import here (manual test).
 

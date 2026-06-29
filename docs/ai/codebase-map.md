@@ -38,7 +38,8 @@ and [`requirements-summary.md`](requirements-summary.md) for status.
 │   ├── multicam.mjs            # pure group-manifest + angle-cut assembly: classifySync, buildGroupManifest, resolveAngleCuts, expandMulticamGroup (unit-tested)
 │   ├── propose-groups.mjs      # suggest multicam groups from sources.json (stat-based timestamps) (I/O)
 │   ├── multicam-groups.mjs     # pure group-proposal heuristics: folder / time-window / filename (unit-tested)
-│   └── export-multicam-fcpxml.mjs # multicam.json → true FCP <mc-clip> multicam FCPXML (I/O over buildMulticamFcpxml)
+│   ├── export-multicam-fcpxml.mjs # multicam.json → true FCP <mc-clip> multicam FCPXML (I/O over buildMulticamFcpxml)
+│   └── render-multicam-preview.mjs # multicam.json + switches → flat preview MP4 of the angle cut (I/O over resolveAngleCuts)
 ├── skills/
 │   └── video-studio/SKILL.md   # the pipeline Claude follows — primary interface
 ├── tests/
@@ -159,6 +160,7 @@ launcher, `render-caption.mjs`'s Chromium path) is manual-test territory.
 | editor-handoff export (segments/overlays/audio/manifest/rebuild) | `tools/export-project.mjs` (I/O) + `tools/export-manifest.mjs` + `tools/fcpxml.mjs` (pure) |
 | multi-cam angle cut → editor-handoff cut spec | `expandMulticamGroup` in `tools/multicam.mjs`; the `audioTrack` + drift `rateCorrection` flow through `export-manifest.mjs` + `fcpxml.mjs` |
 | multi-cam true FCPXML mc-clip asset | `buildMulticamFcpxml` in `tools/fcpxml.mjs` (pure) + `tools/export-multicam-fcpxml.mjs` (I/O) |
+| multi-cam flat preview MP4 (compare vs FCP) | `tools/render-multicam-preview.mjs` (ffmpeg I/O) over `resolveAngleCuts` in `tools/multicam.mjs` (pure) |
 | multiple-source input → sources.json | `tools/analyze-sources.mjs` (I/O) + `tools/sources.mjs` (pure) |
 | multi-cam audio sync → multicam.json | `tools/sync-multicam.mjs` (I/O) + `tools/multicam-dsp.mjs` (pure DSP: FFT cross-correlation, confidence, drift) + `tools/multicam.mjs` (pure: group manifest, angle cuts) |
 | multi-cam group proposal from a pool | `tools/propose-groups.mjs` (I/O) + `tools/multicam-groups.mjs` (pure: folder / time-window / filename heuristics) |

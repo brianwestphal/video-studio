@@ -161,14 +161,25 @@ describe("buildMulticamFcpxml", () => {
     expect(xml).toMatch(/angleID="rec">\s*<asset-clip ref="r2" offset="0s"/);
   });
 
-  it("emits one mc-clip per switch span selecting the active video + master audio", () => {
+  it("emits one mc-clip per switch span selecting VIDEO only from the active angle", () => {
     expect((xml.match(/<mc-clip /g) || []).length).toBe(2);
     expect(xml).toContain('<mc-clip ref="r5" offset="0s" name="cut" start="0s" duration="8s">');
     expect(xml).toContain('<mc-source angleID="cam-a" srcEnable="video"/>');
-    expect(xml).toContain('<mc-source angleID="rec" srcEnable="audio"/>');
     // second span 8s → 20s (total = master duration)
     expect(xml).toContain('offset="8s" name="cut" start="8s" duration="12s">');
     expect(xml).toContain('<mc-source angleID="cam-b" srcEnable="video"/>');
+    // audio is NOT routed through an mc-source (that imports silent) — see below
+    expect(xml).not.toContain('srcEnable="audio"');
+  });
+
+  it("plays the master audio as a connected clip (lane -1) under the whole timeline", () => {
+    // one connected master-audio clip, on the FIRST mc-clip only, spanning the
+    // master duration — the reliable audio path (mirrors the flat export).
+    const conn = xml.match(/<asset-clip ref="r2" lane="-1"[^>]*\/>/g) || [];
+    expect(conn.length).toBe(1);
+    expect(conn[0]).toBe('<asset-clip ref="r2" lane="-1" offset="0s" name="r" start="0s" duration="20s"/>');
+    // it lives inside the first mc-clip (the 0s span), not the second
+    expect(xml).toMatch(/start="0s" duration="8s">\s*<mc-source angleID="cam-a" srcEnable="video"\/>\s*<asset-clip ref="r2" lane="-1"/);
   });
 
   it("shifts negative offsets so the earliest angle sits at 0", () => {
@@ -229,6 +240,21 @@ describe("buildMulticamFcpxml", () => {
     // no video member → first span defaults to the first member (rec)
     expect(x).toContain('<mc-source angleID="rec" srcEnable="video"/>');
     expect((x.match(/<mc-angle /g) || []).length).toBe(2);
+  });
+
+  it("falls back to the timeline total for the connected audio when the master has no duration", () => {
+    const g = {
+      id: "no-dur",
+      projectFps: 30,
+      masterAudioId: "rec",
+      members: [
+        { id: "rec", path: "/r.wav", kind: "audio", offsetSeconds: 0 }, // no durationSeconds
+        { id: "cam-a", path: "/a.mov", kind: "video", durationSeconds: 12, offsetSeconds: 0 },
+      ],
+    };
+    // explicit total drives both the sequence and the connected master-audio span
+    const x = buildMulticamFcpxml(g, [{ atSeconds: 0, memberId: "cam-a" }], { width: 16, height: 9, totalSeconds: 9 }, (p) => `file://${p}`);
+    expect(x).toContain('<asset-clip ref="r2" lane="-1" offset="0s" name="r" start="0s" duration="9s"/>');
   });
 
   it("lays the spine on exactly contiguous frame boundaries at non-integer fps", () => {
