@@ -105,6 +105,7 @@ exercise the ffmpeg mono extraction + the real end-to-end sync.
 | 7.4 | Mix members with **different fps** (e.g. 29.97 and 30) | Sync still succeeds (alignment is seconds-based); `projectFps` defaults to the highest member fps; each member keeps its own `fps`. |
 | 7.5 | Sync a **long take** (> `--drift-min`, default 600 s) with a clock offset that grows | The drifting member reports a non-zero `driftPpm`; past 100 ppm `driftWarning: true`. (v1 flags drift; it does not correct it.) |
 | 7.6 | Re-run 7.1 with `--feature phat` (and with `--no-interpolate`) | `phat` (GCC-PHAT) still recovers the offset, typically with a sharper/higher `confidence`; `--no-interpolate` yields whole-sample `offsetSeconds`, otherwise it is sub-sample-refined. |
+| 7.7 | `node tools/propose-groups.mjs <sources.json>` over a pool with two clips in one folder + one elsewhere | Proposes the folder/overlap group (>=2 members) with a ready-to-run `sync-multicam` command; `--strategy filename`/`--json` switch the heuristic/format. Singletons are never proposed. |
 
 ## Automated Coverage Summary
 
@@ -138,6 +139,10 @@ Covered by unit tests (do **not** re-test by hand):
   `buildGroupManifest`, `resolveAngleCuts` (`tests/multicam.test.ts`). 100%
   coverage. The ffmpeg mono extraction + real-audio sync in `sync-multicam.mjs`
   is §7 above.
+- **`tools/multicam-groups.mjs`** — `slug`, `groupByFolder`,
+  `groupByTimeWindow`, `eventKey`, `groupByFilename`, `proposeGroups`
+  (`tests/multicam-groups.test.ts`). 100% coverage. The `sources.json` read +
+  stat-based timestamps in `propose-groups.mjs` are §7.7 above.
 
 Everything else in the tables above is genuinely manual because it shells out to
 ffmpeg/whisper/ollama or launches a browser. If you find a way to automate one of

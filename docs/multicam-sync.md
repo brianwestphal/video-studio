@@ -51,9 +51,12 @@ Key sources are cited in [§7](#7-research-findings--citations).
 
 ## 3. Requirements
 
-- **R-MCS1 Grouping (explicit).** The user names ≥2 clips as a multicam group
-  (`--group-id`). Automatic group proposal (from folders/timestamps/filenames)
-  is deferred — v1 syncs an explicit, labeled set.
+- **R-MCS1 Grouping.** The user names ≥2 clips as a multicam group
+  (`--group-id`). `propose-groups` also **suggests** groups from a source pool
+  (`sources.json`) by containing folder, overlapping recording windows
+  (file creation timestamps + duration), or shared filename pattern — the pure
+  heuristics live in [`multicam-groups.mjs`](../tools/multicam-groups.mjs). The
+  skill shows the proposals for confirmation, then runs sync per group.
 - **R-MCS2 Audio cross-correlation.** Align members by FFT cross-correlation
   against a reference, storing a per-member **offset (seconds)** + **confidence**
   (normalized correlation peak in `[0,1]`, or peak distinctness `1 − second/peak`
@@ -114,6 +117,16 @@ Member ids are the disambiguated filename slugs from
 [`sources.mjs`](../tools/sources.mjs) (`assignSourceIds`), so they match the
 multi-source manifest.
 
+To suggest groups from a whole pool first (R-MCS1):
+
+```
+propose-groups <sources.json> [--strategy <auto|time|folder|filename>] [--gap <sec>] [--json]
+```
+
+It prints each proposed group (members + the reason) and a ready-to-run
+`sync-multicam` command; `auto` prefers overlapping recording windows when the
+files carry creation timestamps, else folder, else filename pattern.
+
 ## 5. Manifest schema
 
 ```jsonc
@@ -153,8 +166,6 @@ Positive ⇒ the member started **later** than the reference.
 - **Drift correction (retime/re-clock).** v1 flags drift; correcting it (ffmpeg
   `atempo`/resample, or a two-stage start/end re-clock à la PluralEyes) is a
   follow-up.
-- **Automatic group proposal** from folders / creation timestamps / filename
-  patterns (v1 requires an explicit group).
 - **Skill + editor-handoff + FCPXML multicam.** Drive grouping/sync from the
   skill, express groups in the handoff manifest, and emit a true FCPXML
   `mc-clip` / multicam asset (a synced flat timeline is the acceptable first cut).

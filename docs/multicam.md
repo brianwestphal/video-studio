@@ -25,10 +25,11 @@ The audio-sync requirements (R-MC2/3/4) are **shipped** and specified in detail
 in [`multicam-sync.md`](multicam-sync.md); the status marker on each below is the
 quick view.
 
-- **R-MC1 Grouping.** *(Partial — explicit groups shipped; auto-proposal
-  deferred.)* The user (or the AI, with confirmation) labels a set of sources as a
-  **multicam group** representing one continuous event from multiple
-  cameras/recorders. A project may have several groups.
+- **R-MC1 Grouping.** *(Shipped — explicit groups + `propose-groups` auto-proposal
+  by folder/timestamps/filename; skill confirmation flow is VS-29.)* The user (or
+  the AI, with confirmation) labels a set of sources as a **multicam group**
+  representing one continuous event from multiple cameras/recorders. A project may
+  have several groups.
 - **R-MC2 Audio sync.** *(Shipped — see [`multicam-sync.md`](multicam-sync.md).)*
   Align the grouped clips by **audio cross-correlation** — extract each clip's
   audio, find the offset that maximizes correlation against a reference, and store
@@ -83,8 +84,10 @@ findings + citations in [`multicam-sync.md` §7](multicam-sync.md#7-research-fin
 
 ## 5. Open questions / follow-ups
 
-- How to propose groups automatically (folder structure? creation timestamps?
-  filename patterns?) vs. always ask. *(Deferred — v1 takes an explicit group.)*
+- ~~How to propose groups automatically (folder structure? creation timestamps?
+  filename patterns?) vs. always ask.~~ **Decided/shipped (VS-31):**
+  `propose-groups` suggests by folder / overlapping recording windows / filename
+  pattern (`auto` prefers timestamps), and the user confirms.
 - ~~Cross-correlation approach + confidence threshold.~~ **Decided:** pure-JS FFT
   cross-correlation, normalized-peak gate (0.80 accept / 0.50 manual).
 - Whether v1 targets true FCPXML multicam assets or just a synced flat timeline.

@@ -34,7 +34,9 @@ and [`requirements-summary.md`](requirements-summary.md) for status.
 │   ├── analyze-sources.mjs     # multiple-source input: files/folders → per-source analysis → sources.json (I/O)
 │   ├── sources.mjs             # pure source-id + sources-manifest logic (unit-tested)
 │   ├── sync-multicam.mjs       # multi-cam audio sync: ffmpeg mono extract + cross-correlation → multicam.json (I/O)
-│   └── multicam.mjs            # pure FFT/GCC-PHAT cross-correlation + sub-sample peak + confidence/drift + group-manifest + angle-cut math (unit-tested)
+│   ├── multicam.mjs            # pure FFT/GCC-PHAT cross-correlation + sub-sample peak + confidence/drift + group-manifest + angle-cut math (unit-tested)
+│   ├── propose-groups.mjs      # suggest multicam groups from sources.json (stat-based timestamps) (I/O)
+│   └── multicam-groups.mjs     # pure group-proposal heuristics: folder / time-window / filename (unit-tested)
 ├── skills/
 │   └── video-studio/SKILL.md   # the pipeline Claude follows — primary interface
 ├── tests/
@@ -47,6 +49,7 @@ and [`requirements-summary.md`](requirements-summary.md) for status.
 │   ├── fcpxml.test.ts          # unit tests for tools/fcpxml.mjs
 │   ├── sources.test.ts         # unit tests for tools/sources.mjs
 │   ├── multicam.test.ts        # unit tests for tools/multicam.mjs
+│   ├── multicam-groups.test.ts # unit tests for tools/multicam-groups.mjs
 │   └── packaging.test.ts       # guards machine-path leaks + the promo-assets packaging
 ├── promo-assets/               # worked-example assembly scripts (sources shipped via promo-assets/*.{mjs,sh}; generated SVGs + nested node_modules excluded)
 ├── docs/
@@ -117,7 +120,7 @@ Coverage is enforced (100% l/b/f/s) on the pure modules in `vitest.config.ts`
 `coverage.include`: `src/scene-math.ts`, `src/resumable-error.ts`,
 `src/analyzer-cli.ts`, `src/analyzer-state.ts`, `tools/caption-format.mjs`,
 `tools/export-manifest.mjs`, `tools/fcpxml.mjs`, `tools/sources.mjs`,
-`tools/multicam.mjs`. The
+`tools/multicam.mjs`, `tools/multicam-groups.mjs`. The
 I/O code (`analyzer.ts` orchestration, `ffmpeg.ts`, `ollama.ts`, the `bin/`
 launcher, `render-caption.mjs`'s Chromium path) is manual-test territory.
 
@@ -153,6 +156,7 @@ launcher, `render-caption.mjs`'s Chromium path) is manual-test territory.
 | editor-handoff export (segments/overlays/manifest/rebuild) | `tools/export-project.mjs` (I/O) + `tools/export-manifest.mjs` + `tools/fcpxml.mjs` (pure) |
 | multiple-source input → sources.json | `tools/analyze-sources.mjs` (I/O) + `tools/sources.mjs` (pure) |
 | multi-cam audio sync → multicam.json | `tools/sync-multicam.mjs` (I/O) + `tools/multicam.mjs` (pure: FFT cross-correlation, confidence, drift, angle cuts) |
+| multi-cam group proposal from a pool | `tools/propose-groups.mjs` (I/O) + `tools/multicam-groups.mjs` (pure: folder / time-window / filename heuristics) |
 | tool detection / brew install / skill install / launch | `bin/video-studio.mjs` |
 | the editing pipeline Claude runs | `skills/video-studio/SKILL.md` |
 | what the toolkit must do | `docs/requirements.md` |

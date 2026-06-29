@@ -73,9 +73,12 @@ its doc + follow-up tickets.
   group-manifest + angle-cut math, 100% tests). Emits `multicam.json`; audio-only
   members are the sync reference + master audio; all alignment is seconds-based
   (mismatched fps need no special case); long-take drift is detected + flagged.
-  **Deferred:** angle-switching through the skill + editor handoff / FCPXML
-  multicam asset, drift *correction* (retime), and automatic group proposal. See
-  [`multicam.md`](../multicam.md) + [`multicam-sync.md`](../multicam-sync.md).
+  Offsets are sub-sample-refined and a GCC-PHAT (`--feature phat`) option exists
+  for low SNR (VS-32). **Group proposal** from a source pool (folder / overlapping
+  recording windows / filename) ships as `propose-groups` +
+  `tools/multicam-groups.mjs` (VS-31). **Deferred:** angle-switching through the
+  skill + editor handoff / FCPXML multicam asset, and drift *correction* (retime).
+  See [`multicam.md`](../multicam.md) + [`multicam-sync.md`](../multicam-sync.md).
 
 ## Known gaps / follow-ups
 
