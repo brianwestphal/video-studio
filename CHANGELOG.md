@@ -55,9 +55,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   audio now plays from a **connected `lane="-1"` clip** under the timeline (the
   same path the flat export uses) with the spine selecting video only — routing it
   through an `mc-source srcEnable="audio"` imported **silent** in FCP (VS-36). The
-  audio-only asset no longer carries a (video) `format` — that made FCP treat it as
-  video, find no frames, and reject every edit using it ("Invalid edit with no
-  respective media"); the same fix is applied to the flat export's master-audio
+  audio-only asset no longer carries a (video) `format`, and its `duration` is
+  declared **sample-exactly** (e.g. `120081/500s`) instead of video-frame-quantized
+  — a frame-quantized audio duration lands between samples and slightly short of
+  the real media, so FCP rejected every full-length audio edit with "Invalid edit
+  with no respective media." The same fixes apply to the flat export's master-audio
   asset (VS-36). New
   `render-multicam-preview` renders the same group + switches to a flat MP4 so you
   can watch the angle cut (master audio underneath, black where an angle hasn't

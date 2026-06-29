@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { buildManifest } from "../tools/export-manifest.mjs";
-import { buildFcpxml, buildMulticamFcpxml, frameDuration, framesToTime, rationalTime } from "../tools/fcpxml.mjs";
+import { audioTime, buildFcpxml, buildMulticamFcpxml, frameDuration, framesToTime, rationalTime } from "../tools/fcpxml.mjs";
 
 describe("frameDuration", () => {
   it("maps integer rates to 1/fps", () => {
@@ -31,6 +31,21 @@ describe("rationalTime", () => {
   it("keeps NTSC times rational", () => {
     // 1s @ 29.97 = 30 frames → 30*1001/30000 = 30030/30000 → 1001/1000
     expect(rationalTime(1, 29.97)).toBe("1001/1000s");
+  });
+});
+
+describe("audioTime", () => {
+  it("renders whole seconds without a denominator", () => {
+    expect(audioTime(20)).toBe("20s"); // 960000/48000 → 20/1
+    expect(audioTime(0)).toBe("0s");
+  });
+  it("renders a sample-aligned fractional time as a reduced rational", () => {
+    expect(audioTime(0.5)).toBe("1/2s"); // 24000/48000 → 1/2
+    expect(audioTime(240.162)).toBe("120081/500s"); // the real BYAM WAV length
+  });
+  it("honors a non-default sample rate", () => {
+    expect(audioTime(1, 44100)).toBe("1s");
+    expect(audioTime(0.5, 44100)).toBe("1/2s");
   });
 });
 

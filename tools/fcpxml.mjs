@@ -42,6 +42,24 @@ export function rationalTime(seconds, fps) {
   return framesToTime(Math.round(seconds * fps), fps);
 }
 
+// The audio sample rate we declare on every asset (`audioRate="48000"`).
+export const AUDIO_RATE = 48000;
+
+// Seconds → an exact, AUDIO-SAMPLE-aligned rational time string. Audio media in
+// FCP is sample-based, and FCP is strict at audio media boundaries: an audio
+// asset whose `duration` is video-frame-quantized (e.g. 2881879/12000s) lands
+// between samples and slightly SHORT of the real media, so a full-length audio
+// edit reads as "Invalid edit with no respective media" on import. Declaring the
+// audio asset's duration sample-exactly (e.g. 120081/500s) makes the media cover
+// the frame-aligned clip edits with room to spare.
+export function audioTime(seconds, rate = AUDIO_RATE) {
+  let num = Math.round(seconds * rate);
+  let den = rate; // always >= 1, so gcd is >= 1 (never 0)
+  const g = gcd(num, den);
+  num /= g; den /= g;
+  return den === 1 ? `${num}s` : `${num}/${den}s`;
+}
+
 const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const baseName = (p) => p.split("/").pop().replace(/\.[^.]+$/, "");
 
@@ -68,8 +86,11 @@ export function buildFcpxml(manifest, assetSrc) {
     // (the master-audio track) with a video format makes FCP look for nonexistent
     // frames and reject the edit ("Invalid edit with no respective media").
     const format = hasVideo ? ` format="${formatId}"` : "";
+    // Audio media is sample-based: declare an audio-only asset's duration
+    // sample-exactly so it covers the frame-aligned clip edits (see audioTime).
+    const dur = hasVideo ? T(durationSeconds) : audioTime(durationSeconds);
     assetEls.push(
-      `    <asset id="${id}" name="${esc(baseName(file))}" start="0s" duration="${T(durationSeconds)}"${video}${audio}${format}>\n` +
+      `    <asset id="${id}" name="${esc(baseName(file))}" start="0s" duration="${dur}"${video}${audio}${format}>\n` +
       `      <media-rep kind="original-media" src="${esc(assetSrc(file))}"/>\n` +
       `    </asset>`,
     );
@@ -166,8 +187,11 @@ export function buildMulticamFcpxml(group, switches, { name, width, height, tota
     // audio-only asset makes FCP treat it as video, look for frames, find none, and
     // reject every edit that uses it ("Invalid edit with no respective media").
     const fmt = isVideo ? ` format="${formatId}"` : "";
+    // Audio media is sample-based: declare an audio-only asset's duration
+    // sample-exactly so it covers the frame-aligned clip edits (see audioTime).
+    const dur = isVideo ? T(m.durationSeconds) : audioTime(m.durationSeconds);
     return (
-      `    <asset id="${assetId.get(m.id)}" name="${esc(baseName(m.path))}" start="0s" duration="${T(m.durationSeconds)}"${v}${a}${fmt}>\n` +
+      `    <asset id="${assetId.get(m.id)}" name="${esc(baseName(m.path))}" start="0s" duration="${dur}"${v}${a}${fmt}>\n` +
       `      <media-rep kind="original-media" src="${esc(assetSrc(m.path))}"/>\n` +
       `    </asset>`
     );
