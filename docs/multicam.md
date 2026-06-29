@@ -68,9 +68,28 @@ quick view.
   master audio plays from a **connected clip on lane -1** of the first mc-clip
   (the same path the flat export uses) and the spine mc-clips select **video
   only** — routing audio through an `mc-source srcEnable="audio"` imported silent
-  in FCP (VS-36). To preview the cut without FCP, **`render-multicam-preview`**
-  renders the same group + `--switch` points to a flat MP4 (the synced angle cuts
-  with the master audio underneath) for a side-by-side comparison.
+  in FCP (VS-36). The audio asset's `duration` is declared **sample-exactly** (not
+  video-frame-quantized), or FCP rejects the full-length audio edit as "no
+  respective media" (VS-36). To preview the cut without FCP,
+  **`render-multicam-preview`** renders the same group + `--switch` points to a
+  flat MP4 (the synced angle cuts with the master audio underneath) for a
+  side-by-side comparison.
+
+  **FCP import gotchas (validated against a real import, VS-36):**
+  - The generated `.fcpxml` validates against FCP's bundled DTD — when FCP is
+    installed you can check it directly:
+    `xmllint --noout --dtdvalid "/Applications/Final Cut Pro.app/Contents/Frameworks/Interchange.framework/Versions/A/Resources/FCPXMLv1_10.dtd" <file>.fcpxml`
+    (copy the DTD somewhere without spaces in the path first, or entity resolution
+    fails). A DTD-valid file that still mis-imports is almost always a **media**
+    problem, not a structure problem.
+  - **Source-media compatibility is on you.** FCP's FCPXML importer rejects some
+    files other tools read fine — notably **Pro Tools / Broadcast Wave** WAVs with
+    a non-standard 40-byte `fmt ` chunk and extra metadata chunks
+    (`bext`/`minf`/`elm1`/`regn`/`umid`): every edit referencing them imports as
+    "Invalid edit with no respective media." Re-encode to a canonical `fmt`+`data`
+    WAV (`ffmpeg -fflags +bitexact -i in.wav -map_metadata -1 -c:a pcm_s16le
+    -ac 2 -ar 48000 out.wav`) and reference that. (Follow-up: have the toolkit
+    detect/normalize this on sync/export — see the Hot Sheet.)
 
 ## 3. Known hard problems (how they're handled)
 
