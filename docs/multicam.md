@@ -64,20 +64,20 @@ quick view.
   The spine `<mc-clip>`s are laid on **exact frame boundaries** (offset/duration
   in whole frames, so consecutive clips abut precisely and the last ends on the
   sequence duration) — independent per-clip second→frame rounding otherwise left
-  ±1-frame gaps/overlaps that FCP mis-positions at non-integer rates (VS-36). The
-  master audio plays from a **connected clip on lane -1** of the first mc-clip
-  (the same path the flat export uses) and the spine mc-clips select **video
-  only** — routing audio through an `mc-source srcEnable="audio"` imported silent
-  in FCP (VS-36). The audio asset's `duration` is declared **sample-exactly** (not
-  video-frame-quantized), or FCP rejects the full-length audio edit as "no
-  respective media" (VS-36). When the master audio runs **before the first video
-  frame** (cameras rolled after the recorder), FCP's multicam plays that lead out
-  of sync; **`--start <sec>`** (`startSeconds`) trims the dead air — it re-bases
-  the timeline so the edit and the master audio begin together where the footage
-  is (the flat preview tolerates the lead, FCP does not — VS-36). To preview the
-  cut without FCP, **`render-multicam-preview`** renders the same group +
-  `--switch`/`--start` to a flat MP4 (the synced angle cuts with the master audio
-  underneath) for a side-by-side comparison.
+  ±1-frame gaps/overlaps that FCP mis-positions at non-integer rates (VS-36). Each
+  spine `<mc-clip>` selects **video** from the active camera angle and **audio**
+  from the fixed master-audio angle, both via `<mc-source>` — the multicam aligns
+  its angles internally, so the audio stays locked to the picture even where the
+  master audio leads the first video frame (a separate connected audio clip can't
+  track that lead in FCP's multicam and drifts ahead — VS-36). The audio asset's
+  `duration` is declared **sample-exactly** (not video-frame-quantized), or FCP
+  rejects the full-length audio edit as "no respective media" (VS-36). The leading
+  region (master audio over black, before any camera rolled) plays in sync; an
+  optional **`--start <sec>`** (`startSeconds`) trims that dead air by re-basing the
+  timeline (both the video and the master-audio angle follow the shifted source
+  time). To preview the cut without FCP, **`render-multicam-preview`** renders the
+  same group + `--switch`/`--start` to a flat MP4 (the synced angle cuts with the
+  master audio underneath) for a side-by-side comparison.
 
   **FCP import gotchas (validated against a real import, VS-36):**
   - The generated `.fcpxml` validates against FCP's bundled DTD — when FCP is

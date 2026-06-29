@@ -228,18 +228,13 @@ export function buildMulticamFcpxml(group, switches, { name, width, height, tota
   // drifts by ±1 frame at non-integer rates and FCP mis-positions the spine.
   const frameOf = (s) => Math.round(s * fps);
   const Tf = (frames) => framesToTime(frames, fps);
-  // The master audio plays under the WHOLE timeline as a connected clip on lane
-  // -1 of the first mc-clip — the same pattern as the flat export's audioTrack
-  // (buildFcpxml). Routing the audio through an mc-source `srcEnable="audio"`
-  // instead leaves the timeline silent on import (FCP doesn't sound the audio
-  // angle that way), so the spine mc-clips select VIDEO only and the timeline
-  // takes its audio solely from this connected clip — no doubled angle audio.
-  const masterAssetRef = assetId.get(group.masterAudioId);
-  // The master audio under the timeline plays from group-time `origin`; in its own
-  // clock that is `origin - masterOffset` (0 for a reference master at offset 0).
-  const masterOffset = offsetOf(master);
-  const audioStartSec = origin - masterOffset;
-  const audioDur = Math.min(timelineLength, (master.durationSeconds ?? (audioStartSec + timelineLength)) - audioStartSec);
+  // Each spine mc-clip selects VIDEO from the active camera angle and AUDIO from
+  // the fixed master-audio angle, both via `mc-source`. The multicam aligns its
+  // angles internally (audio angle at its sync offset, video angles at theirs), so
+  // routing the audio through the angle keeps it locked to the picture by
+  // construction — even when the master audio leads the first video frame. (A
+  // separate connected audio clip can't track that lead in FCP's multicam and
+  // drifts ahead — VS-36.)
 
   // Validate every switch up front (so an unknown angle still throws even when the
   // trim would drop its span), then clip the spans to [origin, total] and re-base
@@ -254,18 +249,14 @@ export function buildMulticamFcpxml(group, switches, { name, width, height, tota
     spans.push({ memberId: sorted[i].memberId, tIn, tOut });
   }
 
-  const clipEls = spans.map((sp, i) => {
+  const clipEls = spans.map((sp) => {
     const inF = frameOf(sp.tIn - origin); // timeline position (re-based to the trim point)
     const outF = frameOf(sp.tOut - origin);
     const srcStartF = frameOf(sp.tIn + shift); // source time within the multicam media
-    // offset="0s" is parent-local: the first mc-clip sits at timeline 0, so the
-    // master audio starts at the timeline zero, playing from its own `audioStartSec`.
-    const masterAudio = i === 0
-      ? `\n        <asset-clip ref="${masterAssetRef}" lane="-1" offset="0s" name="${esc(baseName(master.path))}" start="${T(audioStartSec)}" duration="${T(audioDur)}"/>`
-      : "";
     return (
       `      <mc-clip ref="${mediaId}" offset="${Tf(inF)}" name="${esc(name || group.id)}" start="${Tf(srcStartF)}" duration="${Tf(outF - inF)}">\n` +
-      `        <mc-source angleID="${esc(sp.memberId)}" srcEnable="video"/>${masterAudio}\n` +
+      `        <mc-source angleID="${esc(sp.memberId)}" srcEnable="video"/>\n` +
+      `        <mc-source angleID="${esc(group.masterAudioId)}" srcEnable="audio"/>\n` +
       `      </mc-clip>`
     );
   });

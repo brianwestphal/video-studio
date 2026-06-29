@@ -51,23 +51,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   to fill its slot) (VS-33). The multicam spine `<mc-clip>`s are laid on exact
   frame boundaries so consecutive angle spans abut precisely and the timeline ends
   on the sequence duration — fixing ±1-frame gaps/overlaps that independent
-  per-clip rounding produced at non-integer rates like 23.976 (VS-36). The master
-  audio now plays from a **connected `lane="-1"` clip** under the timeline (the
-  same path the flat export uses) with the spine selecting video only — routing it
-  through an `mc-source srcEnable="audio"` imported **silent** in FCP (VS-36). The
-  audio-only asset no longer carries a (video) `format`, and its `duration` is
+  per-clip rounding produced at non-integer rates like 23.976 (VS-36). Each spine
+  `<mc-clip>` selects **audio from the master-audio angle** (and video from the
+  active camera) via `<mc-source>`, so the multicam aligns the audio to the picture
+  natively — it stays in sync even where the master audio leads the first video
+  frame (a separate connected audio clip drifts ahead in FCP's multicam, VS-36).
+  The audio-only asset no longer carries a (video) `format`, and its `duration` is
   declared **sample-exactly** (e.g. `120081/500s`) instead of video-frame-quantized
   — a frame-quantized audio duration lands between samples and slightly short of
   the real media, so FCP rejected every full-length audio edit with "Invalid edit
-  with no respective media." The same fixes apply to the flat export's master-audio
-  asset (VS-36). New
+  with no respective media." (The same `format`/sample-duration fixes apply to the
+  flat export's master-audio asset; that export keeps its connected audio lane,
+  which works there — VS-36.) New
   `render-multicam-preview` renders the same group + switches to a flat MP4 so you
   can watch the angle cut (master audio underneath, black where an angle hasn't
   rolled yet) and compare it against the FCP import without opening FCP (VS-36).
-  Both the export and the preview take **`--start <sec>`** to trim leading dead
-  air: when the master audio runs before the first video frame, FCP's multicam
-  plays the lead out of sync, so re-basing the timeline to where the cameras roll
-  keeps audio and picture locked (VS-36).
+  Both the export and the preview take an optional **`--start <sec>`** to trim
+  leading dead air (the black head while the master audio plays before the cameras
+  roll) by re-basing the timeline — audio stays locked either way (VS-36).
   The multicam FCPXML is generated to spec but should be validated by a real FCP
   import (see the manual test plan).
 - **Launcher** — the launcher now pauses ("Press Enter to launch Claude…") so its getting-started splash is readable before Claude's UI takes over the terminal (skipped with `--yes` or no TTY).
