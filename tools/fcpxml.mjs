@@ -41,7 +41,7 @@ const baseName = (p) => p.split("/").pop().replace(/\.[^.]+$/, "");
 // export-manifest.mjs); `assetSrc(file)` returns the media URL for a manifest
 // file path (e.g. "segments/seg-001.mov" → "file:///…/segments/seg-001.mov").
 export function buildFcpxml(manifest, assetSrc) {
-  const { project, segments, overlays } = manifest;
+  const { project, segments, overlays, audioTrack } = manifest;
   const fps = project.fps;
   const T = (s) => rationalTime(s, fps);
   const fd = frameDuration(fps);
@@ -51,18 +51,21 @@ export function buildFcpxml(manifest, assetSrc) {
   const formatId = `r${rid++}`;
   const ref = new Map();
   const assetEls = [];
-  const addAsset = (file, durationSeconds, hasAudio) => {
+  const addAsset = (file, durationSeconds, hasAudio, hasVideo = true) => {
     const id = `r${rid++}`;
     ref.set(file, id);
     const audio = hasAudio ? ` hasAudio="1" audioSources="1" audioChannels="2" audioRate="48000"` : "";
+    const video = hasVideo ? ` hasVideo="1" videoSources="1"` : "";
     assetEls.push(
-      `    <asset id="${id}" name="${esc(baseName(file))}" start="0s" duration="${T(durationSeconds)}" hasVideo="1" videoSources="1"${audio} format="${formatId}">\n` +
+      `    <asset id="${id}" name="${esc(baseName(file))}" start="0s" duration="${T(durationSeconds)}"${video}${audio} format="${formatId}">\n` +
       `      <media-rep kind="original-media" src="${esc(assetSrc(file))}"/>\n` +
       `    </asset>`,
     );
   };
   segments.forEach((s) => addAsset(s.file, s.durationSeconds, true));
   overlays.forEach((o) => addAsset(o.file, o.durationSeconds, false));
+  // The continuous master-audio track (multi-cam) is an audio-only asset.
+  if (audioTrack) addAsset(audioTrack.file, audioTrack.durationSeconds, true, false);
 
   // spine: segments in order; overlays nested as connected clips (lane 1)
   const spine = segments.map((s) => {
@@ -72,6 +75,11 @@ export function buildFcpxml(manifest, assetSrc) {
         const localOffset = o.target.start.seconds - s.target.start.seconds; // parent-local
         return `        <asset-clip ref="${ref.get(o.file)}" lane="1" offset="${T(localOffset)}" name="${esc(baseName(o.file))}" start="0s" duration="${T(o.durationSeconds)}"/>`;
       });
+    // The master audio is a connected clip on lane -1 of the first segment,
+    // spanning the whole sequence (offset 0 = timeline start, since seg 1 is at 0).
+    if (audioTrack && s.index === 1) {
+      conn.unshift(`        <asset-clip ref="${ref.get(audioTrack.file)}" lane="-1" offset="0s" name="${esc(baseName(audioTrack.file))}" start="0s" duration="${T(audioTrack.durationSeconds)}"/>`);
+    }
     const open = `      <asset-clip ref="${ref.get(s.file)}" offset="${T(s.target.start.seconds)}" name="${esc(baseName(s.file))}" start="0s" duration="${T(s.durationSeconds)}" format="${formatId}" tcFormat="NDF">`;
     if (conn.length === 0) return open.replace(/>$/, "/>");
     return `${open}\n${conn.join("\n")}\n      </asset-clip>`;

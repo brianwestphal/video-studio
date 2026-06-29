@@ -418,3 +418,45 @@ export function resolveAngleCuts(switches, members, { totalSeconds }) {
   }
   return segments;
 }
+
+// Expand a synced group + angle switches into an editor-handoff CUT SPEC (the
+// shape export-manifest.mjs consumes): a flat sequence of **silent** video angle
+// segments over a **continuous master-audio track**. This is the "synced flat
+// timeline" first cut (docs/multicam.md R-MC5/R-MC6); a true FCPXML multicam
+// asset is a later milestone.
+//
+//  - `group` is a manifest group ({ projectFps, masterAudioId, members[] }).
+//  - `switches` is [{ atSeconds, memberId }] over the shared timeline.
+//  - `opts`: { name, width, height, totalSeconds? } — frame size is required by
+//    the export; totalSeconds defaults to the master audio member's duration
+//    (the event runs as long as the master audio).
+//
+// Returns { project, clips, audioTrack }. Each clip is
+// { source, in, out, audio: "silent" }; audioTrack is
+// { source, in, durationSeconds } for the master audio under the whole timeline.
+export function expandMulticamGroup(group, switches, { name, width, height, totalSeconds } = {}) {
+  const byId = new Map(group.members.map((m) => [m.id, m]));
+  const master = byId.get(group.masterAudioId);
+  if (!master) throw new Error(`master audio member not found: ${group.masterAudioId}`);
+  const total = totalSeconds ?? master.durationSeconds;
+  if (!(total > 0)) throw new Error("expandMulticamGroup: a positive totalSeconds (or master duration) is required");
+
+  const segments = resolveAngleCuts(switches, group.members, { totalSeconds: total });
+  const clips = segments.map((s) => ({
+    source: byId.get(s.memberId).path,
+    in: +s.sourceInSeconds.toFixed(3),
+    out: +s.sourceOutSeconds.toFixed(3),
+    audio: "silent",
+  }));
+
+  // The master audio plays under the whole timeline; at timeline 0 its own clock
+  // is (0 - masterOffset), so we read it from there.
+  const masterOffset = master.offsetSeconds ?? 0;
+  const audioTrack = { source: master.path, in: +(-masterOffset).toFixed(3), durationSeconds: +total.toFixed(3) };
+
+  return {
+    project: { name: name || group.id, fps: group.projectFps, width, height },
+    clips,
+    audioTrack,
+  };
+}

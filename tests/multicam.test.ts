@@ -12,6 +12,7 @@ import {
   driftCorrection,
   DRIFT_WARN_PPM,
   envelope,
+  expandMulticamGroup,
   fftInPlace,
   findOffset,
   fitDrift,
@@ -444,5 +445,54 @@ describe("resolveAngleCuts", () => {
   });
   it("throws on an unknown memberId", () => {
     expect(() => resolveAngleCuts([{ atSeconds: 0, memberId: "ghost" }], members, { totalSeconds: 10 })).toThrow(/unknown memberId/);
+  });
+});
+
+describe("expandMulticamGroup", () => {
+  const group = {
+    id: "ceremony",
+    projectFps: 30,
+    referenceId: "rec",
+    masterAudioId: "rec",
+    members: [
+      { id: "rec", path: "/r.wav", kind: "audio", durationSeconds: 20, offsetSeconds: 0 },
+      { id: "cam-a", path: "/a.mov", kind: "video", durationSeconds: 20, offsetSeconds: 2 },
+      { id: "cam-b", path: "/b.mov", kind: "video", durationSeconds: 20, offsetSeconds: 0 },
+    ],
+  };
+  const switches = [
+    { atSeconds: 0, memberId: "cam-a" },
+    { atSeconds: 5, memberId: "cam-b" },
+  ];
+  it("expands switches into silent video clips + a master-audio track", () => {
+    const spec = expandMulticamGroup(group, switches, { name: "cut", width: 1920, height: 1080 });
+    expect(spec.project).toEqual({ name: "cut", fps: 30, width: 1920, height: 1080 });
+    expect(spec.clips).toEqual([
+      { source: "/a.mov", in: -2, out: 3, audio: "silent" }, // cam-a offset 2 → source = timeline - 2
+      { source: "/b.mov", in: 5, out: 20, audio: "silent" },
+    ]);
+    expect(spec.audioTrack).toEqual({ source: "/r.wav", in: 0, durationSeconds: 20 });
+  });
+  it("defaults the project name to the group id and total to the master duration", () => {
+    const spec = expandMulticamGroup(group, switches, { width: 16, height: 9 });
+    expect(spec.project.name).toBe("ceremony");
+    expect(spec.audioTrack.durationSeconds).toBe(20);
+  });
+  it("honors an explicit totalSeconds and a master offset", () => {
+    const g2 = { ...group, masterAudioId: "cam-a" }; // master started 2s late
+    const spec = expandMulticamGroup(g2, switches, { width: 16, height: 9, totalSeconds: 12 });
+    expect(spec.audioTrack).toEqual({ source: "/a.mov", in: -2, durationSeconds: 12 });
+  });
+  it("throws when the master audio member is missing", () => {
+    expect(() => expandMulticamGroup({ ...group, masterAudioId: "ghost" }, switches, { width: 1, height: 1 })).toThrow(/master audio member/);
+  });
+  it("throws when no positive total is available", () => {
+    const g = { ...group, members: [{ id: "rec", path: "/r.wav", kind: "audio", offsetSeconds: 0 }] };
+    expect(() => expandMulticamGroup(g, [{ atSeconds: 0, memberId: "rec" }], { width: 1, height: 1 })).toThrow(/positive totalSeconds/);
+  });
+  it("treats a master with no offset field as offset 0", () => {
+    const g = { ...group, members: [{ id: "rec", path: "/r.wav", kind: "audio", durationSeconds: 8 }, ...group.members.slice(1)] };
+    const spec = expandMulticamGroup(g, [{ atSeconds: 0, memberId: "rec" }], { width: 1, height: 1 });
+    expect(spec.audioTrack.in).toBe(0);
   });
 });

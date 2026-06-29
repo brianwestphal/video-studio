@@ -26,7 +26,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   retime correction in the manifest (`rateCorrection` + start-anchored
   `correctedOffsetSeconds`; the drift windows are matched against a bounded
   reference region so repetitive audio doesn't mis-lock), ready for the export to
-  apply (VS-30).
+  apply (VS-30). **Angle switching** ships end to end: `expandMulticamGroup` turns
+  a synced group + angle switch points into an editor-handoff cut spec (silent
+  video angle-segments over a continuous master-audio track), the export muxes the
+  master audio under the switching angles + writes FCPXML with it on a connected
+  audio lane, and the skill drives the whole flow (VS-29). The cut spec gains an
+  optional `audioTrack` (also usable for a music bed).
 - **Launcher** — the launcher now pauses ("Press Enter to launch Claude…") so its getting-started splash is readable before Claude's UI takes over the terminal (skipped with `--yes` or no TTY).
 - **Docs & onboarding** — added a `README.md`, an MIT `LICENSE` file, and a `docs/` set (requirements, release guide, manual test plan, and AI-summary maps).
 - **Shippable worked examples** — the `promo-assets/` teaser + caption/wordmark example scripts now ship with the package and run anywhere (env-configurable paths; no hardcoded machine paths; use the published `domotion-svg`).

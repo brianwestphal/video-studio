@@ -26,7 +26,7 @@ import { execFileSync } from "node:child_process";
 import { chmodSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, isAbsolute, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import { buildManifest, overlayArgs, rebuildScript, segmentArgs } from "./export-manifest.mjs";
+import { audioTrackArgs, buildManifest, overlayArgs, rebuildScript, segmentArgs } from "./export-manifest.mjs";
 import { buildFcpxml } from "./fcpxml.mjs";
 
 function parseArgs(argv) {
@@ -61,6 +61,7 @@ function main() {
   // Resolve source paths relative to the spec file for portability.
   for (const c of spec.clips || []) c.source = abs(c.source);
   for (const o of spec.overlays || []) o.file = abs(o.file);
+  if (spec.audioTrack) spec.audioTrack.source = abs(spec.audioTrack.source);
 
   const overlayDurations = (spec.overlays || []).map((o) => o.duration ?? ffprobeDuration(o.file));
   const manifest = buildManifest(spec, overlayDurations);
@@ -78,6 +79,12 @@ function main() {
     console.log(`  overlay ${o.index} over seg ${o.overSegment}: ${o.target.start.timecode} → ${o.target.end.timecode}`);
     ffmpeg(overlayArgs(manifest.project, spec.overlays[i].file, o.durationSeconds, resolve(outDir, o.file)));
   });
+
+  if (manifest.audioTrack) {
+    mkdirSync(resolve(outDir, "audio"), { recursive: true });
+    console.log(`  master audio: ${manifest.audioTrack.durationSeconds}s from ${manifest.audioTrack.source}`);
+    ffmpeg(audioTrackArgs(manifest.audioTrack, resolve(outDir, manifest.audioTrack.file)));
+  }
 
   writeFileSync(resolve(outDir, "manifest.json"), JSON.stringify(manifest, null, 2) + "\n");
   const rb = resolve(outDir, "rebuild.sh");

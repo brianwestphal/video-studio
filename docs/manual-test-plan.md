@@ -106,6 +106,7 @@ exercise the ffmpeg mono extraction + the real end-to-end sync.
 | 7.5 | Sync a **long take** (> `--drift-min`, default 600 s) with a growing clock offset (e.g. an `atempo=1.001` copy of a structured signal) | The drifting member reports a `driftPpm` near the true rate, past 100 ppm `driftWarning: true`, plus a `rateCorrection` (≈ 1 + ppm/1e6) and a start-anchored `correctedOffsetSeconds`. A non-drifting copy reports ~0 ppm. (Applying the retime on export is VS-29.) |
 | 7.6 | Re-run 7.1 with `--feature phat` (and with `--no-interpolate`) | `phat` (GCC-PHAT) still recovers the offset, typically with a sharper/higher `confidence`; `--no-interpolate` yields whole-sample `offsetSeconds`, otherwise it is sub-sample-refined. |
 | 7.7 | `node tools/propose-groups.mjs <sources.json>` over a pool with two clips in one folder + one elsewhere | Proposes the folder/overlap group (>=2 members) with a ready-to-run `sync-multicam` command; `--strategy filename`/`--json` switch the heuristic/format. Singletons are never proposed. |
+| 7.8 | From a synced `multicam.json`, build a cut spec with `expandMulticamGroup(group, switches, {name,width,height})`, run `export-project`, then `rebuild.sh` | The rebuilt cut has **continuous master audio** under **switching video angles** (e.g. frame colors change at each switch point); the export folder has `audio/master.mov`; the `.fcpxml` is well-formed with the master audio on a connected `lane="-1"` clip. |
 
 ## Automated Coverage Summary
 
@@ -128,17 +129,19 @@ Covered by unit tests (do **not** re-test by hand):
 - **`tools/caption-format.mjs`** — `parseArgs`, `namespaceSvgIds`, `iconImg`,
   `block`, `wrapPos`, `buildPage`, `buildSpecs` (`tests/caption-format.test.ts`).
   100% coverage.
-- **`tools/export-manifest.mjs`** — `buildManifest`, `framesToTimecode`,
-  `segmentArgs`, `overlayArgs`, `rebuildScript` (`tests/export-manifest.test.ts`).
-  100% coverage. The ffmpeg execution in `export-project.mjs` is §5 above.
+- **`tools/export-manifest.mjs`** — `buildManifest` (incl. the `audioTrack`),
+  `framesToTimecode`, `segmentArgs`, `overlayArgs`, `audioTrackArgs`,
+  `rebuildScript` (`tests/export-manifest.test.ts`). 100% coverage. The ffmpeg
+  execution in `export-project.mjs` is §5 + §7.8 above.
 - **`tools/fcpxml.mjs`** — `buildFcpxml`, `frameDuration`, `rationalTime`
   (`tests/fcpxml.test.ts`). 100% coverage; FCP import itself is §5 below.
 - **`tools/multicam.mjs`** — the FFT (`fftInPlace`, `crossCorrelate`,
   `crossCorrelatePhat`), offset/confidence (`findOffset`, `offsetSeconds`,
   `parabolicVertex`), `fitDrift`, `classifySync`, `selectReference`,
-  `buildGroupManifest`, `resolveAngleCuts` (`tests/multicam.test.ts`). 100%
-  coverage. The ffmpeg mono extraction + real-audio sync in `sync-multicam.mjs`
-  is §7 above.
+  `buildGroupManifest`, `resolveAngleCuts`, `driftCorrection`, `atempoChain`,
+  `expandMulticamGroup` (`tests/multicam.test.ts`). 100% coverage. The ffmpeg mono
+  extraction + real-audio sync in `sync-multicam.mjs` is §7 above; the multicam
+  export is §7.8.
 - **`tools/multicam-groups.mjs`** — `slug`, `groupByFolder`,
   `groupByTimeWindow`, `eventKey`, `groupByFilename`, `proposeGroups`
   (`tests/multicam-groups.test.ts`). 100% coverage. The `sources.json` read +

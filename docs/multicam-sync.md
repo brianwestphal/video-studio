@@ -94,11 +94,14 @@ Key sources are cited in [§7](#7-research-findings--citations).
   group an `id`, `projectFps`, `referenceId`, `masterAudioId`, and `members`
   (`id`, `path`, `kind`, `fps`, `durationSeconds`, `offsetSeconds`, `confidence`,
   `peakRatio`, `sync`, `driftPpm`, `driftWarning`). See [§5](#5-manifest-schema).
-- **R-MCS8 Angle resolution.** Given angle **switch points** over the shared
-  timeline, `resolveAngleCuts` produces segments
-  `{ memberId, timelineIn/Out, sourceIn/Out }` — `sourceIn = timelineIn − offset`
-  — ready for the [editor handoff](editor-handoff.md). Wiring this into the skill
-  + FCPXML is deferred.
+- **R-MCS8 Angle resolution + handoff.** Given angle **switch points** over the
+  shared timeline, `resolveAngleCuts` produces segments
+  `{ memberId, timelineIn/Out, sourceIn/Out }` (`sourceIn = timelineIn − offset`),
+  and `expandMulticamGroup` wraps them into an [editor-handoff](editor-handoff.md)
+  cut spec: silent video angle-segments over a continuous **master-audio track**
+  (`audioTrack`). The export muxes the master audio under the switching angles
+  (`rebuild.sh`) and writes FCPXML with the audio on a connected lane. A true
+  FCPXML `mc-clip` multicam asset is deferred (VS-33).
 
 ## 4. CLI
 
@@ -171,17 +174,16 @@ Positive ⇒ the member started **later** than the reference.
 
 ## 6. Deferred / follow-ups
 
-- **Skill + editor-handoff + FCPXML multicam (VS-29).** Drive grouping/sync from
-  the skill, express groups in the handoff manifest, **apply the drift
-  `rateCorrection`** (atempo/setpts) + `correctedOffsetSeconds` on
-  export/compositing, and emit a true FCPXML `mc-clip` / multicam asset (a synced
-  flat timeline is the acceptable first cut).
+- **True FCPXML `mc-clip` multicam asset (VS-33).** The synced flat timeline (this
+  doc) is the shipped first cut; emitting a real FCP multicam clip (angles in the
+  angle viewer) + applying the per-member drift `rateCorrection` retime
+  (atempo/setpts) on export is the remaining milestone.
 
-Shipped since the first cut: **sub-sample precision** (parabolic peak
-interpolation) and the **GCC-PHAT** (`--feature phat`) phase-whitened feature
-(VS-32); **automatic group proposal** (`propose-groups`, VS-31); **drift
-correction** computed + emitted (`rateCorrection` / `correctedOffsetSeconds`,
-VS-30 — application on export is VS-29).
+Shipped: the **sync tool** + manifest (VS-27); **sub-sample precision** + **GCC-PHAT**
+(`--feature phat`) (VS-32); **automatic group proposal** (`propose-groups`, VS-31);
+**drift correction** computed + emitted (`rateCorrection` / `correctedOffsetSeconds`,
+VS-30); **angle switching → synced flat-timeline export** with a continuous
+master-audio track + FCPXML connected audio (VS-29).
 
 ## 7. Research findings + citations
 

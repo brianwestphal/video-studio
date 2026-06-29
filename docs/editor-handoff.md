@@ -21,14 +21,21 @@ writes after designing the cut (source paths resolve relative to the spec file):
   ],
   "overlays": [
     { "file": "cap.mov", "overClip": 0, "atOffset": 0.5, "position": "lower-third" }
-  ]
+  ],
+  "audioTrack": { "source": "recorder.wav", "in": 0, "durationSeconds": 8 }
 }
 ```
 
 `clips` are in cut order (`in`/`out` in seconds; `audio` is `keep`|`silent`).
 Each `overlay` references an already-rendered alpha clip (`file`) and sits over
 clip `overClip` starting `atOffset` seconds into it; its duration is taken from
-the file unless `duration` is given.
+the file unless `duration` is given. The optional **`audioTrack`** lays one
+continuous audio source under the whole timeline (its `durationSeconds` defaults
+to the timeline length) — used for **multi-cam** (silent video angle-segments +
+master audio; see [`multicam-sync.md`](multicam-sync.md), built by
+`expandMulticamGroup`) or a music bed. It is extracted to `audio/master.mov`,
+muxed under the video by `rebuild.sh`, and attached to the FCPXML on a connected
+audio lane.
 
 > **Early concept.** Design intent for a pre-1.0 feature; details may change.
 
@@ -56,6 +63,7 @@ A single export produces a project directory next to the source, e.g.:
 <video>.studio-export/
   segments/   seg-001.mov, seg-002.mov, …          # ProRes 422 HQ, in cut order
   overlays/   ov-001.mov,  ov-002.mov,  …           # ProRes 4444 (alpha)
+  audio/      master.mov                            # continuous audioTrack (when present), PCM
   manifest.json                                     # the machine-readable manifest
   <project>.fcpxml                                   # Final Cut Pro import
   rebuild.sh                                        # re-composites the final cut from the pieces
@@ -96,6 +104,10 @@ A single export produces a project directory next to the source, e.g.:
   in/out, audio kept/silent), and a list of **overlays** (file, target start/end,
   position/anchor, over-segment ref). Times are frame-accurate and absolute in the
   final timeline.
+- **R-EH9a** When the cut spec has an `audioTrack`, the manifest records it
+  (`audio/master.mov`, source + source-in + duration) — one continuous audio bed
+  under the timeline (the multi-cam master audio, or a music bed). Segments are
+  silent in that case; `rebuild.sh` muxes the master audio under the video.
 - **R-EH10** The manifest is sufficient to **re-composite the exact final cut**
   (the `rebuild.sh` does this), and to verify the export by frame-sampling.
 
@@ -105,7 +117,9 @@ A single export produces a project directory next to the source, e.g.:
   places the segments on the **primary storyline** in order at their target
   ranges, and attaches each overlay as a **connected clip** above its segment at
   the overlay's target range; references the exported `segments/` + `overlays/`
-  files; and sets the sequence format from the project fps/frame size.
+  files; and sets the sequence format from the project fps/frame size. When an
+  `audioTrack` is present it is an audio-only asset attached as a connected clip
+  on **lane -1** of the first segment, spanning the whole sequence.
 - **R-EH12** Frame-rate aware: the FCPXML `frameDuration` and all clip
   offsets/durations use rational time at the project fps (e.g. `1001/30000s` for
   29.97) so FCP imports without conform warnings.

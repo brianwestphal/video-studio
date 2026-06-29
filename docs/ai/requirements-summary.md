@@ -18,12 +18,13 @@ sync with the requirements doc and code; the source wins on conflict.
 | Editor handoff (segments + overlays + manifest/FCPXML) | [`editor-handoff.md`](../editor-handoff.md) | **Shipped** — export + manifest + rebuild (VS-24) + FCPXML (VS-25) |
 | Multiple source videos | [`multiple-sources.md`](../multiple-sources.md) | **Shipped** (VS-26) |
 | FCP transition suggestions | [`transitions.md`](../transitions.md) | **Design only** (VS-23) |
-| Multi-cam editing | [`multicam.md`](../multicam.md), [`multicam-sync.md`](../multicam-sync.md) | **Partial** — audio sync tool shipped (VS-27); angle handoff/FCPXML + drift correction deferred |
+| Multi-cam editing | [`multicam.md`](../multicam.md), [`multicam-sync.md`](../multicam-sync.md) | **Mostly shipped** — sync, group proposal, angle switching → flat-timeline export, drift correction (VS-27/29/30/31/32); true FCPXML mc-clip asset deferred (VS-33) |
 
 The core pipeline plus the editor handoff (export + FCPXML) and multi-source
-input are shipped. **Multi-cam audio sync** is now shipped (VS-27): the
-`sync-multicam` tool + pure DSP/manifest math; angle-switching through the skill
-+ editor handoff/FCPXML and drift *correction* are deferred. Design-only: **FCP
+input are shipped. **Multi-cam** is now mostly shipped (VS-27/29/30/31/32): audio
+sync, group proposal, angle switching → a synced flat-timeline export (continuous
+master-audio track + FCPXML), and drift detection + retime correction — only a
+true FCPXML `mc-clip` multicam asset is deferred (VS-33). Design-only: **FCP
 transition suggestions** ([`transitions.md`](../transitions.md), VS-23) — see
 its doc + follow-up tickets.
 
@@ -78,8 +79,13 @@ its doc + follow-up tickets.
   `propose-groups` + `tools/multicam-groups.mjs` (VS-31). Long-take **drift** is
   detected, flagged, and a **retime correction computed** (`rateCorrection` +
   start-anchored `correctedOffsetSeconds`, VS-30). **Deferred:** angle-switching
-  through the skill + editor handoff / FCPXML multicam asset, which also
-  **applies** the drift retime on export (VS-29). See
+  detected, flagged, and a **retime correction computed** (`rateCorrection` +
+  start-anchored `correctedOffsetSeconds`, VS-30). **Angle switching** ships via
+  `expandMulticamGroup` → an editor-handoff cut spec (silent video angle-segments
+  over a continuous master-audio `audioTrack`), exported with the master audio
+  muxed under the switching angles + on an FCPXML connected lane, driven from the
+  skill (VS-29). **Deferred:** a true FCPXML `mc-clip` multicam asset + applying
+  the per-member drift retime on export (VS-33). See
   [`multicam.md`](../multicam.md) + [`multicam-sync.md`](../multicam-sync.md).
 
 ## Known gaps / follow-ups

@@ -83,3 +83,29 @@ describe("buildFcpxml", () => {
     expect(xml).toMatch(/name="seg-002"[^>]*duration="3\/2s"[^>]*\/>/);
   });
 });
+
+describe("buildFcpxml with a master audio track (multi-cam)", () => {
+  const manifest = buildManifest({
+    project: { fps: 24, width: 1920, height: 1080, name: "ceremony" },
+    clips: [
+      { source: "/a.mov", in: 0, out: 5, audio: "silent" },
+      { source: "/b.mov", in: 5, out: 10, audio: "silent" },
+    ],
+    audioTrack: { source: "/r.wav", in: 0, durationSeconds: 10 },
+  });
+  const xml = buildFcpxml(manifest, (f) => `file:///export/${f}`);
+
+  it("adds an audio-only asset for the master track", () => {
+    // 2 segments + 1 audio = 3 assets; the audio asset has hasAudio but no hasVideo
+    expect((xml.match(/<asset id="r/g) || []).length).toBe(3);
+    expect(xml).toContain('<media-rep kind="original-media" src="file:///export/audio/master.mov"/>');
+    expect(xml).toMatch(/<asset id="r4" name="master"[^>]*hasAudio="1"[^>]*\/?>/);
+    expect(xml).not.toMatch(/name="master"[^>]*hasVideo/);
+  });
+
+  it("connects the master audio on lane -1 of the first segment, spanning the timeline", () => {
+    expect(xml).toContain('<asset-clip ref="r4" lane="-1" offset="0s" name="master" start="0s" duration="10s"/>');
+    // seg-001 is therefore not self-closed
+    expect(xml).toContain('name="seg-001" start="0s" duration="5s" format="r1" tcFormat="NDF">');
+  });
+});

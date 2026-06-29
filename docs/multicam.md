@@ -1,16 +1,19 @@
 # Multi-cam Editing
 
-Status: **Partial** (VS-27) — the **audio sync tool** is shipped (see
-[`multicam-sync.md`](multicam-sync.md): `tools/sync-multicam.mjs` +
-`tools/multicam.mjs`, unit-tested to 100%); angle-switching is resolved by the
-pure `resolveAngleCuts` but **not yet wired through the skill / editor handoff /
-FCPXML**, and drift is **detected and flagged** rather than corrected. Builds on
-[`multiple-sources.md`](multiple-sources.md): a multicam group is a labeled subset
-of the source pool that is **time-aligned** so the cut can switch angles.
+Status: **Mostly shipped** (VS-27/29/30/31/32). The **audio sync tool**
+([`multicam-sync.md`](multicam-sync.md): `tools/sync-multicam.mjs` +
+`tools/multicam.mjs`, 100% tested), **group proposal** (`propose-groups`),
+**angle switching** (`expandMulticamGroup` → a synced flat-timeline cut spec
+driven from the skill, exported with a continuous master-audio track + FCPXML),
+and **drift detection + retime correction** are all built. **Remaining:** a true
+FCPXML `mc-clip` multicam asset (VS-33) and applying the per-angle drift retime on
+export. Builds on [`multiple-sources.md`](multiple-sources.md): a multicam group
+is a labeled subset of the source pool that is **time-aligned** so the cut can
+switch angles.
 
-> **Early concept.** Design intent; the sync half is built (this doc's R-MC2/3/4
-> sync requirements — see [`multicam-sync.md`](multicam-sync.md)), while angle
-> switching through the handoff and drift *correction* remain open.
+> **Early concept.** Design intent; most of it is built (sync, grouping, angle
+> switching, drift correction). The true FCPXML multicam *asset* is the last
+> milestone.
 
 ## 1. Purpose
 
@@ -45,15 +48,17 @@ quick view.
   59.97 vs 60, etc. Sync must be **best-effort across differing rates**: align on
   real (seconds) time, not frame counts; conform each angle to the project fps on
   output (retime/resample as needed); never assume integer or equal fps.
-- **R-MC5 Angle selection.** *(Partial — `resolveAngleCuts` resolves switches into
-  segments; not yet driven from the skill.)* With a synced group, the cut can
-  **cut between angles** at chosen times over the shared timeline (FCP-style angle
-  switching), while the master audio runs continuously underneath.
-- **R-MC6 Handoff.** *(Deferred.)* Express synced groups in the
-  [editor handoff](editor-handoff.md): in the JSON manifest as group + per-angle
-  offsets, and ideally as an FCPXML `mc-clip` / multicam asset so FCP receives a
-  real multicam clip. (FCPXML multicam is complex — may be a later milestone; a
-  synced-but-flat timeline is an acceptable first cut.)
+- **R-MC5 Angle selection.** *(Shipped — `expandMulticamGroup` turns angle
+  switches into a cut spec; driven from the skill.)* With a synced group, the cut
+  can **cut between angles** at chosen times over the shared timeline (FCP-style
+  angle switching), while the master audio runs continuously underneath.
+- **R-MC6 Handoff.** *(Shipped as a synced flat timeline; true FCPXML multicam
+  asset deferred to VS-33.)* Synced groups feed the
+  [editor handoff](editor-handoff.md) as silent video angle-segments over a
+  continuous master-audio track — the manifest carries the `audioTrack`, the
+  `rebuild.sh` muxes it under the switching angles, and the FCPXML attaches it on
+  a connected audio lane. A true FCPXML `mc-clip` / multicam asset (so FCP shows a
+  real multicam clip in the angle viewer) is the remaining milestone.
 
 ## 3. Known hard problems (how they're handled)
 
@@ -76,12 +81,15 @@ findings + citations in [`multicam-sync.md` §7](multicam-sync.md#7-research-fin
 ## 4. Implementation
 
 - **Shipped:** the sync tool — `tools/sync-multicam.mjs` (ffmpeg mono extract +
-  the run) over `tools/multicam.mjs` (pure FFT cross-correlation, confidence
-  gate, drift fit, group-manifest + angle-cut math, 100% unit-tested). Emits
-  `multicam.json`. See [`multicam-sync.md`](multicam-sync.md).
-- **Deferred:** the skill driving grouping/sync + angle-cut design, expressing
-  groups in the [editor handoff](editor-handoff.md) / FCPXML multicam asset, and
-  drift *correction*.
+  the run) over `tools/multicam.mjs` (pure FFT/GCC-PHAT cross-correlation,
+  confidence gate, drift fit + retime correction, group-manifest, angle-cut +
+  `expandMulticamGroup` math, 100% unit-tested). Emits `multicam.json`. Group
+  proposal in `tools/propose-groups.mjs` + `tools/multicam-groups.mjs`. The skill
+  drives grouping → sync → angle switching; the [editor handoff](editor-handoff.md)
+  carries the continuous master-audio track (manifest `audioTrack` + `rebuild.sh`
+  mux + FCPXML connected audio lane). See [`multicam-sync.md`](multicam-sync.md).
+- **Deferred:** a true FCPXML `mc-clip` multicam asset (VS-33) and applying the
+  per-member drift `rateCorrection` retime on export.
 
 ## 5. Open questions / follow-ups
 

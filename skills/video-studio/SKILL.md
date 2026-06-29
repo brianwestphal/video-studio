@@ -28,6 +28,15 @@ node "$TOOLKIT/tools/analyze-sources.mjs" <file-or-folder>… --data-dir "$DATAD
 ```
 It expands folders (recursed, video extensions), gives each source a stable `id`, runs the analyzer per source, and writes `sources.json` (each source's `id`/path/fps/size + the union of scenes tagged with `sourceId`, source-relative times). Design cuts across sources by `(sourceId, in, out)`; resolve `sourceId` → the source path when you build the export cut spec (each cut clip carries its own `source`, so export/compositing already handles mixed sources — conform to one project fps/size). See [`docs/multiple-sources.md`](../../docs/multiple-sources.md).
 
+**Multi-cam (same event from several cameras/recorders)?** When clips cover one event from different angles — especially with a separate audio recorder — **audio-sync them into a group** so the cut can switch angles over a shared timeline. See [`docs/multicam-sync.md`](../../docs/multicam-sync.md).
+```bash
+# (optional) let the tool propose groups from the pool, then confirm with the user:
+node "$TOOLKIT/tools/propose-groups.mjs" "$WORK/sources.json"
+# sync a group by audio (an audio-only recorder track becomes the reference AND master audio):
+node "$TOOLKIT/tools/sync-multicam.mjs" <clipA> <clipB> <recorder.wav> --group-id ceremony --out "$WORK/multicam.json"
+```
+`multicam.json` carries each member's `offsetSeconds` + `confidence` + sync disposition (`auto`/`review`/`unsynced`; `unsynced` needs a manual offset — re-run with `--manual <id>=<sec>`). To build a switching cut, pick **angle switch points** over the shared timeline and expand the group into a cut spec with `expandMulticamGroup(group, switches, { name, width, height })` (from `$TOOLKIT/tools/multicam.mjs`): it returns silent video angle-segments over a **continuous master-audio track** (`audioTrack`), ready for the Step 7 export. The export plays the master audio under the switching angles and emits FCPXML with the audio on a connected lane.
+
 **Then describe the scenes yourself:** to get an overview cheaply, tile the per-scene frames into contact sheets and Read those, rather than 50 separate reads:
 ```bash
 ffmpeg -y -i "$DATADIR/frames/scene-%04d.jpg" -vf "scale=320:-1,tile=6x6" "$WORK/contact-%d.png"
@@ -92,7 +101,7 @@ When the user wants to add their own transitions/grade in Final Cut Pro (or anot
 ```bash
 node "$TOOLKIT/tools/export-project.mjs" "$WORK/cut.json" --out "<video-dir>/teaser.studio-export"
 ```
-The cut spec's `clips` reference each source by path + in/out seconds (`audio: keep|silent`); `overlays` reference the alpha `.mov`s you rendered in Step 4 with the clip they sit over + offset. The export also writes a **`<name>.fcpxml`** — the user can import that straight into Final Cut Pro (segments on the storyline, overlays as connected clips) for their transition pass, or run `rebuild.sh` to re-composite the exact cut.
+The cut spec's `clips` reference each source by path + in/out seconds (`audio: keep|silent`); `overlays` reference the alpha `.mov`s you rendered in Step 4 with the clip they sit over + offset. An optional **`audioTrack`** (`{ source, in, durationSeconds }`) lays one continuous audio source under the whole timeline — used for **multi-cam** (silent angle segments + master audio), or a music bed. The export also writes a **`<name>.fcpxml`** — the user can import that straight into Final Cut Pro (segments on the storyline, overlays + master audio as connected clips) for their transition pass, or run `rebuild.sh` to re-composite the exact cut.
 
 ## Output conventions
 - Write finished cuts next to the source (e.g. `<video-dir>/teaser.mp4`). Scratch encodes can go in a work dir or `/tmp`, **but keep the AI-interpretation intermediates**: the scene breakdown (`$DATADIR/timeline.json`, with descriptions) and the whisper transcripts (`$DATADIR/transcripts/`) are a durable record of how the model read the footage — don't bury them in `/tmp`.

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildManifest, framesToTimecode, overlayArgs, rebuildScript, segmentArgs } from "../tools/export-manifest.mjs";
+import { audioTrackArgs, buildManifest, framesToTimecode, overlayArgs, rebuildScript, segmentArgs } from "../tools/export-manifest.mjs";
 
 const project = { fps: 24, width: 1920, height: 1080, name: "teaser" };
 
@@ -89,6 +89,29 @@ describe("buildManifest", () => {
   it("throws when an overlay has no usable duration", () => {
     expect(() => buildManifest(baseSpec({ overlays: [{ file: "/c.mov" }] }), [])).toThrow(/no usable duration/);
   });
+
+  it("carries a master audioTrack (multi-cam), defaulting its duration to the timeline", () => {
+    const m = buildManifest(baseSpec({ audioTrack: { source: "/r.wav", in: 0 } }));
+    expect(m.audioTrack).toEqual({ file: "audio/master.mov", source: "/r.wav", sourceIn: 0, durationSeconds: m.project.totalSeconds });
+  });
+
+  it("honors an explicit audioTrack duration and in-point", () => {
+    const m = buildManifest(baseSpec({ audioTrack: { source: "/r.wav", in: 1.25, durationSeconds: 9 } }));
+    expect(m.audioTrack).toMatchObject({ sourceIn: 1.25, durationSeconds: 9 });
+  });
+
+  it("leaves audioTrack null when absent and throws on a zero-duration one", () => {
+    expect(buildManifest(baseSpec()).audioTrack).toBe(null);
+    expect(() => buildManifest({ project, clips: [{ source: "x", in: 0, out: 1 }], audioTrack: { source: "/r.wav", durationSeconds: 0 } })).toThrow(/audioTrack has no usable duration/);
+  });
+});
+
+describe("audioTrackArgs", () => {
+  it("extracts the master audio as PCM, trimmed, video dropped", () => {
+    const a = audioTrackArgs({ source: "/r.wav", sourceIn: 2.5, durationSeconds: 12.5 }, "/out/audio/master.mov");
+    expect(a).toEqual(expect.arrayContaining(["-ss", "2.5", "-i", "/r.wav", "-t", "12.500", "-vn", "-c:a", "pcm_s16le"]));
+    expect(a.at(-1)).toBe("/out/audio/master.mov");
+  });
 });
 
 describe("segmentArgs", () => {
@@ -134,5 +157,23 @@ describe("rebuildScript", () => {
     const sh = rebuildScript(buildManifest(baseSpec()));
     expect(sh).toContain('mv "$OUT.base.mov" "$OUT"');
     expect(sh).not.toContain("filter_complex");
+  });
+
+  it("muxes the master audio under silent video (multi-cam, no overlays)", () => {
+    const sh = rebuildScript(buildManifest(baseSpec({ audioTrack: { source: "/r.wav", in: 0 } })));
+    expect(sh).toContain('mv "$OUT.base.mov" "$OUT.video.mov"'); // video built first
+    expect(sh).toContain('-i "$OUT.video.mov" -i "audio/master.mov"');
+    expect(sh).toContain("-map 0:v:0 -map 1:a:0");
+    expect(sh).toContain('rm -f "$OUT.video.mov"');
+  });
+
+  it("muxes the master audio after compositing overlays", () => {
+    const sh = rebuildScript(buildManifest(baseSpec({
+      overlays: [{ file: "/cap.mov", overClip: 0, atOffset: 0.5, duration: 1 }],
+      audioTrack: { source: "/r.wav", in: 0 },
+    })));
+    expect(sh).toContain("filter_complex");
+    expect(sh).toContain('-r "$FPS" -c:a pcm_s16le "$OUT.video.mov"'); // overlay output goes to video temp
+    expect(sh).toContain('-i "$OUT.video.mov" -i "audio/master.mov"');
   });
 });

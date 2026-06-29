@@ -64,6 +64,22 @@ export function buildManifest(spec, overlayDurations = []) {
     };
   });
 
+  // Optional continuous master-audio track (the multi-cam case, docs/multicam.md):
+  // one audio source played under the whole timeline while the video switches
+  // angles. Segments are expected to be silent when this is present.
+  let audioTrack = null;
+  if (spec.audioTrack) {
+    const a = spec.audioTrack;
+    const duration = a.durationSeconds ?? totalSeconds;
+    if (!(duration > 0)) throw new Error("export: audioTrack has no usable duration");
+    audioTrack = {
+      file: "audio/master.mov",
+      source: a.source,
+      sourceIn: +(a.in || 0).toFixed(3),
+      durationSeconds: +duration.toFixed(3),
+    };
+  }
+
   return {
     project: {
       name: project.name || "studio-export",
@@ -75,7 +91,15 @@ export function buildManifest(spec, overlayDurations = []) {
     },
     segments,
     overlays,
+    audioTrack,
   };
+}
+
+// Extract the master-audio track to a PCM .mov, trimmed to the timeline length.
+// Video is dropped; this is muxed under the silent video in the rebuild.
+export function audioTrackArgs(audioTrack, outPath) {
+  return ["-y", "-ss", String(audioTrack.sourceIn), "-i", audioTrack.source,
+    "-t", audioTrack.durationSeconds.toFixed(3), "-vn", "-c:a", "pcm_s16le", "-ar", "48000", outPath];
 }
 
 // ProRes 422 HQ extraction of one clip, frame-accurate, audio kept or silenced.
@@ -103,6 +127,9 @@ export function overlayArgs(project, sourceFile, durationSeconds, outPath) {
 // overlays composite at their target offsets.
 export function rebuildScript(manifest) {
   const { fps, width, height } = manifest.project;
+  // With a continuous master-audio track, the video is built first then the
+  // master audio is muxed under it; otherwise the video result is the final out.
+  const vidOut = manifest.audioTrack ? '"$OUT.video.mov"' : '"$OUT"';
   const lines = [
     "#!/usr/bin/env bash",
     "# Re-composite the exact final cut from the exported segments + overlays.",
@@ -122,7 +149,7 @@ export function rebuildScript(manifest) {
     "# 2) overlay each alpha clip at its target start",
   );
   if (manifest.overlays.length === 0) {
-    lines.push('mv "$OUT.base.mov" "$OUT"');
+    lines.push(`mv "$OUT.base.mov" ${vidOut}`);
   } else {
     const inputs = ['-i "$OUT.base.mov"'];
     const filters = [];
@@ -138,8 +165,17 @@ export function rebuildScript(manifest) {
     lines.push(
       `ffmpeg -y -loglevel error ${inputs.join(" ")} \\`,
       `  -filter_complex "${filters.join(";")}" -map "[${prev}]" -map 0:a? \\`,
-      `  -c:v prores_ks -profile:v 3 -pix_fmt yuv422p10le -r "$FPS" -c:a pcm_s16le "$OUT"`,
+      `  -c:v prores_ks -profile:v 3 -pix_fmt yuv422p10le -r "$FPS" -c:a pcm_s16le ${vidOut}`,
       'rm -f "$OUT.base.mov"',
+    );
+  }
+  if (manifest.audioTrack) {
+    lines.push(
+      "",
+      "# 3) mux the continuous master audio under the (silent) video",
+      `ffmpeg -y -loglevel error -i ${vidOut} -i "${manifest.audioTrack.file}" \\`,
+      `  -map 0:v:0 -map 1:a:0 -c:v copy -c:a pcm_s16le -shortest "$OUT"`,
+      `rm -f ${vidOut}`,
     );
   }
   lines.push('echo "wrote $OUT"', "");
