@@ -64,6 +64,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   `render-multicam-preview` renders the same group + switches to a flat MP4 so you
   can watch the angle cut (master audio underneath, black where an angle hasn't
   rolled yet) and compare it against the FCP import without opening FCP (VS-36).
+  Both the export and the preview take **`--start <sec>`** to trim leading dead
+  air: when the master audio runs before the first video frame, FCP's multicam
+  plays the lead out of sync, so re-basing the timeline to where the cameras roll
+  keeps audio and picture locked (VS-36).
   The multicam FCPXML is generated to spec but should be validated by a real FCP
   import (see the manual test plan).
 - **Launcher** — the launcher now pauses ("Press Enter to launch Claude…") so its getting-started splash is readable before Claude's UI takes over the terminal (skipped with `--yes` or no TTY).

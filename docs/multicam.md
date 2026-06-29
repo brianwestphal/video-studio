@@ -70,10 +70,14 @@ quick view.
   only** — routing audio through an `mc-source srcEnable="audio"` imported silent
   in FCP (VS-36). The audio asset's `duration` is declared **sample-exactly** (not
   video-frame-quantized), or FCP rejects the full-length audio edit as "no
-  respective media" (VS-36). To preview the cut without FCP,
-  **`render-multicam-preview`** renders the same group + `--switch` points to a
-  flat MP4 (the synced angle cuts with the master audio underneath) for a
-  side-by-side comparison.
+  respective media" (VS-36). When the master audio runs **before the first video
+  frame** (cameras rolled after the recorder), FCP's multicam plays that lead out
+  of sync; **`--start <sec>`** (`startSeconds`) trims the dead air — it re-bases
+  the timeline so the edit and the master audio begin together where the footage
+  is (the flat preview tolerates the lead, FCP does not — VS-36). To preview the
+  cut without FCP, **`render-multicam-preview`** renders the same group +
+  `--switch`/`--start` to a flat MP4 (the synced angle cuts with the master audio
+  underneath) for a side-by-side comparison.
 
   **FCP import gotchas (validated against a real import, VS-36):**
   - The generated `.fcpxml` validates against FCP's bundled DTD — when FCP is

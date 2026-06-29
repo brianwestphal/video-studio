@@ -153,9 +153,15 @@ export function buildFcpxml(manifest, assetSrc) {
 //  - `group`: a multicam manifest group ({ projectFps, masterAudioId, members[] }).
 //  - `switches`: [{ atSeconds, memberId }] over the shared timeline (empty → one
 //    mc-clip spanning the whole timeline on the first video angle).
-//  - `opts`: { name, width, height, totalSeconds? } (total defaults to the master
-//    audio member's duration).
-export function buildMulticamFcpxml(group, switches, { name, width, height, totalSeconds } = {}, assetSrc) {
+//  - `opts`: { name, width, height, totalSeconds?, startSeconds? }. `totalSeconds`
+//    defaults to the master audio member's duration. `startSeconds` (default 0)
+//    trims leading dead air: the group-timeline moment `startSeconds` becomes
+//    timeline 0, so the edit (and the master audio under it) begins where the
+//    footage is. This matters in FCP — when the master audio runs *before* the
+//    first video frame, FCP's multicam plays the audio ahead of the picture;
+//    starting the edit where the cameras are rolling keeps audio and picture
+//    locked (the flat preview tolerates the lead, FCP does not — VS-36).
+export function buildMulticamFcpxml(group, switches, { name, width, height, totalSeconds, startSeconds } = {}, assetSrc) {
   const fps = group.projectFps;
   const T = (s) => rationalTime(s, fps);
   const fd = frameDuration(fps);
@@ -165,6 +171,9 @@ export function buildMulticamFcpxml(group, switches, { name, width, height, tota
   if (!master) throw new Error(`master audio member not found: ${group.masterAudioId}`);
   const total = totalSeconds ?? master.durationSeconds;
   if (!(total > 0)) throw new Error("buildMulticamFcpxml: a positive totalSeconds (or master duration) is required");
+  const origin = startSeconds ?? 0; // group-time that maps to timeline 0 (dead-air trim)
+  if (origin < 0 || origin >= total) throw new Error(`buildMulticamFcpxml: startSeconds must be in [0, ${total})`);
+  const timelineLength = total - origin;
 
   // Shift the whole multicam timeline so the earliest angle sits at offset 0
   // (FCP angle offsets must be ≥ 0); a group-timeline moment T maps to multicam
@@ -226,21 +235,37 @@ export function buildMulticamFcpxml(group, switches, { name, width, height, tota
   // angle that way), so the spine mc-clips select VIDEO only and the timeline
   // takes its audio solely from this connected clip — no doubled angle audio.
   const masterAssetRef = assetId.get(group.masterAudioId);
-  const audioDur = Math.min(total, master.durationSeconds ?? total);
-  const clipEls = sorted.map((sw, i) => {
-    if (!byId.has(sw.memberId)) throw new Error(`unknown memberId: ${sw.memberId}`);
-    const tIn = sw.atSeconds;
-    const tOut = i + 1 < sorted.length ? sorted[i + 1].atSeconds : total;
-    const inF = frameOf(tIn);
-    const outF = frameOf(tOut);
+  // The master audio under the timeline plays from group-time `origin`; in its own
+  // clock that is `origin - masterOffset` (0 for a reference master at offset 0).
+  const masterOffset = offsetOf(master);
+  const audioStartSec = origin - masterOffset;
+  const audioDur = Math.min(timelineLength, (master.durationSeconds ?? (audioStartSec + timelineLength)) - audioStartSec);
+
+  // Validate every switch up front (so an unknown angle still throws even when the
+  // trim would drop its span), then clip the spans to [origin, total] and re-base
+  // them to a timeline starting at 0.
+  for (const sw of sorted) if (!byId.has(sw.memberId)) throw new Error(`unknown memberId: ${sw.memberId}`);
+  const spans = [];
+  for (let i = 0; i < sorted.length; i++) {
+    const tOut = Math.min(i + 1 < sorted.length ? sorted[i + 1].atSeconds : total, total);
+    if (tOut <= origin) continue; // span ends before the trim point
+    const tIn = Math.max(sorted[i].atSeconds, origin);
+    if (tIn >= tOut) continue; // empty after clamping
+    spans.push({ memberId: sorted[i].memberId, tIn, tOut });
+  }
+
+  const clipEls = spans.map((sp, i) => {
+    const inF = frameOf(sp.tIn - origin); // timeline position (re-based to the trim point)
+    const outF = frameOf(sp.tOut - origin);
+    const srcStartF = frameOf(sp.tIn + shift); // source time within the multicam media
     // offset="0s" is parent-local: the first mc-clip sits at timeline 0, so the
-    // master audio starts at the timeline (and its own clock) zero.
+    // master audio starts at the timeline zero, playing from its own `audioStartSec`.
     const masterAudio = i === 0
-      ? `\n        <asset-clip ref="${masterAssetRef}" lane="-1" offset="0s" name="${esc(baseName(master.path))}" start="0s" duration="${T(audioDur)}"/>`
+      ? `\n        <asset-clip ref="${masterAssetRef}" lane="-1" offset="0s" name="${esc(baseName(master.path))}" start="${T(audioStartSec)}" duration="${T(audioDur)}"/>`
       : "";
     return (
-      `      <mc-clip ref="${mediaId}" offset="${Tf(inF)}" name="${esc(name || group.id)}" start="${Tf(frameOf(tIn + shift))}" duration="${Tf(outF - inF)}">\n` +
-      `        <mc-source angleID="${esc(sw.memberId)}" srcEnable="video"/>${masterAudio}\n` +
+      `      <mc-clip ref="${mediaId}" offset="${Tf(inF)}" name="${esc(name || group.id)}" start="${Tf(srcStartF)}" duration="${Tf(outF - inF)}">\n` +
+      `        <mc-source angleID="${esc(sp.memberId)}" srcEnable="video"/>${masterAudio}\n` +
       `      </mc-clip>`
     );
   });
@@ -261,7 +286,7 @@ export function buildMulticamFcpxml(group, switches, { name, width, height, tota
     `  <library>\n` +
     `    <event name="video-studio multicam">\n` +
     `      <project name="${esc(name || group.id)}">\n` +
-    `        <sequence format="${formatId}" duration="${T(total)}" tcStart="0s" tcFormat="NDF" audioLayout="stereo" audioRate="48k">\n` +
+    `        <sequence format="${formatId}" duration="${T(timelineLength)}" tcStart="0s" tcFormat="NDF" audioLayout="stereo" audioRate="48k">\n` +
     `          <spine>\n` +
     `${clipEls.join("\n")}\n` +
     `          </spine>\n` +

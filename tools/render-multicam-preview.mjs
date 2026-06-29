@@ -12,6 +12,8 @@
  *     --switch <sec>=<id>     an angle switch point (repeatable); omit for one
  *                             span on the first video angle
  *     --total <sec>           timeline length (default: master audio duration)
+ *     --start <sec>           trim leading dead air: group time that becomes
+ *                             timeline 0 (default 0) — matches export-multicam-fcpxml
  *     --width <w>             output width (default: 1280)
  *     --height <h>            output height (default: 720)
  *     --crf <n>               x264 quality (default: 23)
@@ -31,11 +33,12 @@ import { isAbsolute, join, resolve } from "node:path";
 import { resolveAngleCuts } from "./multicam.mjs";
 
 function parseArgs(argv) {
-  const opts = { file: undefined, group: undefined, total: undefined, width: 1280, height: 720, crf: 23, out: undefined, switches: [] };
+  const opts = { file: undefined, group: undefined, total: undefined, start: undefined, width: 1280, height: 720, crf: 23, out: undefined, switches: [] };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--group") opts.group = argv[++i];
     else if (a === "--total") opts.total = Number(argv[++i]);
+    else if (a === "--start") opts.start = Number(argv[++i]);
     else if (a === "--width") opts.width = Number(argv[++i]);
     else if (a === "--height") opts.height = Number(argv[++i]);
     else if (a === "--crf") opts.crf = Number(argv[++i]);
@@ -44,7 +47,7 @@ function parseArgs(argv) {
       const [sec, id] = String(argv[++i]).split("=");
       opts.switches.push({ atSeconds: Number(sec), memberId: id });
     } else if (a === "-h" || a === "--help") {
-      console.log("Usage: render-multicam-preview <multicam.json> [--group <id>] [--switch <sec>=<id>]… [--total <sec>] [--width <w>] [--height <h>] [--crf <n>] [--out <file.mp4>]");
+      console.log("Usage: render-multicam-preview <multicam.json> [--group <id>] [--switch <sec>=<id>]… [--total <sec>] [--start <sec>] [--width <w>] [--height <h>] [--crf <n>] [--out <file.mp4>]");
       process.exit(0);
     } else if (a.startsWith("-")) { console.error(`Unknown option: ${a}`); process.exit(2); }
     else opts.file = a;
@@ -73,11 +76,28 @@ function main() {
   if (!master) { console.error(`Error: master audio member not found: ${group.masterAudioId}`); process.exit(1); }
   const total = opts.total ?? master.durationSeconds;
   if (!(total > 0)) { console.error("Error: a positive --total (or master duration) is required."); process.exit(1); }
+  const origin = opts.start ?? 0; // group time that maps to timeline 0 (dead-air trim)
+  if (origin < 0 || origin >= total) { console.error(`Error: --start must be in [0, ${total}).`); process.exit(1); }
 
   // Default to a single span on the first video angle, mirroring the FCPXML export.
   const firstVideo = group.members.find((m) => m.kind !== "audio") || group.members[0];
   const switches = opts.switches.length ? opts.switches : [{ atSeconds: 0, memberId: firstVideo.id }];
-  const segments = resolveAngleCuts(switches, group.members, { totalSeconds: total });
+  // Clip the resolved spans to [origin, total] and re-base the timeline to start at
+  // 0; within a span source advances 1:1 with the timeline (÷ any drift rate), so a
+  // clamped start advances its source-in by the same amount. This matches the
+  // FCPXML export's startSeconds trim so the preview and the FCP project agree.
+  const segments = resolveAngleCuts(switches, group.members, { totalSeconds: total })
+    .filter((s) => s.timelineOutSeconds > origin)
+    .map((s) => {
+      const rate = byId.get(s.memberId).rateCorrection ?? 1;
+      const clampedIn = Math.max(s.timelineInSeconds, origin);
+      return {
+        ...s,
+        timelineInSeconds: clampedIn - origin,
+        timelineOutSeconds: s.timelineOutSeconds - origin,
+        sourceInSeconds: s.sourceInSeconds + (clampedIn - s.timelineInSeconds) / rate,
+      };
+    });
 
   const { width: W, height: H, crf } = opts;
   const fps = fpsArg(group.projectFps);
@@ -114,8 +134,9 @@ function main() {
     const videoOnly = join(tmpDir, "video.mp4");
     execFileSync("ffmpeg", ["-v", "error", "-y", "-f", "concat", "-safe", "0", "-i", listPath, "-c", "copy", videoOnly]);
 
-    const masterOffset = master.offsetSeconds ?? 0; // master local clock at timeline 0
-    const audioStart = Math.max(0, -masterOffset);
+    const masterOffset = master.offsetSeconds ?? 0; // master local clock at group time 0
+    const audioStart = Math.max(0, origin - masterOffset); // WAV time at the (trimmed) timeline 0
+    const timelineLength = total - origin;
     const outPath = opts.out ? (isAbsolute(opts.out) ? opts.out : resolve(opts.out)) : resolve(`${group.id}.preview.mp4`);
     execFileSync("ffmpeg", [
       "-v", "error", "-y",
@@ -123,10 +144,10 @@ function main() {
       "-ss", audioStart.toFixed(3), "-i", master.path,
       "-map", "0:v", "-map", "1:a",
       "-c:v", "copy", "-c:a", "aac", "-b:a", "192k",
-      "-t", total.toFixed(3), "-movflags", "+faststart", outPath,
+      "-t", timelineLength.toFixed(3), "-movflags", "+faststart", outPath,
     ]);
     if (!existsSync(outPath)) { console.error("Error: ffmpeg did not produce the output."); process.exit(1); }
-    console.log(`\nWrote ${outPath}: ${segments.length} angle span(s), ${total.toFixed(2)}s, ${W}x${H} @ ${fps} fps.`);
+    console.log(`\nWrote ${outPath}: ${segments.length} angle span(s), ${timelineLength.toFixed(2)}s, ${W}x${H} @ ${fps} fps.`);
   } finally {
     rmSync(tmpDir, { recursive: true, force: true });
   }

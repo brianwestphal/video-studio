@@ -14,6 +14,10 @@
  *                             span on the first video angle
  *     --name <name>           project/clip name (default: the group id)
  *     --total <sec>           timeline length (default: master audio duration)
+ *     --start <sec>           trim leading dead air: group time that becomes
+ *                             timeline 0 (default 0). Use it when the master audio
+ *                             runs before the first video frame — FCP plays such a
+ *                             lead out of sync, so start where the cameras roll.
  *     --out <file.fcpxml>     output path (default: <name>.multicam.fcpxml)
  *
  * NOTE: FCPXML multicam is intricate; validate the output by importing it into
@@ -26,12 +30,13 @@ import { pathToFileURL } from "node:url";
 import { buildMulticamFcpxml } from "./fcpxml.mjs";
 
 function parseArgs(argv) {
-  const opts = { file: undefined, group: undefined, name: undefined, total: undefined, width: undefined, height: undefined, out: undefined, switches: [] };
+  const opts = { file: undefined, group: undefined, name: undefined, total: undefined, start: undefined, width: undefined, height: undefined, out: undefined, switches: [] };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--group") opts.group = argv[++i];
     else if (a === "--name") opts.name = argv[++i];
     else if (a === "--total") opts.total = Number(argv[++i]);
+    else if (a === "--start") opts.start = Number(argv[++i]);
     else if (a === "--width") opts.width = Number(argv[++i]);
     else if (a === "--height") opts.height = Number(argv[++i]);
     else if (a === "--out") opts.out = argv[++i];
@@ -39,7 +44,7 @@ function parseArgs(argv) {
       const [sec, id] = String(argv[++i]).split("=");
       opts.switches.push({ atSeconds: Number(sec), memberId: id });
     } else if (a === "-h" || a === "--help") {
-      console.log("Usage: export-multicam-fcpxml <multicam.json> --width <w> --height <h> [--group <id>] [--switch <sec>=<id>]… [--name <name>] [--total <sec>] [--out <file.fcpxml>]");
+      console.log("Usage: export-multicam-fcpxml <multicam.json> --width <w> --height <h> [--group <id>] [--switch <sec>=<id>]… [--name <name>] [--total <sec>] [--start <sec>] [--out <file.fcpxml>]");
       process.exit(0);
     } else if (a.startsWith("-")) { console.error(`Unknown option: ${a}`); process.exit(2); }
     else opts.file = a;
@@ -60,7 +65,7 @@ function main() {
   const xml = buildMulticamFcpxml(
     group,
     opts.switches,
-    { name, width: opts.width, height: opts.height, totalSeconds: opts.total },
+    { name, width: opts.width, height: opts.height, totalSeconds: opts.total, startSeconds: opts.start },
     (p) => pathToFileURL(p).href,
   );
 

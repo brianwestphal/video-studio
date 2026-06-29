@@ -208,6 +208,43 @@ describe("buildMulticamFcpxml", () => {
     expect(xml).toMatch(/start="0s" duration="8s">\s*<mc-source angleID="cam-a" srcEnable="video"\/>\s*<asset-clip ref="r2" lane="-1"/);
   });
 
+  it("trims leading dead air with startSeconds (re-bases the timeline + audio to the trim point)", () => {
+    // start the edit at group-time 8s: the second span (cam-b, 8→20) becomes the
+    // whole timeline, re-based to start at 0 and lasting 12s.
+    const x = buildMulticamFcpxml(group, switches, { name: "cut", width: 16, height: 9, startSeconds: 8 }, (p) => `file://${p}`);
+    expect((x.match(/<mc-clip /g) || []).length).toBe(1); // the cam-a span (0→8) is dropped
+    // re-based: timeline offset 0, but source still indexes the multicam at 8s
+    expect(x).toContain('<mc-clip ref="r5" offset="0s" name="cut" start="8s" duration="12s">');
+    expect(x).toContain('<mc-source angleID="cam-b" srcEnable="video"/>');
+    // sequence shrinks to the trimmed length
+    expect(x).toContain('<sequence format="r1" duration="12s"');
+    // master audio now plays from group-time 8 (its own clock, masterOffset 0) for 12s
+    expect(x).toContain('<asset-clip ref="r2" lane="-1" offset="0s" name="r" start="8s" duration="12s"/>');
+  });
+
+  it("clamps a span straddling the trim point and keeps the angle active there", () => {
+    // trim at 4s: cam-a's span (0→8) is clipped to 4→8 and kept as the first clip
+    const x = buildMulticamFcpxml(group, switches, { name: "cut", width: 16, height: 9, startSeconds: 4 }, (p) => `file://${p}`);
+    expect((x.match(/<mc-clip /g) || []).length).toBe(2);
+    expect(x).toContain('<mc-clip ref="r5" offset="0s" name="cut" start="4s" duration="4s">'); // cam-a 4→8 re-based
+    expect(x).toMatch(/angleID="cam-a"/);
+    expect(x).toContain('<sequence format="r1" duration="16s"'); // 20 - 4
+  });
+
+  it("drops a zero-length span (a switch exactly at the timeline end)", () => {
+    // cam-b switches in at 20s, but total is 20s → its span is empty and dropped.
+    const x = buildMulticamFcpxml(group, [{ atSeconds: 0, memberId: "cam-a" }, { atSeconds: 20, memberId: "cam-b" }], { name: "cut", width: 16, height: 9 }, (p) => `file://${p}`);
+    expect((x.match(/<mc-clip /g) || []).length).toBe(1);
+    expect(x).toContain('<mc-source angleID="cam-a" srcEnable="video"/>');
+    // cam-b is still an angle in the multicam media, but no spine clip selects it
+    expect(x).not.toContain('<mc-source angleID="cam-b"');
+  });
+
+  it("rejects a startSeconds outside [0, total)", () => {
+    expect(() => buildMulticamFcpxml(group, switches, { width: 1, height: 1, startSeconds: -1 }, (p) => p)).toThrow(/startSeconds/);
+    expect(() => buildMulticamFcpxml(group, switches, { width: 1, height: 1, startSeconds: 20 }, (p) => p)).toThrow(/startSeconds/);
+  });
+
   it("shifts negative offsets so the earliest angle sits at 0", () => {
     const g = {
       ...group,
