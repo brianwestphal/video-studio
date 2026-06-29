@@ -71,11 +71,16 @@ quick view.
   master audio leads the first video frame (a separate connected audio clip can't
   track that lead in FCP's multicam and drifts ahead — VS-36). The audio asset's
   `duration` is declared **sample-exactly** (not video-frame-quantized), or FCP
-  rejects the full-length audio edit as "no respective media" (VS-36). The leading
-  region (master audio over black, before any camera rolled) plays in sync; an
-  optional **`--start <sec>`** (`startSeconds`) trims that dead air by re-basing the
-  timeline (both the video and the master-audio angle follow the shifted source
-  time). To preview the cut without FCP, **`render-multicam-preview`** renders the
+  rejects the full-length audio edit as "no respective media" (VS-36). Each video
+  angle's **leading gap** (before that camera rolled) is filled with **real black
+  video** (a generated `<name>.black.mp4`, `blackFiller` in the builder) so the
+  multicam has frames from time 0: otherwise FCP anchors the multicam to the
+  earliest camera and clamps the master audio's head-start, playing the audio late
+  by that offset (VS-36; disable with `--no-black-fill`). The leading region then
+  plays as black-over-audio, in sync; an optional **`--start <sec>`**
+  (`startSeconds`) trims that dead air by re-basing the timeline (both the video and
+  the master-audio angle follow the shifted source time). To preview the cut
+  without FCP, **`render-multicam-preview`** renders the
   same group + `--switch`/`--start` to a flat MP4 (the synced angle cuts with the
   master audio underneath) for a side-by-side comparison.
 

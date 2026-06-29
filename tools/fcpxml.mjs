@@ -161,7 +161,11 @@ export function buildFcpxml(manifest, assetSrc) {
 //    first video frame, FCP's multicam plays the audio ahead of the picture;
 //    starting the edit where the cameras are rolling keeps audio and picture
 //    locked (the flat preview tolerates the lead, FCP does not — VS-36).
-export function buildMulticamFcpxml(group, switches, { name, width, height, totalSeconds, startSeconds } = {}, assetSrc) {
+//    `blackFiller` = { path, durationSeconds } supplies a black-video clip that
+//    fills each video angle's leading gap so the multicam has real frames from
+//    time 0 — otherwise FCP anchors the multicam to the earliest camera and plays
+//    the master audio late by that offset (VS-36).
+export function buildMulticamFcpxml(group, switches, { name, width, height, totalSeconds, startSeconds, blackFiller } = {}, assetSrc) {
   const fps = group.projectFps;
   const T = (s) => rationalTime(s, fps);
   const fd = frameDuration(fps);
@@ -186,6 +190,13 @@ export function buildMulticamFcpxml(group, switches, { name, width, height, tota
   const formatId = `r${rid++}`;
   const assetId = new Map();
   for (const m of members) assetId.set(m.id, `r${rid++}`);
+  // A black-video filler covers each video angle's leading gap (the time before
+  // that camera rolled). Without real video frames at multicam time 0, FCP anchors
+  // the multicam's start to the EARLIEST camera and clamps the master audio's
+  // head-start — playing the audio late by that offset (VS-36). Black frames from
+  // 0 keep the earliest video frame at the audio's start, so the audio stays
+  // locked. `blackFiller` = { path, durationSeconds } (covers the largest gap).
+  const blackId = blackFiller ? `r${rid++}` : null;
   const mediaId = `r${rid++}`;
 
   const assetEls = members.map((m) => {
@@ -205,12 +216,25 @@ export function buildMulticamFcpxml(group, switches, { name, width, height, tota
       `    </asset>`
     );
   });
+  if (blackFiller) {
+    assetEls.push(
+      `    <asset id="${blackId}" name="black" start="0s" duration="${T(blackFiller.durationSeconds)}" hasVideo="1" videoSources="1" format="${formatId}">\n` +
+      `      <media-rep kind="original-media" src="${esc(assetSrc(blackFiller.path))}"/>\n` +
+      `    </asset>`,
+    );
+  }
 
   const angleEls = members.map((m) => {
     const off = offsetOf(m) + shift;
     const fmt = m.kind !== "audio" ? ` format="${formatId}"` : "";
+    // Fill a video angle's leading gap [0, off) with black so the multicam has real
+    // frames from time 0 (keeps the master audio from being clamped late).
+    const lead = blackFiller && m.kind !== "audio" && off > 0
+      ? `        <asset-clip ref="${blackId}" offset="0s" name="black" start="0s" duration="${T(off)}" format="${formatId}"/>\n`
+      : "";
     return (
       `      <mc-angle name="${esc(m.id)}" angleID="${esc(m.id)}">\n` +
+      lead +
       `        <asset-clip ref="${assetId.get(m.id)}" offset="${T(off)}" name="${esc(baseName(m.path))}" start="0s" duration="${T(m.durationSeconds)}"${fmt}/>\n` +
       `      </mc-angle>`
     );

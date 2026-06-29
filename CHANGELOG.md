@@ -68,7 +68,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   rolled yet) and compare it against the FCP import without opening FCP (VS-36).
   Both the export and the preview take an optional **`--start <sec>`** to trim
   leading dead air (the black head while the master audio plays before the cameras
-  roll) by re-basing the timeline — audio stays locked either way (VS-36).
+  roll) by re-basing the timeline — audio stays locked either way (VS-36). Each
+  camera angle's leading gap is filled with **real black video** (a generated
+  `<name>.black.mp4`) so the multicam has frames from time 0; without it FCP anchors
+  the multicam to the earliest camera and plays the master audio late by that
+  offset (disable with `--no-black-fill`) (VS-36).
   The multicam FCPXML is generated to spec but should be validated by a real FCP
   import (see the manual test plan).
 - **Launcher** — the launcher now pauses ("Press Enter to launch Claude…") so its getting-started splash is readable before Claude's UI takes over the terminal (skipped with `--yes` or no TTY).

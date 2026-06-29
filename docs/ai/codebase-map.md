@@ -38,7 +38,7 @@ and [`requirements-summary.md`](requirements-summary.md) for status.
 │   ├── multicam.mjs            # pure group-manifest + angle-cut assembly: classifySync, buildGroupManifest, resolveAngleCuts, expandMulticamGroup (unit-tested)
 │   ├── propose-groups.mjs      # suggest multicam groups from sources.json (stat-based timestamps) (I/O)
 │   ├── multicam-groups.mjs     # pure group-proposal heuristics: folder / time-window / filename (unit-tested)
-│   ├── export-multicam-fcpxml.mjs # multicam.json → true FCP <mc-clip> multicam FCPXML (I/O over buildMulticamFcpxml)
+│   ├── export-multicam-fcpxml.mjs # multicam.json → true FCP <mc-clip> multicam FCPXML (I/O over buildMulticamFcpxml; ffmpeg-generates a black filler for angle leading gaps)
 │   └── render-multicam-preview.mjs # multicam.json + switches → flat preview MP4 of the angle cut (I/O over resolveAngleCuts)
 ├── skills/
 │   └── video-studio/SKILL.md   # the pipeline Claude follows — primary interface

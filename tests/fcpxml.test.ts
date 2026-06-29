@@ -244,6 +244,24 @@ describe("buildMulticamFcpxml", () => {
     expect(() => buildMulticamFcpxml(group, switches, { width: 1, height: 1, startSeconds: 20 }, (p) => p)).toThrow(/startSeconds/);
   });
 
+  it("fills video angles' leading gaps with black when blackFiller is given", () => {
+    const x = buildMulticamFcpxml(group, switches, { name: "cut", width: 16, height: 9, blackFiller: { path: "/black.mp4", durationSeconds: 3 } }, (p) => `file://${p}`);
+    // a black video asset is declared (id after the members), referencing the filler
+    expect(x).toMatch(/<asset id="r5" name="black" start="0s" duration="3s" hasVideo="1" videoSources="1" format="r1">/);
+    expect(x).toContain('src="file:///black.mp4"');
+    // cam-a (offset 2) gets a leading black clip [0,2] then the camera at offset 2
+    expect(x).toMatch(/angleID="cam-a">\s*<asset-clip ref="r5" offset="0s" name="black" start="0s" duration="2s" format="r1"\/>\s*<asset-clip ref="r3" offset="2s"/);
+    // the audio angle (rec, offset 0) gets NO black lead
+    expect(x).toMatch(/angleID="rec">\s*<asset-clip ref="r2" offset="0s"/);
+    // media id shifts to r6 (black took r5); the spine references it
+    expect(x).toContain('<mc-clip ref="r6"');
+  });
+
+  it("omits the black filler (and its asset) when none is provided", () => {
+    expect(xml).not.toContain('name="black"');
+    expect(xml).toContain('<mc-clip ref="r5"'); // media id is r5 without a black asset
+  });
+
   it("shifts negative offsets so the earliest angle sits at 0", () => {
     const g = {
       ...group,
