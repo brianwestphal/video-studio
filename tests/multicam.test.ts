@@ -483,6 +483,18 @@ describe("expandMulticamGroup", () => {
     const spec = expandMulticamGroup(g2, switches, { width: 16, height: 9, totalSeconds: 12 });
     expect(spec.audioTrack).toEqual({ source: "/a.mov", in: -2, durationSeconds: 12 });
   });
+  it("retimes a drifting member: source span shrinks by rate and the clip is tagged", () => {
+    const drifting = {
+      ...group,
+      members: [
+        { id: "rec", path: "/r.wav", kind: "audio", durationSeconds: 20, offsetSeconds: 0 },
+        { id: "cam-a", path: "/a.mov", kind: "video", durationSeconds: 20, offsetSeconds: 2, rateCorrection: 2, correctedOffsetSeconds: 2 },
+      ],
+    };
+    const spec = expandMulticamGroup(drifting, [{ atSeconds: 0, memberId: "cam-a" }], { width: 16, height: 9, totalSeconds: 10 });
+    // source = (timeline - correctedOffset) / rate = (0-2)/2 .. (10-2)/2 = -1 .. 4
+    expect(spec.clips[0]).toEqual({ source: "/a.mov", in: -1, out: 4, audio: "silent", rateCorrection: 2 });
+  });
   it("throws when the master audio member is missing", () => {
     expect(() => expandMulticamGroup({ ...group, masterAudioId: "ghost" }, switches, { width: 1, height: 1 })).toThrow(/master audio member/);
   });

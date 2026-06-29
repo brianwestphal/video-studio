@@ -407,13 +407,18 @@ export function resolveAngleCuts(switches, members, { totalSeconds }) {
     if (!member) throw new Error(`unknown memberId: ${sw.memberId}`);
     const tIn = sw.atSeconds;
     const tOut = i + 1 < sorted.length ? sorted[i + 1].atSeconds : totalSeconds;
-    const offset = member.offsetSeconds ?? 0;
+    // With a drift `rateCorrection`, the member's clock runs at `rate` relative to
+    // the reference: group_time = rate*member_local + correctedOffset, so
+    // member_local = (group_time - correctedOffset) / rate. Without drift
+    // (rate 1, no correctedOffset) this is the plain group_time - offset.
+    const rate = member.rateCorrection ?? 1;
+    const offset = member.correctedOffsetSeconds ?? member.offsetSeconds ?? 0;
     segments.push({
       memberId: member.id,
       timelineInSeconds: tIn,
       timelineOutSeconds: tOut,
-      sourceInSeconds: tIn - offset,
-      sourceOutSeconds: tOut - offset,
+      sourceInSeconds: (tIn - offset) / rate,
+      sourceOutSeconds: (tOut - offset) / rate,
     });
   }
   return segments;
@@ -442,12 +447,18 @@ export function expandMulticamGroup(group, switches, { name, width, height, tota
   if (!(total > 0)) throw new Error("expandMulticamGroup: a positive totalSeconds (or master duration) is required");
 
   const segments = resolveAngleCuts(switches, group.members, { totalSeconds: total });
-  const clips = segments.map((s) => ({
-    source: byId.get(s.memberId).path,
-    in: +s.sourceInSeconds.toFixed(3),
-    out: +s.sourceOutSeconds.toFixed(3),
-    audio: "silent",
-  }));
+  const clips = segments.map((s) => {
+    const rate = byId.get(s.memberId).rateCorrection ?? 1;
+    return {
+      source: byId.get(s.memberId).path,
+      in: +s.sourceInSeconds.toFixed(3),
+      out: +s.sourceOutSeconds.toFixed(3),
+      audio: "silent",
+      // A drifting angle is retimed on export so its source span fills the
+      // timeline slot (the segment is silent, so only video is retimed).
+      ...(rate !== 1 ? { rateCorrection: rate } : {}),
+    };
+  });
 
   // The master audio plays under the whole timeline; at timeline 0 its own clock
   // is (0 - masterOffset), so we read it from there.

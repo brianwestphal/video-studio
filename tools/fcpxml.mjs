@@ -108,3 +108,107 @@ export function buildFcpxml(manifest, assetSrc) {
     `</fcpxml>\n`
   );
 }
+
+// Build a Final Cut Pro **multicam** FCPXML from a synced group (docs/multicam.md
+// R-MC6): a `<media>`/`<multicam>` with one `<mc-angle>` per synced member (each
+// angle's clip placed at its sync offset), then a `<mc-clip>` per angle-switch
+// span on the spine, each selecting the active video angle + the fixed master
+// audio angle via `<mc-source>`. The result is a LIVE multicam clip the user can
+// re-cut in FCP's angle viewer — it references the ORIGINAL member media (not
+// exported segments). `assetSrc(path)` resolves a member path to a media URL.
+//
+//  - `group`: a multicam manifest group ({ projectFps, masterAudioId, members[] }).
+//  - `switches`: [{ atSeconds, memberId }] over the shared timeline (empty → one
+//    mc-clip spanning the whole timeline on the first video angle).
+//  - `opts`: { name, width, height, totalSeconds? } (total defaults to the master
+//    audio member's duration).
+export function buildMulticamFcpxml(group, switches, { name, width, height, totalSeconds } = {}, assetSrc) {
+  const fps = group.projectFps;
+  const T = (s) => rationalTime(s, fps);
+  const fd = frameDuration(fps);
+  const fdStr = `${fd.num}/${fd.den}s`;
+  const members = group.members;
+  const master = members.find((m) => m.id === group.masterAudioId);
+  if (!master) throw new Error(`master audio member not found: ${group.masterAudioId}`);
+  const total = totalSeconds ?? master.durationSeconds;
+  if (!(total > 0)) throw new Error("buildMulticamFcpxml: a positive totalSeconds (or master duration) is required");
+
+  // Shift the whole multicam timeline so the earliest angle sits at offset 0
+  // (FCP angle offsets must be ≥ 0); a group-timeline moment T maps to multicam
+  // time T + shift.
+  const offsetOf = (m) => m.offsetSeconds ?? 0;
+  const minOffset = Math.min(...members.map(offsetOf));
+  const shift = minOffset < 0 ? -minOffset : 0;
+
+  let rid = 1;
+  const formatId = `r${rid++}`;
+  const assetId = new Map();
+  for (const m of members) assetId.set(m.id, `r${rid++}`);
+  const mediaId = `r${rid++}`;
+
+  const assetEls = members.map((m) => {
+    const isVideo = m.kind !== "audio";
+    const v = isVideo ? ` hasVideo="1" videoSources="1"` : "";
+    const a = ` hasAudio="1" audioSources="1" audioChannels="2" audioRate="48000"`;
+    return (
+      `    <asset id="${assetId.get(m.id)}" name="${esc(baseName(m.path))}" start="0s" duration="${T(m.durationSeconds)}"${v}${a} format="${formatId}">\n` +
+      `      <media-rep kind="original-media" src="${esc(assetSrc(m.path))}"/>\n` +
+      `    </asset>`
+    );
+  });
+
+  const angleEls = members.map((m) => {
+    const off = offsetOf(m) + shift;
+    const fmt = m.kind !== "audio" ? ` format="${formatId}"` : "";
+    return (
+      `      <mc-angle name="${esc(m.id)}" angleID="${esc(m.id)}">\n` +
+      `        <asset-clip ref="${assetId.get(m.id)}" offset="${T(off)}" name="${esc(baseName(m.path))}" start="0s" duration="${T(m.durationSeconds)}"${fmt}/>\n` +
+      `      </mc-angle>`
+    );
+  });
+  const mediaDuration = Math.max(...members.map((m) => offsetOf(m) + shift + (m.durationSeconds || 0)));
+
+  // The angle-switch spans → one mc-clip each. Default to a single span on the
+  // first video angle (or the first member) when no switches are given.
+  const firstVideo = members.find((m) => m.kind !== "audio") || members[0];
+  const sorted = (switches && switches.length ? [...switches] : [{ atSeconds: 0, memberId: firstVideo.id }]).sort((a, b) => a.atSeconds - b.atSeconds);
+  const byId = new Map(members.map((m) => [m.id, m]));
+  const clipEls = sorted.map((sw, i) => {
+    if (!byId.has(sw.memberId)) throw new Error(`unknown memberId: ${sw.memberId}`);
+    const tIn = sw.atSeconds;
+    const tOut = i + 1 < sorted.length ? sorted[i + 1].atSeconds : total;
+    return (
+      `      <mc-clip ref="${mediaId}" offset="${T(tIn)}" name="${esc(name || group.id)}" start="${T(tIn + shift)}" duration="${T(tOut - tIn)}">\n` +
+      `        <mc-source angleID="${esc(sw.memberId)}" srcEnable="video"/>\n` +
+      `        <mc-source angleID="${esc(group.masterAudioId)}" srcEnable="audio"/>\n` +
+      `      </mc-clip>`
+    );
+  });
+
+  return (
+    `<?xml version="1.0" encoding="UTF-8"?>\n` +
+    `<!DOCTYPE fcpxml>\n` +
+    `<fcpxml version="${FCPXML_VERSION}">\n` +
+    `  <resources>\n` +
+    `    <format id="${formatId}" frameDuration="${fdStr}" width="${width}" height="${height}" colorSpace="1-1-1 (Rec. 709)"/>\n` +
+    `${assetEls.join("\n")}\n` +
+    `    <media id="${mediaId}" name="${esc(name || group.id)} multicam">\n` +
+    `      <multicam format="${formatId}" tcStart="0s" tcFormat="NDF" duration="${T(mediaDuration)}">\n` +
+    `${angleEls.join("\n")}\n` +
+    `      </multicam>\n` +
+    `    </media>\n` +
+    `  </resources>\n` +
+    `  <library>\n` +
+    `    <event name="video-studio multicam">\n` +
+    `      <project name="${esc(name || group.id)}">\n` +
+    `        <sequence format="${formatId}" duration="${T(total)}" tcStart="0s" tcFormat="NDF" audioLayout="stereo" audioRate="48k">\n` +
+    `          <spine>\n` +
+    `${clipEls.join("\n")}\n` +
+    `          </spine>\n` +
+    `        </sequence>\n` +
+    `      </project>\n` +
+    `    </event>\n` +
+    `  </library>\n` +
+    `</fcpxml>\n`
+  );
+}

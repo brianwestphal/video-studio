@@ -35,7 +35,10 @@ node "$TOOLKIT/tools/propose-groups.mjs" "$WORK/sources.json"
 # sync a group by audio (an audio-only recorder track becomes the reference AND master audio):
 node "$TOOLKIT/tools/sync-multicam.mjs" <clipA> <clipB> <recorder.wav> --group-id ceremony --out "$WORK/multicam.json"
 ```
-`multicam.json` carries each member's `offsetSeconds` + `confidence` + sync disposition (`auto`/`review`/`unsynced`; `unsynced` needs a manual offset — re-run with `--manual <id>=<sec>`). To build a switching cut, pick **angle switch points** over the shared timeline and expand the group into a cut spec with `expandMulticamGroup(group, switches, { name, width, height })` (from `$TOOLKIT/tools/multicam.mjs`): it returns silent video angle-segments over a **continuous master-audio track** (`audioTrack`), ready for the Step 7 export. The export plays the master audio under the switching angles and emits FCPXML with the audio on a connected lane.
+`multicam.json` carries each member's `offsetSeconds` + `confidence` + sync disposition (`auto`/`review`/`unsynced`; `unsynced` needs a manual offset — re-run with `--manual <id>=<sec>`). To build a switching cut, pick **angle switch points** over the shared timeline and expand the group into a cut spec with `expandMulticamGroup(group, switches, { name, width, height })` (from `$TOOLKIT/tools/multicam.mjs`): it returns silent video angle-segments over a **continuous master-audio track** (`audioTrack`), ready for the Step 7 export. The export plays the master audio under the switching angles, applies any drift retime, and emits FCPXML with the audio on a connected lane. **Or** hand the editor a *live* multicam clip they can re-cut in Final Cut Pro's angle viewer:
+```bash
+node "$TOOLKIT/tools/export-multicam-fcpxml.mjs" "$WORK/multicam.json" --width <w> --height <h> --switch 0=<id> --switch <t>=<id2> --out "<video-dir>/event.multicam.fcpxml"
+```
 
 **Then describe the scenes yourself:** to get an overview cheaply, tile the per-scene frames into contact sheets and Read those, rather than 50 separate reads:
 ```bash

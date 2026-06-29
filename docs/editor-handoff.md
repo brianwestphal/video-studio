@@ -108,6 +108,10 @@ A single export produces a project directory next to the source, e.g.:
   (`audio/master.mov`, source + source-in + duration) — one continuous audio bed
   under the timeline (the multi-cam master audio, or a music bed). Segments are
   silent in that case; `rebuild.sh` muxes the master audio under the video.
+- **R-EH9b** A clip may carry a `rateCorrection` (multi-cam drift retime): its
+  source span is `1/rate` of its timeline slot, so the segment is `setpts`-stretched
+  on export and its manifest `durationSeconds` is the slot length. Recorded on the
+  segment when present.
 - **R-EH10** The manifest is sufficient to **re-composite the exact final cut**
   (the `rebuild.sh` does this), and to verify the export by frame-sampling.
 

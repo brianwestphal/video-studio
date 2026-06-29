@@ -31,7 +31,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   video angle-segments over a continuous master-audio track), the export muxes the
   master audio under the switching angles + writes FCPXML with it on a connected
   audio lane, and the skill drives the whole flow (VS-29). The cut spec gains an
-  optional `audioTrack` (also usable for a music bed).
+  optional `audioTrack` (also usable for a music bed). New `export-multicam-fcpxml`
+  emits a **true FCP `<mc-clip>` multicam asset** — one angle per synced member
+  referencing the original media, with per-switch angle selection — so Final Cut
+  Pro gets a live multicam clip you can re-cut in the angle viewer; and long-take
+  drift is now **applied on export** (a drifting angle segment is `setpts`-retimed
+  to fill its slot) (VS-33). The multicam FCPXML is generated to spec but should be
+  validated by a real FCP import (see the manual test plan).
 - **Launcher** — the launcher now pauses ("Press Enter to launch Claude…") so its getting-started splash is readable before Claude's UI takes over the terminal (skipped with `--yes` or no TTY).
 - **Docs & onboarding** — added a `README.md`, an MIT `LICENSE` file, and a `docs/` set (requirements, release guide, manual test plan, and AI-summary maps).
 - **Shippable worked examples** — the `promo-assets/` teaser + caption/wordmark example scripts now ship with the package and run anywhere (env-configurable paths; no hardcoded machine paths; use the published `domotion-svg`).

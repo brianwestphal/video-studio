@@ -36,7 +36,8 @@ and [`requirements-summary.md`](requirements-summary.md) for status.
 │   ├── sync-multicam.mjs       # multi-cam audio sync: ffmpeg mono extract + cross-correlation → multicam.json (I/O)
 │   ├── multicam.mjs            # pure FFT/GCC-PHAT cross-correlation + sub-sample peak + confidence + drift fit/correction + group-manifest + angle-cut + expandMulticamGroup (unit-tested)
 │   ├── propose-groups.mjs      # suggest multicam groups from sources.json (stat-based timestamps) (I/O)
-│   └── multicam-groups.mjs     # pure group-proposal heuristics: folder / time-window / filename (unit-tested)
+│   ├── multicam-groups.mjs     # pure group-proposal heuristics: folder / time-window / filename (unit-tested)
+│   └── export-multicam-fcpxml.mjs # multicam.json → true FCP <mc-clip> multicam FCPXML (I/O over buildMulticamFcpxml)
 ├── skills/
 │   └── video-studio/SKILL.md   # the pipeline Claude follows — primary interface
 ├── tests/
@@ -154,7 +155,8 @@ launcher, `render-caption.mjs`'s Chromium path) is manual-test territory.
 | caption arg parsing / SVG-HTML assembly | `tools/caption-format.mjs` |
 | caption Chromium render pipeline | `tools/render-caption.mjs` |
 | editor-handoff export (segments/overlays/audio/manifest/rebuild) | `tools/export-project.mjs` (I/O) + `tools/export-manifest.mjs` + `tools/fcpxml.mjs` (pure) |
-| multi-cam angle cut → editor-handoff cut spec | `expandMulticamGroup` in `tools/multicam.mjs`; the `audioTrack` (continuous master audio) flows through `export-manifest.mjs` + `fcpxml.mjs` |
+| multi-cam angle cut → editor-handoff cut spec | `expandMulticamGroup` in `tools/multicam.mjs`; the `audioTrack` + drift `rateCorrection` flow through `export-manifest.mjs` + `fcpxml.mjs` |
+| multi-cam true FCPXML mc-clip asset | `buildMulticamFcpxml` in `tools/fcpxml.mjs` (pure) + `tools/export-multicam-fcpxml.mjs` (I/O) |
 | multiple-source input → sources.json | `tools/analyze-sources.mjs` (I/O) + `tools/sources.mjs` (pure) |
 | multi-cam audio sync → multicam.json | `tools/sync-multicam.mjs` (I/O) + `tools/multicam.mjs` (pure: FFT cross-correlation, confidence, drift, angle cuts) |
 | multi-cam group proposal from a pool | `tools/propose-groups.mjs` (I/O) + `tools/multicam-groups.mjs` (pure: folder / time-window / filename heuristics) |

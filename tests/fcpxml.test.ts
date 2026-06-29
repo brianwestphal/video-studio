@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { buildManifest } from "../tools/export-manifest.mjs";
-import { buildFcpxml, frameDuration, rationalTime } from "../tools/fcpxml.mjs";
+import { buildFcpxml, buildMulticamFcpxml, frameDuration, rationalTime } from "../tools/fcpxml.mjs";
 
 describe("frameDuration", () => {
   it("maps integer rates to 1/fps", () => {
@@ -107,5 +107,111 @@ describe("buildFcpxml with a master audio track (multi-cam)", () => {
     expect(xml).toContain('<asset-clip ref="r4" lane="-1" offset="0s" name="master" start="0s" duration="10s"/>');
     // seg-001 is therefore not self-closed
     expect(xml).toContain('name="seg-001" start="0s" duration="5s" format="r1" tcFormat="NDF">');
+  });
+});
+
+describe("buildMulticamFcpxml", () => {
+  const group = {
+    id: "ceremony",
+    projectFps: 30,
+    referenceId: "rec",
+    masterAudioId: "rec",
+    members: [
+      { id: "rec", path: "/r.wav", kind: "audio", durationSeconds: 20, offsetSeconds: 0 },
+      { id: "cam-a", path: "/a.mov", kind: "video", durationSeconds: 18, offsetSeconds: 2 },
+      { id: "cam-b", path: "/b.mov", kind: "video", durationSeconds: 19, offsetSeconds: 1 },
+    ],
+  };
+  const switches = [
+    { atSeconds: 0, memberId: "cam-a" },
+    { atSeconds: 8, memberId: "cam-b" },
+  ];
+  const xml = buildMulticamFcpxml(group, switches, { name: "cut", width: 1920, height: 1080 }, (p) => `file://${p}`);
+
+  it("is a well-formed multicam fcpxml referencing the original media", () => {
+    expect(xml.startsWith('<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE fcpxml>')).toBe(true);
+    for (const tag of ["resources", "library", "event", "project", "sequence", "spine", "media", "multicam"]) {
+      expect((xml.match(new RegExp(`<${tag}[ >]`, "g")) || []).length).toBe((xml.match(new RegExp(`</${tag}>`, "g")) || []).length);
+    }
+    expect(xml).toContain('src="file:///r.wav"');
+    expect(xml).toContain('src="file:///a.mov"');
+  });
+
+  it("declares one mc-angle per member at its sync offset", () => {
+    expect((xml.match(/<mc-angle /g) || []).length).toBe(3);
+    expect(xml).toContain('<mc-angle name="cam-a" angleID="cam-a">');
+    // cam-a offset 2s (min offset is 0, no shift)
+    expect(xml).toMatch(/angleID="cam-a">\s*<asset-clip ref="r3" offset="2s"/);
+    expect(xml).toMatch(/angleID="rec">\s*<asset-clip ref="r2" offset="0s"/);
+  });
+
+  it("emits one mc-clip per switch span selecting the active video + master audio", () => {
+    expect((xml.match(/<mc-clip /g) || []).length).toBe(2);
+    expect(xml).toContain('<mc-clip ref="r5" offset="0s" name="cut" start="0s" duration="8s">');
+    expect(xml).toContain('<mc-source angleID="cam-a" srcEnable="video"/>');
+    expect(xml).toContain('<mc-source angleID="rec" srcEnable="audio"/>');
+    // second span 8s → 20s (total = master duration)
+    expect(xml).toContain('offset="8s" name="cut" start="8s" duration="12s">');
+    expect(xml).toContain('<mc-source angleID="cam-b" srcEnable="video"/>');
+  });
+
+  it("shifts negative offsets so the earliest angle sits at 0", () => {
+    const g = {
+      ...group,
+      members: [
+        { id: "rec", path: "/r.wav", kind: "audio", durationSeconds: 20, offsetSeconds: 0 },
+        { id: "cam-early", path: "/e.mov", kind: "video", durationSeconds: 20, offsetSeconds: -3 },
+      ],
+    };
+    const x = buildMulticamFcpxml(g, [{ atSeconds: 0, memberId: "cam-early" }], { name: "n", width: 16, height: 9 }, (p) => `file://${p}`);
+    // earliest angle (cam-early, -3) shifts to 0; rec (0) shifts to 3
+    expect(x).toMatch(/angleID="cam-early">\s*<asset-clip[^>]*offset="0s"/);
+    expect(x).toMatch(/angleID="rec">\s*<asset-clip[^>]*offset="3s"/);
+    // and the mc-clip start is shifted (0 + shift 3)
+    expect(x).toContain('start="3s"');
+  });
+
+  it("defaults to a single span on the first video angle when no switches", () => {
+    const x = buildMulticamFcpxml(group, [], { name: "n", width: 16, height: 9 }, (p) => `file://${p}`);
+    expect((x.match(/<mc-clip /g) || []).length).toBe(1);
+    expect(x).toContain('<mc-source angleID="cam-a" srcEnable="video"/>'); // first video member
+    expect(x).toContain('duration="20s"'); // spans the whole master duration
+  });
+
+  it("honors an explicit totalSeconds", () => {
+    const x = buildMulticamFcpxml(group, [{ atSeconds: 0, memberId: "cam-a" }], { name: "n", width: 16, height: 9, totalSeconds: 6 }, (p) => `file://${p}`);
+    expect(x).toContain('<sequence format="r1" duration="6s"');
+  });
+
+  it("throws on a missing master or unknown switch member", () => {
+    expect(() => buildMulticamFcpxml({ ...group, masterAudioId: "ghost" }, switches, { width: 1, height: 1 }, (p) => p)).toThrow(/master audio member/);
+    expect(() => buildMulticamFcpxml(group, [{ atSeconds: 0, memberId: "ghost" }], { width: 1, height: 1 }, (p) => p)).toThrow(/unknown memberId/);
+  });
+
+  it("throws when no positive total is available", () => {
+    const g = { ...group, members: [{ id: "rec", path: "/r.wav", kind: "audio", offsetSeconds: 0 }] };
+    expect(() => buildMulticamFcpxml(g, [], { width: 1, height: 1 }, (p) => p)).toThrow(/positive totalSeconds/);
+  });
+
+  it("falls back to the group id for the name when none is given", () => {
+    const x = buildMulticamFcpxml(group, [{ atSeconds: 0, memberId: "cam-a" }], { width: 16, height: 9 }, (p) => `file://${p}`);
+    expect(x).toContain('<project name="ceremony">');
+    expect(x).toContain('name="ceremony multicam"');
+  });
+
+  it("tolerates a member with no duration and an all-audio group", () => {
+    const g = {
+      id: "audio-only",
+      projectFps: 30,
+      masterAudioId: "rec",
+      members: [
+        { id: "rec", path: "/r.wav", kind: "audio", durationSeconds: 5, offsetSeconds: 0 },
+        { id: "mic2", path: "/m.wav", kind: "audio" }, // no durationSeconds, no offsetSeconds
+      ],
+    };
+    const x = buildMulticamFcpxml(g, [], { width: 16, height: 9 }, (p) => `file://${p}`);
+    // no video member → first span defaults to the first member (rec)
+    expect(x).toContain('<mc-source angleID="rec" srcEnable="video"/>');
+    expect((x.match(/<mc-angle /g) || []).length).toBe(2);
   });
 });

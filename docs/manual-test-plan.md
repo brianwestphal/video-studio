@@ -107,6 +107,8 @@ exercise the ffmpeg mono extraction + the real end-to-end sync.
 | 7.6 | Re-run 7.1 with `--feature phat` (and with `--no-interpolate`) | `phat` (GCC-PHAT) still recovers the offset, typically with a sharper/higher `confidence`; `--no-interpolate` yields whole-sample `offsetSeconds`, otherwise it is sub-sample-refined. |
 | 7.7 | `node tools/propose-groups.mjs <sources.json>` over a pool with two clips in one folder + one elsewhere | Proposes the folder/overlap group (>=2 members) with a ready-to-run `sync-multicam` command; `--strategy filename`/`--json` switch the heuristic/format. Singletons are never proposed. |
 | 7.8 | From a synced `multicam.json`, build a cut spec with `expandMulticamGroup(group, switches, {name,width,height})`, run `export-project`, then `rebuild.sh` | The rebuilt cut has **continuous master audio** under **switching video angles** (e.g. frame colors change at each switch point); the export folder has `audio/master.mov`; the `.fcpxml` is well-formed with the master audio on a connected `lane="-1"` clip. |
+| 7.9 | `node tools/export-multicam-fcpxml.mjs <multicam.json> --width <w> --height <h> --switch 0=<id> --switch <t>=<id2>` then **import the `.fcpxml` into Final Cut Pro** | FCP builds a **live multicam clip**: one angle per member synced at its offset, audible master audio, and the spine cuts between the chosen angles at the switch points. You can open the angle viewer and re-cut angles. **This real-FCP round-trip is the validation that the multicam FCPXML is correct** — automated tests only check the XML structure; file a bug if FCP rejects any element. |
+| 7.10 | Export a **drifting** member's angle cut (long take, non-zero `driftPpm`) via 7.8 | The drifting angle's segment is `setpts`-retimed so it still fills its timeline slot (no progressive slip vs the master audio); its manifest segment carries `rateCorrection` and a slot-length `durationSeconds`. |
 
 ## Automated Coverage Summary
 
@@ -133,8 +135,9 @@ Covered by unit tests (do **not** re-test by hand):
   `framesToTimecode`, `segmentArgs`, `overlayArgs`, `audioTrackArgs`,
   `rebuildScript` (`tests/export-manifest.test.ts`). 100% coverage. The ffmpeg
   execution in `export-project.mjs` is §5 + §7.8 above.
-- **`tools/fcpxml.mjs`** — `buildFcpxml`, `frameDuration`, `rationalTime`
-  (`tests/fcpxml.test.ts`). 100% coverage; FCP import itself is §5 below.
+- **`tools/fcpxml.mjs`** — `buildFcpxml`, `buildMulticamFcpxml`, `frameDuration`,
+  `rationalTime` (`tests/fcpxml.test.ts`). 100% coverage of the XML generation;
+  FCP import itself is §5 / §7.9 (the multicam asset's real-FCP validation).
 - **`tools/multicam.mjs`** — the FFT (`fftInPlace`, `crossCorrelate`,
   `crossCorrelatePhat`), offset/confidence (`findOffset`, `offsetSeconds`,
   `parabolicVertex`), `fitDrift`, `classifySync`, `selectReference`,

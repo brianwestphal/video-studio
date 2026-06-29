@@ -30,7 +30,10 @@ export function buildManifest(spec, overlayDurations = []) {
   let cursor = 0;
   const segments = clips.map((clip, i) => {
     if (!(clip.out > clip.in)) throw new Error(`export: clip ${i} has out (${clip.out}) <= in (${clip.in})`);
-    const duration = clip.out - clip.in;
+    // A drift `rateCorrection` stretches the source span (clip.in..clip.out) to
+    // `rate`× its length on the timeline, so the on-timeline duration is scaled.
+    const rate = clip.rateCorrection ?? 1;
+    const duration = (clip.out - clip.in) * rate;
     const targetStart = cursor;
     cursor += duration;
     return {
@@ -41,6 +44,7 @@ export function buildManifest(spec, overlayDurations = []) {
       sourceOut: +clip.out.toFixed(3),
       audio: clip.audio === "silent" ? "silent" : "keep",
       durationSeconds: +duration.toFixed(3),
+      ...(rate !== 1 ? { rateCorrection: rate } : {}),
       target: { start: t(targetStart), end: t(cursor) },
     };
   });
@@ -103,8 +107,13 @@ export function audioTrackArgs(audioTrack, outPath) {
 }
 
 // ProRes 422 HQ extraction of one clip, frame-accurate, audio kept or silenced.
+// A `rateCorrection` (multi-cam drift retime) time-stretches the video by `rate`
+// so its source span (which is 1/rate of the timeline slot) fills the slot; the
+// clip is silent in that case, so only the video PTS is retimed.
 export function segmentArgs(project, clip, outPath) {
-  const vf = `scale=${project.width}:${project.height}:flags=lanczos,setsar=1`;
+  const scale = `scale=${project.width}:${project.height}:flags=lanczos,setsar=1`;
+  const rate = clip.rateCorrection;
+  const vf = rate && rate !== 1 ? `${scale},setpts=${rate}*PTS` : scale;
   const enc = ["-c:v", "prores_ks", "-profile:v", "3", "-pix_fmt", "yuv422p10le", "-r", String(project.fps)];
   const dur = (clip.out - clip.in).toFixed(3);
   if (clip.audio === "silent") {

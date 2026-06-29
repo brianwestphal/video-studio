@@ -90,6 +90,14 @@ describe("buildManifest", () => {
     expect(() => buildManifest(baseSpec({ overlays: [{ file: "/c.mov" }] }), [])).toThrow(/no usable duration/);
   });
 
+  it("scales a retimed clip's timeline duration by its rateCorrection", () => {
+    // source span 2s at rate 2 → 4s on the timeline
+    const m = buildManifest({ project, clips: [{ source: "/a.mov", in: 0, out: 2, audio: "silent", rateCorrection: 2 }] });
+    expect(m.segments[0].durationSeconds).toBe(4);
+    expect(m.segments[0].rateCorrection).toBe(2);
+    expect(m.project.totalSeconds).toBe(4);
+  });
+
   it("carries a master audioTrack (multi-cam), defaulting its duration to the timeline", () => {
     const m = buildManifest(baseSpec({ audioTrack: { source: "/r.wav", in: 0 } }));
     expect(m.audioTrack).toEqual({ file: "audio/master.mov", source: "/r.wav", sourceIn: 0, durationSeconds: m.project.totalSeconds });
@@ -129,6 +137,15 @@ describe("segmentArgs", () => {
     const a = segmentArgs(project, { source: "/b.mov", in: 100, out: 101.5, audio: "silent" }, "/out/seg-002.mov");
     expect(a.join(" ")).toContain("anullsrc=r=48000:cl=stereo");
     expect(a).toContain("1:a:0");
+  });
+
+  it("applies a setpts retime when the clip carries a drift rateCorrection", () => {
+    const a = segmentArgs(project, { source: "/a.mov", in: 0, out: 4, audio: "silent", rateCorrection: 1.0002 }, "/out/seg-001.mov");
+    expect(a.join(" ")).toContain("setpts=1.0002*PTS");
+  });
+  it("omits the setpts retime when rateCorrection is 1 or absent", () => {
+    expect(segmentArgs(project, { source: "/a.mov", in: 0, out: 4, audio: "silent", rateCorrection: 1 }, "/o.mov").join(" ")).not.toContain("setpts");
+    expect(segmentArgs(project, { source: "/a.mov", in: 0, out: 4, audio: "silent" }, "/o.mov").join(" ")).not.toContain("setpts");
   });
 });
 
