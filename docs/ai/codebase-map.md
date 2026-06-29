@@ -29,8 +29,8 @@ and [`requirements-summary.md`](requirements-summary.md) for status.
 │   ├── render-caption.mjs      # caption/CTA → animated SVG (Chromium pipeline)
 │   ├── caption-format.mjs      # pure arg-parse + SVG/HTML assembly (unit-tested)
 │   ├── export-project.mjs      # editor handoff: cut spec → segments/overlays/manifest/rebuild.sh/fcpxml (I/O)
-│   ├── export-manifest.mjs     # pure manifest + ffmpeg-command + rebuild-script logic (unit-tested)
-│   ├── fcpxml.mjs              # pure FCPXML generation from the manifest (unit-tested)
+│   ├── export-manifest.mjs     # pure manifest + ffmpeg-command + rebuild-script logic, incl. transition handles (unit-tested)
+│   ├── fcpxml.mjs              # pure FCPXML generation from the manifest, incl. FCP <transition>s + effect uids (unit-tested)
 │   ├── analyze-sources.mjs     # multiple-source input: files/folders → per-source analysis → sources.json (I/O)
 │   ├── sources.mjs             # pure source-id + sources-manifest logic (unit-tested)
 │   ├── sync-multicam.mjs       # multi-cam audio sync: ffmpeg mono extract + cross-correlation → multicam.json (I/O)
@@ -63,7 +63,7 @@ and [`requirements-summary.md`](requirements-summary.md) for status.
 │   ├── requirements.md         # source-of-truth requirements (shipped pipeline)
 │   ├── editor-handoff.md       # export segments + overlays + manifest + FCPXML (shipped, VS-24/25)
 │   ├── multiple-sources.md     # draw from many files/folders (shipped, VS-26)
-│   ├── transitions.md          # DESIGN: AI FCP transition suggestions in the FCPXML (VS-23)
+│   ├── transitions.md          # FCP transition suggestions in the FCPXML — shipped VS-28 (Cross Dissolve + Fade To Color + handles)
 │   ├── multicam.md             # audio-synced multi-cam design (VS-19); sync shipped VS-27; FCP import validated VS-36
 │   ├── multicam-sync.md        # audio sync tool requirements + research findings (VS-27, shipped)
 │   ├── audio-events.md         # DESIGN: non-speech/musical audio events spec (R-AE, VS-41 → build VS-44)
@@ -165,6 +165,7 @@ launcher, `render-caption.mjs`'s Chromium path) is manual-test territory.
 | caption arg parsing / SVG-HTML assembly | `tools/caption-format.mjs` |
 | caption Chromium render pipeline | `tools/render-caption.mjs` |
 | editor-handoff export (segments/overlays/audio/manifest/rebuild) | `tools/export-project.mjs` (I/O) + `tools/export-manifest.mjs` + `tools/fcpxml.mjs` (pure) |
+| FCP transitions in the .fcpxml (+ segment handles) | `manifest.transitions` → `buildFcpxml` (`TRANSITION_UIDS`) + handle baking in `buildManifest`/`segmentArgs`/`rebuildScript` (all pure, `tools/{fcpxml,export-manifest}.mjs`); opt-in via cut-spec `transitions` |
 | multi-cam angle cut → editor-handoff cut spec | `expandMulticamGroup` in `tools/multicam.mjs`; the `audioTrack` + drift `rateCorrection` flow through `export-manifest.mjs` + `fcpxml.mjs` |
 | multi-cam true FCPXML mc-clip asset | `buildMulticamFcpxml` in `tools/fcpxml.mjs` (pure) + `tools/export-multicam-fcpxml.mjs` (I/O) |
 | multi-cam flat preview MP4 (compare vs FCP) | `tools/render-multicam-preview.mjs` (ffmpeg I/O) over `resolveAngleCuts` in `tools/multicam.mjs` (pure) |

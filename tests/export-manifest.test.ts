@@ -194,3 +194,74 @@ describe("rebuildScript", () => {
     expect(sh).toContain('-i "$OUT.video.mov" -i "audio/master.mov"');
   });
 });
+
+describe("transitions + handles (VS-28)", () => {
+  const clips = [
+    { source: "/a.mov", in: 10, out: 12, audio: "keep" },
+    { source: "/b.mov", in: 5, out: 8, audio: "keep" },
+    { source: "/c.mov", in: 0.2, out: 3, audio: "keep" }, // in < handle → head clamps
+  ];
+  const spec3 = {
+    project,
+    clips,
+    transitions: [
+      { afterClip: 1, name: "Fade To Color", durationSeconds: 1.0, reason: "scene break" },
+      { afterClip: 0, name: "Cross Dissolve", durationSeconds: 0.5 }, // out of order
+    ],
+    handleSeconds: 0.4,
+  };
+
+  it("records per-segment handles and normalizes + sorts transitions", () => {
+    const m = buildManifest(spec3, [], [60, 60, 60]);
+    expect(m.handleSeconds).toBe(0.5); // max(req 0.4, half of longest 1.0)
+    expect(m.segments[0]).toMatchObject({ handleStartSeconds: 0.5, handleEndSeconds: 0.5, fileDurationSeconds: 3 });
+    expect(m.segments[2].handleStartSeconds).toBe(0.2); // in 0.2 < 0.5 → clamped
+    expect(m.transitions).toEqual([
+      { afterSegment: 1, name: "Cross Dissolve", durationSeconds: 0.5 },
+      { afterSegment: 2, name: "Fade To Color", durationSeconds: 1, reason: "scene break" },
+    ]);
+  });
+
+  it("defaults the handle to 0.5s when unset", () => {
+    const m = buildManifest({ project, clips, transitions: [{ afterClip: 0, name: "Cross Dissolve", durationSeconds: 0.5 }] }, [], [60, 60, 60]);
+    expect(m.handleSeconds).toBe(0.5); // max(default 0.5, half 0.25)
+  });
+
+  it("falls back to the full handle when a source duration is unknown", () => {
+    const m = buildManifest(spec3, [], []);
+    expect(m.segments[0].handleEndSeconds).toBe(0.5);
+  });
+
+  it("skips handles for a drift-retimed clip", () => {
+    const m = buildManifest({ ...spec3, clips: [{ ...clips[0], rateCorrection: 1.02 }, clips[1], clips[2]] }, [], [60, 60, 60]);
+    expect(m.segments[0].handleStartSeconds).toBeUndefined();
+    expect(m.segments[0].rateCorrection).toBe(1.02);
+  });
+
+  it("omits transitions/handles entirely when none are requested", () => {
+    const m = buildManifest({ project, clips });
+    expect(m.transitions).toBeUndefined();
+    expect(m.handleSeconds).toBeUndefined();
+    expect(m.segments[0].handleStartSeconds).toBeUndefined();
+  });
+
+  it("validates the transitions list", () => {
+    const bad = (transitions: unknown[]) => () => buildManifest({ ...spec3, transitions }, [], [60, 60, 60]);
+    expect(bad([{ afterClip: 2, name: "x", durationSeconds: 1 }])).toThrow(/not a cut/); // == clips-1
+    expect(bad([{ afterClip: -1, name: "x", durationSeconds: 1 }])).toThrow(/not a cut/);
+    expect(bad([{ afterClip: 1.5, name: "x", durationSeconds: 1 }])).toThrow(/not a cut/);
+    expect(bad([{ afterClip: 0, name: "x", durationSeconds: 0 }])).toThrow(/positive durationSeconds/);
+    expect(bad([{ afterClip: 0, durationSeconds: 1 }])).toThrow(/needs a name/);
+    expect(bad([{ afterClip: 0, name: "x", durationSeconds: 1 }, { afterClip: 0, name: "y", durationSeconds: 1 }])).toThrow(/duplicates/);
+  });
+
+  it("segmentArgs bakes handles; rebuildScript trims them via inpoint/outpoint", () => {
+    const m = buildManifest(spec3, [], [60, 60, 60]);
+    const s0 = m.segments[0];
+    const a = segmentArgs(project, clips[0], "/out/seg.mov", { start: s0.handleStartSeconds, end: s0.handleEndSeconds });
+    expect(a).toEqual(expect.arrayContaining(["-ss", "9.500", "-t", "3.000"]));
+    const sh = rebuildScript(m);
+    expect(sh).toContain('printf "inpoint %s\\n" "0.500"');
+    expect(sh).toContain('printf "outpoint %s\\n" "2.500"'); // head 0.5 + slot 2.0
+  });
+});

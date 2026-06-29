@@ -145,9 +145,12 @@ A single export produces a project directory next to the source, e.g.:
 ## 8. Open questions / follow-ups
 
 - Combined full-length alpha overlay track in addition to per-overlay files? (R-EH8)
-- Do segments need **handles** (a few frames of padding beyond the cut) so the
-  user can adjust transitions in FCP without running out of media? (Common NLE
-  practice — likely yes; confirm length, e.g. 12–24 frames.)
+- ~~Do segments need **handles** (a few frames of padding beyond the cut) so the
+  user can adjust transitions in FCP without running out of media?~~ **Resolved
+  (VS-28):** segments get handles **on demand** — only when the cut spec requests
+  `transitions` (see [`transitions.md`](transitions.md) R-TR1). Default 0.5 s per
+  side (or half the longest transition), clamped to the source; `rebuild.sh` trims
+  them. A plain export (no transitions) stays exact-cut, no handles.
 - Audio: export B-roll segments truly silent, or muted-but-present (so FCP shows a
   track)? Separate audio stems?
 - FCPXML version target (FCP 10.x compatibility) and whether to also offer the

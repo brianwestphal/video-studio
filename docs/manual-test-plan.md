@@ -81,6 +81,7 @@ Write a cut spec (see [`editor-handoff.md`](editor-handoff.md)) referencing real
 | 5.3 | Probe a segment / overlay codec | Segment is `prores` `yuv422p10le`; overlay is `prores` profile 4444 with an alpha pixel format. |
 | 5.4 | `bash out/rebuild.sh rebuilt.mov` | Re-composites the exact cut — duration equals `manifest.project.totalTimecode`; frame-sampling shows overlays composited at their target times. |
 | 5.5 | Import `<name>.fcpxml` into Final Cut Pro | Segments land on the primary storyline in order at their target ranges; overlays appear as connected clips (lane 1) above their segments; clips conform at the project fps with no warnings; overlays carry transparency. |
+| 5.6 | Add a `transitions` block to the cut spec (e.g. `[{ "afterClip": 0, "name": "Cross Dissolve", "durationSeconds": 1 }, { "afterClip": 2, "name": "Fade To Color", "durationSeconds": 0.6 }]`), re-export, import the `.fcpxml` into FCP (docs/transitions.md) | The named cuts show the chosen transition centered on the cut (Cross Dissolve / Fade To Color), tweakable/deletable; unlisted cuts stay hard. The flanking segments have handle media (the export reports the handle seconds; segment files are longer than their slot). `rebuild.sh` still reproduces the **exact** flat cut (handles trimmed via concat inpoint/outpoint). The generated `.fcpxml` validates against FCP's bundled `FCPXMLv1_10.dtd` (see docs/multicam.md for the xmllint command). |
 
 ## 6. Multiple-source input (`tools/analyze-sources.mjs`)
 

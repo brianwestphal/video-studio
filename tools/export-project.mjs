@@ -15,9 +15,12 @@
  *   {
  *     "project": { "fps": 24, "width": 1920, "height": 1080, "name": "teaser" },
  *     "clips":   [ { "source": "/abs/a.mov", "in": 36.18, "out": 39.20, "audio": "keep" }, … ],
- *     "overlays":[ { "file": "/abs/cap.mov", "overClip": 0, "atOffset": 0.5, "position": "lower-third" }, … ]
+ *     "overlays":[ { "file": "/abs/cap.mov", "overClip": 0, "atOffset": 0.5, "position": "lower-third" }, … ],
+ *     "transitions":[ { "afterClip": 0, "name": "Cross Dissolve", "durationSeconds": 1.0, "reason": "mood shift" }, … ]
  *   }
- * FCPXML generation is a separate tool (see docs/editor-handoff.md §6).
+ * `transitions` is OPT-IN (docs/transitions.md): listed cuts get an FCP transition
+ * in the .fcpxml + handle media baked into the flanking segments; unlisted cuts
+ * stay hard cuts. FCPXML generation is a separate concern (docs/editor-handoff.md §6).
  *
  * The manifest/command logic lives in ./export-manifest.mjs (unit-tested); this
  * file is the I/O: probing overlay durations and running ffmpeg.
@@ -64,7 +67,11 @@ function main() {
   if (spec.audioTrack) spec.audioTrack.source = abs(spec.audioTrack.source);
 
   const overlayDurations = (spec.overlays || []).map((o) => o.duration ?? ffprobeDuration(o.file));
-  const manifest = buildManifest(spec, overlayDurations);
+  // When transitions are requested, segments get handles (R-TR1) — probe each
+  // source's duration so the manifest can clamp the tail handle to real media.
+  const wantTransitions = Array.isArray(spec.transitions) && spec.transitions.length > 0;
+  const sourceDurations = wantTransitions ? (spec.clips || []).map((c) => ffprobeDuration(c.source)) : [];
+  const manifest = buildManifest(spec, overlayDurations, sourceDurations);
 
   const outDir = resolve(out || `${manifest.project.name}.studio-export`);
   mkdirSync(resolve(outDir, "segments"), { recursive: true });
@@ -73,7 +80,8 @@ function main() {
   console.log(`Exporting ${manifest.segments.length} segment(s) + ${manifest.overlays.length} overlay(s) → ${outDir}`);
   manifest.segments.forEach((s, i) => {
     console.log(`  segment ${s.index}: ${s.target.start.timecode} → ${s.target.end.timecode}`);
-    ffmpeg(segmentArgs(manifest.project, spec.clips[i], resolve(outDir, s.file)));
+    const handles = s.handleStartSeconds != null ? { start: s.handleStartSeconds, end: s.handleEndSeconds } : {};
+    ffmpeg(segmentArgs(manifest.project, spec.clips[i], resolve(outDir, s.file), handles));
   });
   manifest.overlays.forEach((o, i) => {
     console.log(`  overlay ${o.index} over seg ${o.overSegment}: ${o.target.start.timecode} → ${o.target.end.timecode}`);
@@ -95,6 +103,7 @@ function main() {
   const fcpxml = buildFcpxml(manifest, (file) => pathToFileURL(resolve(outDir, file)).href);
   writeFileSync(resolve(outDir, `${manifest.project.name}.fcpxml`), fcpxml);
 
+  if (manifest.transitions) console.log(`  ${manifest.transitions.length} transition(s) at cuts (${manifest.handleSeconds}s handles baked into segments).`);
   console.log(`\nWrote manifest.json + rebuild.sh + ${manifest.project.name}.fcpxml. Final cut length: ${manifest.project.totalTimecode}.`);
   console.log(`Import the .fcpxml into Final Cut Pro, or run ${outDir}/rebuild.sh to re-composite the exact cut.`);
 }

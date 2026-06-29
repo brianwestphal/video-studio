@@ -17,7 +17,7 @@ sync with the requirements doc and code; the source wins on conflict.
 | Quality gates | R7.1–R7.4 | **Shipped** |
 | Editor handoff (segments + overlays + manifest/FCPXML) | [`editor-handoff.md`](../editor-handoff.md) | **Shipped** — export + manifest + rebuild (VS-24) + FCPXML (VS-25) |
 | Multiple source videos | [`multiple-sources.md`](../multiple-sources.md) | **Shipped** (VS-26) |
-| FCP transition suggestions | [`transitions.md`](../transitions.md) | **Design only** (VS-23) |
+| FCP transition suggestions | [`transitions.md`](../transitions.md) | **Shipped** (VS-28) — opt-in `transitions` → FCP `<transition>`s (Cross Dissolve + Fade To Color) + baked segment handles; DTD-valid |
 | Multi-cam editing | [`multicam.md`](../multicam.md), [`multicam-sync.md`](../multicam-sync.md) | **Shipped** — sync, group proposal, angle switching → flat-timeline export, drift correction applied on export, true FCPXML mc-clip asset (VS-27/29/30/31/32/33); **FCP import validated against the real app (VS-36)** |
 | Edit awareness / auto multi-cam cutting | [`audio-events.md`](../audio-events.md), [`visual-saliency.md`](../visual-saliency.md), [`multicam-auto-cut.md`](../multicam-auto-cut.md) | **Partial** — specs done (VS-41/42/43); **audio-events Tier-1 shipped (VS-44)**; visual saliency (VS-45), selector (VS-46), integration (VS-47) pending |
 
@@ -78,10 +78,15 @@ manual validation step). Design-only: **FCP transition suggestions**
   the workflow in VS-47. All within the current ffmpeg/whisper/Ollama/pure-JS-DSP
   stack; stem separation (Demucs) deferred. Grounded on the BYAM clip
   (`external/multi-cam/`).
-- **FCP transition suggestions (Design only)** — on FCPXML export, insert
-  AI-chosen built-in `<transition>` elements at cut points, tuned by video type +
-  stylistic heuristics. Requires adding segment **handles** to the export (a
-  prerequisite). [`transitions.md`](../transitions.md), VS-23.
+- **FCP transition suggestions (Shipped, VS-28)** — opt-in `transitions` on the cut
+  spec emit FCP `<transition>` elements at the chosen cuts in the editor-handoff
+  `.fcpxml` (Cross Dissolve + Fade To Color; "Dip to Color" alias), centered on the
+  cut with a `<filter-audio>` Audio Crossfade. The prerequisite **segment handles**
+  ship too: `buildManifest` records per-segment handles, `segmentArgs` bakes them,
+  `rebuildScript` trims them (concat `inpoint`/`outpoint`). Effect uids captured from
+  a real FCP export; output validates against FCP's bundled `FCPXMLv1_10.dtd`. The
+  AI picks transitions per cut (SKILL.md §7, hard-cut by default). More built-in
+  transitions = VS-50. [`transitions.md`](../transitions.md).
 - **Multi-cam (Shipped)** — audio sync **shipped** (VS-27):
   `tools/sync-multicam.mjs` (ffmpeg mono extract + run) over `tools/multicam-dsp.mjs`
   (pure FFT cross-correlation, normalized-peak confidence gate, drift fit) +

@@ -63,9 +63,23 @@ export function audioTime(seconds, rate = AUDIO_RATE) {
 const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const baseName = (p) => p.split("/").pop().replace(/\.[^.]+$/, "");
 
+// Built-in FCP transition `uid`s (docs/transitions.md). These are FCP-internal
+// and unguessable; captured verbatim from a real FCP "File ▸ Export XML" of a
+// timeline with these transitions (VS-28 attachment). `Audio Crossfade` rides
+// every video transition (matching FCP's own output). Aliases map the ticket's
+// names to FCP's canonical names.
+export const TRANSITION_UIDS = {
+  "Cross Dissolve": "FxPlug:4731E73A-8DAC-4113-9A30-AE85B1761265",
+  "Fade To Color": "FxPlug:F779C565-486D-4633-8035-0374B4DB8F5C",
+};
+const TRANSITION_ALIASES = { "Dip to Color": "Fade To Color", "Dip To Color": "Fade To Color", "Fade to Color": "Fade To Color" };
+const AUDIO_CROSSFADE_UID = "FFAudioTransition";
+
 // Build the FCPXML document. `manifest` is the export manifest (see
 // export-manifest.mjs); `assetSrc(file)` returns the media URL for a manifest
 // file path (e.g. "segments/seg-001.mov" → "file:///…/segments/seg-001.mov").
+// `manifest.transitions` (opt-in, R-TR2) inserts FCP `<transition>` elements
+// centered on the named cuts, consuming each segment's exported handle media.
 export function buildFcpxml(manifest, assetSrc) {
   const { project, segments, overlays, audioTrack } = manifest;
   const fps = project.fps;
@@ -95,17 +109,49 @@ export function buildFcpxml(manifest, assetSrc) {
       `    </asset>`,
     );
   };
-  segments.forEach((s) => addAsset(s.file, s.durationSeconds, true));
+  // A segment exported with transition handles is a LONGER file; the visible cut
+  // starts `handleStartSeconds` in. Declare the asset at its real (handle-inclusive)
+  // length so FCP has the overlap media; the clip below trims to the cut.
+  segments.forEach((s) => addAsset(s.file, s.fileDurationSeconds ?? s.durationSeconds, true));
   overlays.forEach((o) => addAsset(o.file, o.durationSeconds, false));
   // The continuous master-audio track (multi-cam) is an audio-only asset.
   if (audioTrack) addAsset(audioTrack.file, audioTrack.durationSeconds, true, false);
 
-  // spine: segments in order; overlays nested as connected clips (lane 1)
-  const spine = segments.map((s) => {
+  // Transition `<effect>` resources (opt-in). Resolve aliases → FCP's canonical
+  // names + uids; throw on an unsupported transition so the caller gets a clear
+  // error rather than a silently-broken import.
+  const transitions = manifest.transitions || [];
+  const effectEls = [];
+  const effectIdByUid = new Map();
+  const ensureEffect = (name, uid) => {
+    if (!effectIdByUid.has(uid)) {
+      const id = `r${rid++}`;
+      effectIdByUid.set(uid, id);
+      effectEls.push(`    <effect id="${id}" name="${esc(name)}" uid="${uid}"/>`);
+    }
+    return effectIdByUid.get(uid);
+  };
+  const byAfter = new Map();
+  let audioCrossfadeId = null;
+  for (const tr of transitions) {
+    const name = TRANSITION_ALIASES[tr.name] ?? tr.name;
+    const uid = TRANSITION_UIDS[name];
+    if (!uid) throw new Error(`buildFcpxml: unsupported transition "${tr.name}" (have: ${Object.keys(TRANSITION_UIDS).join(", ")})`);
+    audioCrossfadeId = audioCrossfadeId || ensureEffect("Audio Crossfade", AUDIO_CROSSFADE_UID);
+    byAfter.set(tr.afterSegment, { ...tr, name, effectId: ensureEffect(name, uid) });
+  }
+
+  // spine: segments in order; overlays nested as connected clips (lane 1); a
+  // `<transition>` centered on a cut (offset = cut − duration/2) is interleaved
+  // after the segment it follows.
+  const spine = [];
+  for (const s of segments) {
+    const segStart = s.handleStartSeconds != null ? T(s.handleStartSeconds) : "0s";
+    const handleShift = s.handleStartSeconds || 0; // clip-local timeline begins at `start`
     const conn = overlays
       .filter((o) => o.overSegment === s.index)
       .map((o) => {
-        const localOffset = o.target.start.seconds - s.target.start.seconds; // parent-local
+        const localOffset = o.target.start.seconds - s.target.start.seconds + handleShift; // parent-local
         return `        <asset-clip ref="${ref.get(o.file)}" lane="1" offset="${T(localOffset)}" name="${esc(baseName(o.file))}" start="0s" duration="${T(o.durationSeconds)}"/>`;
       });
     // The master audio is a connected clip on lane -1 of the first segment,
@@ -113,10 +159,20 @@ export function buildFcpxml(manifest, assetSrc) {
     if (audioTrack && s.index === 1) {
       conn.unshift(`        <asset-clip ref="${ref.get(audioTrack.file)}" lane="-1" offset="0s" name="${esc(baseName(audioTrack.file))}" start="0s" duration="${T(audioTrack.durationSeconds)}"/>`);
     }
-    const open = `      <asset-clip ref="${ref.get(s.file)}" offset="${T(s.target.start.seconds)}" name="${esc(baseName(s.file))}" start="0s" duration="${T(s.durationSeconds)}" format="${formatId}" tcFormat="NDF">`;
-    if (conn.length === 0) return open.replace(/>$/, "/>");
-    return `${open}\n${conn.join("\n")}\n      </asset-clip>`;
-  });
+    const open = `      <asset-clip ref="${ref.get(s.file)}" offset="${T(s.target.start.seconds)}" name="${esc(baseName(s.file))}" start="${segStart}" duration="${T(s.durationSeconds)}" format="${formatId}" tcFormat="NDF">`;
+    spine.push(conn.length === 0 ? open.replace(/>$/, "/>") : `${open}\n${conn.join("\n")}\n      </asset-clip>`);
+
+    const tr = byAfter.get(s.index);
+    if (tr) {
+      const cut = s.target.end.seconds;
+      spine.push(
+        `      <transition name="${esc(tr.name)}" offset="${T(cut - tr.durationSeconds / 2)}" duration="${T(tr.durationSeconds)}">\n` +
+        `        <filter-video ref="${tr.effectId}" name="${esc(tr.name)}"/>\n` +
+        `        <filter-audio ref="${audioCrossfadeId}" name="Audio Crossfade"/>\n` +
+        `      </transition>`,
+      );
+    }
+  }
 
   const fdStr = `${fd.num}/${fd.den}s`; // frameDuration's denominator is the fps, never 1
   return (
@@ -126,6 +182,7 @@ export function buildFcpxml(manifest, assetSrc) {
     `  <resources>\n` +
     `    <format id="${formatId}" frameDuration="${fdStr}" width="${project.width}" height="${project.height}" colorSpace="1-1-1 (Rec. 709)"/>\n` +
     `${assetEls.join("\n")}\n` +
+    (effectEls.length ? `${effectEls.join("\n")}\n` : "") +
     `  </resources>\n` +
     `  <library>\n` +
     `    <event name="video-studio export">\n` +

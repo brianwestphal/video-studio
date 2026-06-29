@@ -106,6 +106,13 @@ node "$TOOLKIT/tools/export-project.mjs" "$WORK/cut.json" --out "<video-dir>/tea
 ```
 The cut spec's `clips` reference each source by path + in/out seconds (`audio: keep|silent`); `overlays` reference the alpha `.mov`s you rendered in Step 4 with the clip they sit over + offset. An optional **`audioTrack`** (`{ source, in, durationSeconds }`) lays one continuous audio source under the whole timeline — used for **multi-cam** (silent angle segments + master audio), or a music bed. The export also writes a **`<name>.fcpxml`** — the user can import that straight into Final Cut Pro (segments on the storyline, overlays + master audio as connected clips) for their transition pass, or run `rebuild.sh` to re-composite the exact cut.
 
+**Optional: suggest transitions** ([`docs/transitions.md`](../../docs/transitions.md)). Add a `transitions` array to the cut spec to pre-place FCP transitions at chosen cuts (the export bakes handle media into those segments and writes `<transition>` elements into the `.fcpxml`, ready to tweak/delete). Each entry: `{ "afterClip": <0-based clip index before the cut>, "name": "Cross Dissolve" | "Fade To Color", "durationSeconds": <n>, "reason": "<why>" }`. **Choose per cut, and lean hard-cut by default** — list a transition only where it earns its place:
+- **Hard cut (omit the entry):** the default — energy, continuity, on-beat cuts, dialogue/soundbite joins; teasers + social cuts stay mostly hard.
+- **Cross Dissolve** (~10–20 frames): a time passage, a mood/topic shift, or smoothing a B-roll montage; the long-edit archetype uses these more.
+- **Fade To Color** (~0.5–1 s; "Dip to Color" is accepted as an alias): a chapter/scene break, intro/outro, or a tonal reset.
+
+Tune by **video type** (teaser → snappy/hard; long edit → smoother dissolves), scene descriptions (mood shift vs continuous action), and pacing — and put the *why* in each `reason` so the user can audit it. Only Cross Dissolve + Fade To Color are wired today; other FCP transitions are a follow-up.
+
 ## Output conventions
 - Write finished cuts next to the source (e.g. `<video-dir>/teaser.mp4`). Scratch encodes can go in a work dir or `/tmp`, **but keep the AI-interpretation intermediates**: the scene breakdown (`$DATADIR/timeline.json`, with descriptions) and the whisper transcripts (`$DATADIR/transcripts/`) are a durable record of how the model read the footage — don't bury them in `/tmp`.
 - Save the assembly as a shell script alongside the output so the user can re-run/tweak.

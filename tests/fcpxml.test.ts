@@ -362,3 +362,52 @@ describe("buildMulticamFcpxml", () => {
     expect(cursor).toBe(frames(x.match(/<sequence[^>]*duration="([^"]+)"/)![1])); // fills the sequence
   });
 });
+
+describe("buildFcpxml transitions (VS-28)", () => {
+  const src = (f: string) => `file://${f}`;
+  function manifest(transitions: unknown[]) {
+    return buildManifest({
+      project: { fps: 24, width: 1920, height: 1080, name: "ed" },
+      clips: [
+        { source: "/a.mov", in: 10, out: 12, audio: "keep" },
+        { source: "/b.mov", in: 5, out: 8, audio: "keep" },
+        { source: "/c.mov", in: 1, out: 4, audio: "keep" },
+      ],
+      transitions,
+      handleSeconds: 0.5,
+    }, [], [60, 60, 60]);
+  }
+
+  it("emits effect resources + centered transitions and trims clips to the cut", () => {
+    const xml = buildFcpxml(manifest([
+      { afterClip: 0, name: "Cross Dissolve", durationSeconds: 1.0 },
+      { afterClip: 1, name: "Dip to Color", durationSeconds: 0.5 }, // alias → Fade To Color
+    ]), src);
+    expect(xml).toContain('name="Cross Dissolve" uid="FxPlug:4731E73A-8DAC-4113-9A30-AE85B1761265"');
+    expect(xml).toContain('name="Fade To Color" uid="FxPlug:F779C565-486D-4633-8035-0374B4DB8F5C"');
+    expect((xml.match(/uid="FFAudioTransition"/g) || []).length).toBe(1); // one audio crossfade
+    // seg1 (r2): exported file is 3s (0.5 + 2 + 0.5 handles); clip trimmed to start=0.5s (1/2s), dur 2s
+    expect(xml).toMatch(/<asset id="r2"[^>]*duration="3s"/);
+    expect(xml).toMatch(/<asset-clip ref="r2"[^>]*start="1\/2s" duration="2s"/);
+    // transition centered on the cut after seg1 (cut=2s → offset 2 − 0.5 = 3/2s, dur 1s)
+    expect(xml).toMatch(/<transition name="Cross Dissolve" offset="3\/2s" duration="1s">/);
+    expect(xml).toContain('<filter-audio ref=');
+    expect(xml).toContain('name="Fade To Color" offset='); // alias resolved on the element too
+    // interleaved after the segment clip, before the next
+    expect(xml.indexOf('name="Cross Dissolve" offset')).toBeGreaterThan(xml.indexOf('<asset-clip ref="r2"'));
+  });
+
+  it("reuses one effect for repeated transitions + a single audio crossfade", () => {
+    const xml = buildFcpxml(manifest([
+      { afterClip: 0, name: "Cross Dissolve", durationSeconds: 1 },
+      { afterClip: 1, name: "Cross Dissolve", durationSeconds: 1 },
+    ]), src);
+    expect((xml.match(/<effect /g) || []).length).toBe(2); // Cross Dissolve + Audio Crossfade, deduped
+    expect((xml.match(/name="Cross Dissolve" uid=/g) || []).length).toBe(1);
+    expect((xml.match(/<transition /g) || []).length).toBe(2);
+  });
+
+  it("throws on an unsupported transition", () => {
+    expect(() => buildFcpxml(manifest([{ afterClip: 0, name: "Kaleidoscope", durationSeconds: 1 }]), src)).toThrow(/unsupported transition/);
+  });
+});

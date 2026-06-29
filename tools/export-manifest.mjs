@@ -15,10 +15,41 @@ export function framesToTimecode(frame, fps) {
 const seg = (n) => `seg-${String(n).padStart(3, "0")}.mov`;
 const ov = (n) => `ov-${String(n).padStart(3, "0")}.mov`;
 
+// Normalize + validate a cut spec's `transitions` (docs/transitions.md R-TR2/4):
+// each is { afterClip, name, durationSeconds, reason? } where `afterClip` is the
+// 0-based index of the clip BEFORE the cut (the transition straddles the cut
+// between afterClip and afterClip+1). Hard cuts simply aren't listed (R-TR4).
+// Returns the normalized list (1-based `afterSegment`) sorted by cut, or [].
+function normalizeTransitions(spec, segments) {
+  const list = Array.isArray(spec.transitions) ? spec.transitions : [];
+  const seen = new Set();
+  return list.map((tr, i) => {
+    const afterClip = tr.afterClip;
+    if (!Number.isInteger(afterClip) || afterClip < 0 || afterClip >= segments.length - 1) {
+      throw new Error(`export: transition ${i} afterClip (${afterClip}) is not a cut between two clips`);
+    }
+    if (seen.has(afterClip)) throw new Error(`export: transition ${i} duplicates the cut after clip ${afterClip}`);
+    seen.add(afterClip);
+    if (!(tr.durationSeconds > 0)) throw new Error(`export: transition ${i} needs a positive durationSeconds`);
+    if (!tr.name) throw new Error(`export: transition ${i} needs a name`);
+    return { afterSegment: afterClip + 1, name: tr.name, durationSeconds: +tr.durationSeconds.toFixed(3), ...(tr.reason ? { reason: tr.reason } : {}) };
+  }).sort((a, b) => a.afterSegment - b.afterSegment);
+}
+
 // Build the final-timeline manifest from a cut spec. `overlayDurations[i]` is the
 // measured duration (seconds) of overlay i's source file (probed by the caller),
-// used only when the overlay doesn't specify its own `duration`.
-export function buildManifest(spec, overlayDurations = []) {
+// used only when the overlay doesn't specify its own `duration`. `sourceDurations[i]`
+// is clip i's source file duration (probed by the caller) — only needed when
+// **transitions/handles** are requested, to clamp each segment's tail handle to
+// the available media.
+//
+// Transitions (docs/transitions.md, opt-in via `spec.transitions`) need media
+// past each cut, so when requested every segment is exported with **handles**
+// (extra source frames on each side, R-TR1): the manifest records each segment's
+// `handleStartSeconds`/`handleEndSeconds` + the full `fileDurationSeconds` so the
+// FCPXML places the clip (start = head handle) and `rebuild.sh` trims the handles
+// back. The on-timeline target range is unchanged either way.
+export function buildManifest(spec, overlayDurations = [], sourceDurations = []) {
   const project = spec.project || {};
   const fps = project.fps;
   if (!fps || !Number.isFinite(fps)) throw new Error("export: project.fps is required");
@@ -26,6 +57,12 @@ export function buildManifest(spec, overlayDurations = []) {
   if (clips.length === 0) throw new Error("export: at least one clip is required");
 
   const t = (s) => ({ seconds: +s.toFixed(3), frame: Math.round(s * fps), timecode: framesToTimecode(Math.round(s * fps), fps) });
+
+  const wantTransitions = Array.isArray(spec.transitions) && spec.transitions.length > 0;
+  // Handle length: the requested handle, but at least half the longest transition
+  // (so the dissolve always has material). 0 when transitions aren't requested.
+  const maxHalf = wantTransitions ? Math.max(...spec.transitions.map((x) => (x.durationSeconds || 0) / 2)) : 0;
+  const handleSeconds = wantTransitions ? Math.max(spec.handleSeconds ?? 0.5, maxHalf) : 0;
 
   let cursor = 0;
   const segments = clips.map((clip, i) => {
@@ -36,6 +73,12 @@ export function buildManifest(spec, overlayDurations = []) {
     const duration = (clip.out - clip.in) * rate;
     const targetStart = cursor;
     cursor += duration;
+    // Handles only when transitions are requested and the clip isn't drift-retimed
+    // (a retimed clip's source↔timeline mapping makes handles ambiguous — skip).
+    const handled = handleSeconds > 0 && rate === 1;
+    const headHandle = handled ? Math.min(handleSeconds, clip.in) : 0;
+    const srcDur = sourceDurations[i];
+    const tailHandle = handled ? (srcDur != null ? Math.max(0, Math.min(handleSeconds, srcDur - clip.out)) : handleSeconds) : 0;
     return {
       index: i + 1,
       file: `segments/${seg(i + 1)}`,
@@ -45,10 +88,16 @@ export function buildManifest(spec, overlayDurations = []) {
       audio: clip.audio === "silent" ? "silent" : "keep",
       durationSeconds: +duration.toFixed(3),
       ...(rate !== 1 ? { rateCorrection: rate } : {}),
+      ...(handled ? {
+        handleStartSeconds: +headHandle.toFixed(3),
+        handleEndSeconds: +tailHandle.toFixed(3),
+        fileDurationSeconds: +(headHandle + (clip.out - clip.in) + tailHandle).toFixed(3),
+      } : {}),
       target: { start: t(targetStart), end: t(cursor) },
     };
   });
   const totalSeconds = cursor;
+  const transitions = normalizeTransitions(spec, segments);
 
   const overlays = (spec.overlays || []).map((o, i) => {
     const overIdx = o.overClip ?? 0;
@@ -96,6 +145,7 @@ export function buildManifest(spec, overlayDurations = []) {
     segments,
     overlays,
     audioTrack,
+    ...(transitions.length ? { transitions, handleSeconds: +handleSeconds.toFixed(3) } : {}),
   };
 }
 
@@ -110,17 +160,24 @@ export function audioTrackArgs(audioTrack, outPath) {
 // A `rateCorrection` (multi-cam drift retime) time-stretches the video by `rate`
 // so its source span (which is 1/rate of the timeline slot) fills the slot; the
 // clip is silent in that case, so only the video PTS is retimed.
-export function segmentArgs(project, clip, outPath) {
+// `handles` (optional) = { start, end } seconds of extra source media to bake on
+// each side for transitions (R-TR1): the clip is extracted from `in − start` for
+// `start + (out − in) + end` seconds. The FCPXML then trims to the visible cut
+// (clip `start` = head handle) and rebuild.sh trims via concat inpoint/outpoint.
+export function segmentArgs(project, clip, outPath, handles = {}) {
   const scale = `scale=${project.width}:${project.height}:flags=lanczos,setsar=1`;
   const rate = clip.rateCorrection;
   const vf = rate && rate !== 1 ? `${scale},setpts=${rate}*PTS` : scale;
   const enc = ["-c:v", "prores_ks", "-profile:v", "3", "-pix_fmt", "yuv422p10le", "-r", String(project.fps)];
-  const dur = (clip.out - clip.in).toFixed(3);
+  const head = handles.start || 0;
+  const tail = handles.end || 0;
+  const ss = head ? (clip.in - head).toFixed(3) : String(clip.in);
+  const dur = (head + (clip.out - clip.in) + tail).toFixed(3);
   if (clip.audio === "silent") {
-    return ["-y", "-ss", String(clip.in), "-i", clip.source, "-f", "lavfi", "-i", "anullsrc=r=48000:cl=stereo",
+    return ["-y", "-ss", ss, "-i", clip.source, "-f", "lavfi", "-i", "anullsrc=r=48000:cl=stereo",
       "-map", "0:v:0", "-map", "1:a:0", "-t", dur, "-vf", vf, ...enc, "-c:a", "pcm_s16le", "-ar", "48000", outPath];
   }
-  return ["-y", "-ss", String(clip.in), "-i", clip.source,
+  return ["-y", "-ss", ss, "-i", clip.source,
     "-map", "0:v:0", "-map", "0:a:0?", "-t", dur, "-vf", vf, ...enc, "-c:a", "pcm_s16le", "-ar", "48000", outPath];
 }
 
@@ -151,7 +208,16 @@ export function rebuildScript(manifest) {
     "# 1) concat the segments (already one spec) into the base track",
     "printf '' > segments/list.txt",
   ];
-  for (const s of manifest.segments) lines.push(`printf "file '%s'\\n" "${s.file.replace("segments/", "")}" >> segments/list.txt`);
+  for (const s of manifest.segments) {
+    lines.push(`printf "file '%s'\\n" "${s.file.replace("segments/", "")}" >> segments/list.txt`);
+    // When segments carry transition handles, trim them back to the visible cut
+    // here. ProRes is all-intra, so the concat demuxer's inpoint/outpoint are
+    // frame-accurate with -c copy.
+    if (s.handleStartSeconds != null) {
+      lines.push(`printf "inpoint %s\\n" "${s.handleStartSeconds.toFixed(3)}" >> segments/list.txt`);
+      lines.push(`printf "outpoint %s\\n" "${(s.handleStartSeconds + s.durationSeconds).toFixed(3)}" >> segments/list.txt`);
+    }
+  }
   lines.push(
     'ffmpeg -y -loglevel error -f concat -safe 0 -i segments/list.txt -c copy "$OUT.base.mov"',
     "",
