@@ -145,6 +145,47 @@ export function crossCorrelate(ref, clip) {
   return ar;
 }
 
+// GCC-PHAT cross-correlation: like crossCorrelate, but the cross-power spectrum
+// is phase-transformed (whitened) — each bin divided by its own magnitude so
+// only phase survives. That makes the correlation peak much sharper and far more
+// robust at low SNR (the noisy secondary-mic case), at the cost of amplitude
+// information. Bins below `eps` magnitude (silence) are left at zero.
+export function crossCorrelatePhat(ref, clip, eps = 1e-9) {
+  const n = nextPow2(ref.length + clip.length);
+  const ar = new Float64Array(n);
+  const ai = new Float64Array(n);
+  const br = new Float64Array(n);
+  const bi = new Float64Array(n);
+  ar.set(ref);
+  br.set(clip);
+  fftInPlace(ar, ai);
+  fftInPlace(br, bi);
+  for (let i = 0; i < n; i++) {
+    // G = ar * conj(br), then G /= |G|
+    const re = ar[i] * br[i] + ai[i] * bi[i];
+    const im = ai[i] * br[i] - ar[i] * bi[i];
+    const mag = Math.hypot(re, im);
+    if (mag > eps) {
+      ar[i] = re / mag;
+      ai[i] = im / mag;
+    } else {
+      ar[i] = 0;
+      ai[i] = 0;
+    }
+  }
+  fftInPlace(ar, ai, true);
+  return ar;
+}
+
+// Sub-sample peak location: fit a parabola through three correlation samples
+// straddling the peak (y at lags -1, 0, +1) and return the vertex offset in
+// (-0.5, 0.5). Zero when the three points are flat / degenerate.
+export function parabolicVertex(ym1, y0, yp1) {
+  const denom = ym1 - 2 * y0 + yp1;
+  if (denom === 0) return 0;
+  return clamp((0.5 * (ym1 - yp1)) / denom, -0.5, 0.5);
+}
+
 // Map a circular index to a signed lag in (-n/2, n/2].
 export function signedLag(index, n) {
   return index < n / 2 ? index : index - n;
@@ -155,13 +196,20 @@ export function signedLag(index, n) {
 // later on the reference's timeline, i.e. the clip started LATER than the
 // reference by D samples (so it is placed at +D on the shared timeline).
 //
+// Options:
+//  - method: "standard" (amplitude cross-correlation, default) or "phat"
+//    (GCC-PHAT — phase-whitened, sharper/noise-robust).
+//  - interpolate: refine the integer peak to sub-sample precision via parabolic
+//    interpolation (so `offsetSamples` may be fractional). Off by default.
+//  - maxLagSamples: constrain the search to plausible offsets.
 // Returns { offsetSamples, confidence, peakRatio }:
-//  - confidence: normalized correlation peak in [0,1] (peak / sqrt(Eref*Eclip)).
-//  - peakRatio:  peak / next-best peak outside a guard window (peak distinctness;
-//    Infinity when there is no competing peak).
-// `maxLagSamples` constrains the search to plausible offsets.
-export function findOffset(ref, clip, { maxLagSamples = null } = {}) {
-  const c = crossCorrelate(ref, clip);
+//  - confidence in [0,1]: for "standard" the normalized correlation peak
+//    (peak / sqrt(Eref*Eclip)); for "phat" the peak distinctness 1 - second/peak
+//    (PHAT whitening removes the amplitude a normalized peak would need).
+//  - peakRatio: peak / next-best peak outside a guard window (Infinity when there
+//    is no competing peak).
+export function findOffset(ref, clip, { maxLagSamples = null, method = "standard", interpolate = false } = {}) {
+  const c = method === "phat" ? crossCorrelatePhat(ref, clip) : crossCorrelate(ref, clip);
   const n = c.length;
   const within = (i) => maxLagSamples == null || Math.abs(signedLag(i, n)) <= maxLagSamples;
 
@@ -181,10 +229,20 @@ export function findOffset(ref, clip, { maxLagSamples = null } = {}) {
     if (within(i) && c[i] > second) second = c[i];
   }
 
-  const energy = Math.sqrt(dot(ref, ref) * dot(clip, clip));
-  const confidence = energy > 0 ? clamp(bestVal / energy, 0, 1) : 0;
+  let confidence;
+  if (method === "phat") {
+    confidence = bestVal > 0 ? clamp(1 - Math.max(second, 0) / bestVal, 0, 1) : 0;
+  } else {
+    const energy = Math.sqrt(dot(ref, ref) * dot(clip, clip));
+    confidence = energy > 0 ? clamp(bestVal / energy, 0, 1) : 0;
+  }
   const peakRatio = second > 0 ? bestVal / second : Infinity;
-  return { offsetSamples: signedLag(bestIdx, n), confidence, peakRatio };
+
+  let offset = signedLag(bestIdx, n);
+  if (interpolate) {
+    offset += parabolicVertex(c[(bestIdx - 1 + n) % n], c[bestIdx], c[(bestIdx + 1) % n]);
+  }
+  return { offsetSamples: offset, confidence, peakRatio };
 }
 
 // Convenience: run findOffset and convert the offset to seconds at `sampleRate`.

@@ -12,12 +12,14 @@
  *     --group-id <id>        group id (default: "group")
  *     --project-fps <n>      output fps (default: highest member fps)
  *     --sample-rate <hz>     mono analysis rate (default: 8000)
- *     --feature <envelope|raw>  correlation feature (default: envelope)
+ *     --feature <envelope|raw|phat>  correlation feature (default: envelope;
+ *                            "phat" = GCC-PHAT phase-whitened, noise-robust)
  *     --max-offset <sec>     max plausible start offset to search (default: 300)
  *     --accept <0..1>        auto-accept confidence (default: 0.8)
  *     --reject <0..1>        manual-fallback confidence (default: 0.5)
  *     --drift-min <sec>      estimate drift on clips longer than this (default: 600)
  *     --window <sec>         drift-probe window length (default: 30)
+ *     --no-interpolate       disable sub-sample (parabolic) peak refinement
  *     --manual <id>=<sec>    force a member's offset (silent/non-overlapping audio)
  *     --out <multicam.json>  output path (default: ./multicam.json)
  *
@@ -52,6 +54,7 @@ function parseArgs(argv) {
     reject: 0.5,
     driftMin: 600,
     window: 30,
+    interpolate: true,
     out: undefined,
   };
   for (let i = 0; i < argv.length; i++) {
@@ -65,12 +68,13 @@ function parseArgs(argv) {
     else if (a === "--reject") opts.reject = Number(argv[++i]);
     else if (a === "--drift-min") opts.driftMin = Number(argv[++i]);
     else if (a === "--window") opts.window = Number(argv[++i]);
+    else if (a === "--no-interpolate") opts.interpolate = false;
     else if (a === "--out") opts.out = argv[++i];
     else if (a === "--manual") {
       const [id, sec] = String(argv[++i]).split("=");
       manual.set(id, Number(sec));
     } else if (a === "-h" || a === "--help") {
-      console.log("Usage: sync-multicam <clip…> [--group-id <id>] [--project-fps <n>] [--sample-rate <hz>] [--feature <envelope|raw>] [--max-offset <sec>] [--accept <0..1>] [--reject <0..1>] [--drift-min <sec>] [--window <sec>] [--manual <id>=<sec>] [--out <multicam.json>]");
+      console.log("Usage: sync-multicam <clip…> [--group-id <id>] [--project-fps <n>] [--sample-rate <hz>] [--feature <envelope|raw|phat>] [--max-offset <sec>] [--accept <0..1>] [--reject <0..1>] [--drift-min <sec>] [--window <sec>] [--no-interpolate] [--manual <id>=<sec>] [--out <multicam.json>]");
       process.exit(0);
     } else if (a.startsWith("-")) {
       console.error(`Unknown option: ${a}`);
@@ -118,15 +122,14 @@ function extractMono(path, sampleRate, tmpDir, id) {
 // Estimate clock drift by measuring the offset on a window near the start and a
 // window near the end of the clip, then fitting a line. Returns drift ppm or 0
 // if the clip is too short / windows do not correlate well.
-function estimateDriftPpm(refSig, clipSig, sampleRate, opts) {
+function estimateDriftPpm(refSig, clipSig, sampleRate, opts, findOpts) {
   const win = Math.floor(opts.window * sampleRate);
-  const maxLag = Math.floor(opts.maxOffset * sampleRate);
   if (clipSig.length < win * 2) return 0;
   const startWin = clipSig.subarray(0, win);
   const endStart = clipSig.length - win;
   const endWin = clipSig.subarray(endStart);
-  const a = findOffset(refSig, startWin, { maxLagSamples: maxLag });
-  const b = findOffset(refSig, endWin, { maxLagSamples: maxLag });
+  const a = findOffset(refSig, startWin, findOpts);
+  const b = findOffset(refSig, endWin, findOpts);
   if (a.confidence < opts.reject || b.confidence < opts.reject) return 0;
   const { slopePpm } = fitDrift([
     { atSeconds: win / 2 / sampleRate, offsetSeconds: a.offsetSamples / sampleRate },
@@ -152,15 +155,21 @@ function main() {
   const reference = pool.reduce((best, m) => (m.durationSeconds > best.durationSeconds ? m : best), pool[0]);
   console.log(`Reference: ${reference.id} (${reference.kind})`);
 
+  // "phat" is a correlation METHOD on the raw (mean-removed) waveform; "envelope"
+  // / "raw" are conditioning features correlated with the standard method.
+  const corrMethod = opts.feature === "phat" ? "phat" : "standard";
+  const condFeature = opts.feature === "phat" ? "raw" : opts.feature;
+
   const tmpDir = mkdtempSync(join(tmpdir(), "multicam-"));
   try {
     const signals = new Map();
     for (const m of probed) {
       console.log(`Extracting mono audio: ${m.id}…`);
-      signals.set(m.id, condition(extractMono(m.path, opts.sampleRate, tmpDir, m.id), { feature: opts.feature }));
+      signals.set(m.id, condition(extractMono(m.path, opts.sampleRate, tmpDir, m.id), { feature: condFeature }));
     }
     const refSig = signals.get(reference.id);
     const maxLag = Math.floor(opts.maxOffset * opts.sampleRate);
+    const findOpts = { maxLagSamples: maxLag, method: corrMethod, interpolate: opts.interpolate };
 
     const members = probed.map((m) => {
       if (m.id === reference.id) {
@@ -170,13 +179,13 @@ function main() {
         return { ...m, offsetSeconds: manual.get(m.id), confidence: 1, peakRatio: null, sync: "manual", driftPpm: 0 };
       }
       const sig = signals.get(m.id);
-      const r = findOffset(refSig, sig, { maxLagSamples: maxLag });
+      const r = findOffset(refSig, sig, findOpts);
       // "manual" from the gate means the correlation was too weak to trust — the
       // member is left UNSYNCED until a human supplies --manual. (An applied
       // override above is labeled "manual".)
       const cls = classifySync(r.confidence, { accept: opts.accept, reject: opts.reject });
       const sync = cls === "manual" ? "unsynced" : cls;
-      const driftPpm = m.durationSeconds >= opts.driftMin ? estimateDriftPpm(refSig, sig, opts.sampleRate, opts) : 0;
+      const driftPpm = m.durationSeconds >= opts.driftMin ? estimateDriftPpm(refSig, sig, opts.sampleRate, opts, findOpts) : 0;
       return {
         ...m,
         offsetSeconds: r.offsetSamples / opts.sampleRate,

@@ -6,6 +6,7 @@ import {
   classifySync,
   condition,
   crossCorrelate,
+  crossCorrelatePhat,
   dot,
   DRIFT_WARN_PPM,
   envelope,
@@ -14,6 +15,7 @@ import {
   fitDrift,
   nextPow2,
   offsetSeconds,
+  parabolicVertex,
   removeMean,
   resolveAngleCuts,
   selectReference,
@@ -160,6 +162,61 @@ describe("findOffset", () => {
     const clip = shift(ref, 16);
     const r = offsetSeconds(ref, clip, 8000);
     expect(r.seconds).toBeCloseTo(16 / 8000, 9);
+  });
+});
+
+describe("parabolicVertex", () => {
+  it("locates the vertex of a symmetric peak at zero", () => {
+    expect(parabolicVertex(0, 1, 0)).toBeCloseTo(0, 9);
+  });
+  it("shifts toward the higher neighbor", () => {
+    // parabola peaking between 0 and +1
+    expect(parabolicVertex(0, 1, 0.5)).toBeGreaterThan(0);
+    expect(parabolicVertex(0.5, 1, 0)).toBeLessThan(0);
+  });
+  it("returns zero for a flat/degenerate triple", () => {
+    expect(parabolicVertex(1, 1, 1)).toBe(0);
+  });
+  it("clamps to the (-0.5, 0.5) cell", () => {
+    expect(parabolicVertex(-10, 0, 1)).toBeGreaterThanOrEqual(-0.5);
+    expect(parabolicVertex(1, 0, -10)).toBeLessThanOrEqual(0.5);
+  });
+});
+
+describe("crossCorrelatePhat / GCC-PHAT findOffset", () => {
+  it("recovers the offset with a sharp whitened peak", () => {
+    const ref = noise(256, 11);
+    const clip = shift(ref, 18);
+    const r = findOffset(ref, clip, { method: "phat" });
+    expect(r.offsetSamples).toBe(18);
+    expect(r.confidence).toBeGreaterThan(0.5);
+  });
+  it("reports low confidence for unrelated signals", () => {
+    const r = findOffset(noise(256, 1), noise(256, 424242), { method: "phat" });
+    expect(r.confidence).toBeLessThan(0.5);
+  });
+  it("zeroes silent (sub-eps) frequency bins instead of dividing by zero", () => {
+    const c = crossCorrelatePhat(new Float64Array(8), new Float64Array(8));
+    expect(c.every((v) => v === 0)).toBe(true);
+  });
+  it("gives zero confidence when the peak is not positive", () => {
+    // constant signals → mean-removed zeros → degenerate; confidence floors at 0
+    const r = findOffset(new Float64Array(8), new Float64Array(8), { method: "phat" });
+    expect(r.confidence).toBe(0);
+  });
+});
+
+describe("findOffset interpolation", () => {
+  it("returns an integer lag without interpolation", () => {
+    const ref = noise(256, 11);
+    const clip = shift(ref, 20);
+    expect(Number.isInteger(findOffset(ref, clip).offsetSamples)).toBe(true);
+  });
+  it("refines to a fractional lag near the integer peak", () => {
+    const ref = noise(256, 11);
+    const clip = shift(ref, 20);
+    const r = findOffset(ref, clip, { interpolate: true });
+    expect(r.offsetSamples).toBeCloseTo(20, 1);
   });
 });
 

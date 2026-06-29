@@ -18,6 +18,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   `tools/multicam.mjs` (100% unit-tested). Design + research: `docs/multicam.md`,
   `docs/multicam-sync.md`. (Angle-switching through the skill + editor
   handoff/FCPXML and drift *correction* are deferred follow-ups.)
+  Sub-sample offset precision (parabolic peak interpolation, on by default;
+  `--no-interpolate` to disable) and a `--feature phat` GCC-PHAT phase-whitened
+  correlation for very low SNR (VS-32).
 - **Launcher** — the launcher now pauses ("Press Enter to launch Claude…") so its getting-started splash is readable before Claude's UI takes over the terminal (skipped with `--yes` or no TTY).
 - **Docs & onboarding** — added a `README.md`, an MIT `LICENSE` file, and a `docs/` set (requirements, release guide, manual test plan, and AI-summary maps).
 - **Shippable worked examples** — the `promo-assets/` teaser + caption/wordmark example scripts now ship with the package and run anywhere (env-configurable paths; no hardcoded machine paths; use the published `domotion-svg`).
