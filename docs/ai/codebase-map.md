@@ -39,7 +39,9 @@ and [`requirements-summary.md`](requirements-summary.md) for status.
 │   ├── propose-groups.mjs      # suggest multicam groups from sources.json (stat-based timestamps) (I/O)
 │   ├── multicam-groups.mjs     # pure group-proposal heuristics: folder / time-window / filename (unit-tested)
 │   ├── export-multicam-fcpxml.mjs # multicam.json → true FCP <mc-clip> multicam FCPXML (I/O over buildMulticamFcpxml; ffmpeg-generates a black filler for angle leading gaps)
-│   └── render-multicam-preview.mjs # multicam.json + switches → flat preview MP4 of the angle cut (I/O over resolveAngleCuts)
+│   ├── render-multicam-preview.mjs # multicam.json + switches → flat preview MP4 of the angle cut (I/O over resolveAngleCuts)
+│   ├── audio-events.mjs        # pure non-speech audio-events DSP: RMS envelope, onsets, vocal/instrumental sectioning, schema (unit-tested, VS-44)
+│   └── analyze-audio-events.mjs # audio/video (+ whisper transcript) → audio-events.json (ffmpeg I/O over audio-events.mjs)
 ├── skills/
 │   └── video-studio/SKILL.md   # the pipeline Claude follows — primary interface
 ├── tests/
@@ -54,6 +56,7 @@ and [`requirements-summary.md`](requirements-summary.md) for status.
 │   ├── multicam-dsp.test.ts    # unit tests for tools/multicam-dsp.mjs
 │   ├── multicam.test.ts        # unit tests for tools/multicam.mjs
 │   ├── multicam-groups.test.ts # unit tests for tools/multicam-groups.mjs
+│   ├── audio-events.test.ts   # unit tests for tools/audio-events.mjs
 │   └── packaging.test.ts       # guards machine-path leaks + the promo-assets packaging
 ├── promo-assets/               # worked-example assembly scripts (sources shipped via promo-assets/*.{mjs,sh}; generated SVGs + nested node_modules excluded)
 ├── docs/
@@ -127,7 +130,8 @@ Coverage is enforced (100% l/b/f/s) on the pure modules in `vitest.config.ts`
 `coverage.include`: `src/scene-math.ts`, `src/resumable-error.ts`,
 `src/analyzer-cli.ts`, `src/analyzer-state.ts`, `tools/caption-format.mjs`,
 `tools/export-manifest.mjs`, `tools/fcpxml.mjs`, `tools/sources.mjs`,
-`tools/multicam.mjs`, `tools/multicam-dsp.mjs`, `tools/multicam-groups.mjs`. The
+`tools/multicam.mjs`, `tools/multicam-dsp.mjs`, `tools/multicam-groups.mjs`,
+`tools/audio-events.mjs`. The
 I/O code (`analyzer.ts` orchestration, `ffmpeg.ts`, `ollama.ts`, the `bin/`
 launcher, `render-caption.mjs`'s Chromium path) is manual-test territory.
 
@@ -174,6 +178,7 @@ launcher, `render-caption.mjs`'s Chromium path) is manual-test territory.
 | FCP transition suggestions spec (design-only) | `docs/transitions.md` |
 | multi-cam design + audio sync spec | `docs/multicam.md` (design) + `docs/multicam-sync.md` (sync tool, shipped) |
 | auto multi-cam cutting / "edit awareness" (design) | `docs/audio-events.md` (R-AE) + `docs/visual-saliency.md` (R-VS) + `docs/multicam-auto-cut.md` (R-AC) |
+| non-speech audio-events pass → audio-events.json | `tools/analyze-audio-events.mjs` (ffmpeg I/O) + `tools/audio-events.mjs` (pure: envelope/onsets/sectioning, VS-44) |
 | how to release | `docs/releasing.md` + `scripts/release.sh` |
 | manual pipeline tests | `docs/manual-test-plan.md` |
 | README demo media + how it's regenerated | `docs/media/` + `scripts/gen-readme-media.sh` |

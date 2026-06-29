@@ -106,7 +106,8 @@ timeline or edit decision list.
 - **R7.1** Pure logic (`src/scene-math.ts`, `src/analyzer-cli.ts`,
   `src/analyzer-state.ts`, `src/resumable-error.ts`, `tools/caption-format.mjs`,
   `tools/export-manifest.mjs`, `tools/fcpxml.mjs`, `tools/sources.mjs`,
-  `tools/multicam-dsp.mjs`, `tools/multicam.mjs`, `tools/multicam-groups.mjs`) is
+  `tools/multicam-dsp.mjs`, `tools/multicam.mjs`, `tools/multicam-groups.mjs`,
+  `tools/audio-events.mjs`) is
   unit-tested to 100%
   lines/branches/functions/statements (Vitest); every file in `vitest.config.ts`
   `coverage.include` is held to that threshold.

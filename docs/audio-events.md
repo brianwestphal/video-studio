@@ -1,8 +1,19 @@
 # Non-speech audio events (design / requirements)
 
-Status: **Design only** (VS-41 research). Feeds the implementation in **VS-44** and
-the angle-selection model in [`multicam-auto-cut.md`](multicam-auto-cut.md) (VS-43).
-Cross-referenced from [`multicam.md`](multicam.md).
+Status: **Tier 1 shipped (VS-44)** — loudness envelope, onsets, quiet, and
+vocal-vs-instrumental sectioning (gated by the whisper transcript). Tier 2
+(spectral descriptors + section novelty) and Tier 3 (per-singer diarization,
+instrument ID, stems) are deferred — see §7. Feeds the angle-selection model in
+[`multicam-auto-cut.md`](multicam-auto-cut.md) (VS-43/46). Cross-referenced from
+[`multicam.md`](multicam.md).
+
+**Implementation:** pure analysis in [`../tools/audio-events.mjs`](../tools/audio-events.mjs)
+(`rmsEnvelope`, `detectOnsets`, `vocalSpans`, `sectionize`, `buildAudioEvents`,
+`wordsFromWhisper`; 100% unit-tested, `tests/audio-events.test.ts`); the ffmpeg
+extraction + whisper read + file write in the thin CLI
+[`../tools/analyze-audio-events.mjs`](../tools/analyze-audio-events.mjs)
+(manual-test-plan §8). On the BYAM master it returns a quiet intro/outro, the
+instrumental body, 629 onsets, and — with `--transcript` — vocal sections.
 
 ## 1. Why
 
@@ -151,6 +162,12 @@ deferred (R-AE5).
 
 ## 7. Follow-ups
 
-- **VS-44** — implement R-AE1–R-AE6 (the pass + pure module + CLI + schema doc).
-- Optional future ticket — stem separation (Demucs) populating `source`/`stem`
-  and per-stem envelopes; only if VS-43 evaluation justifies the dependency.
+- **VS-44 — done.** Tier 1 implemented (R-AE1–R-AE6): envelope, onsets, quiet, and
+  whisper-gated vocal/instrumental sectioning. Per-singer diarization, instrument
+  ID, and `"section"`-novelty labels were **not** built (Tier 2/3).
+- **VS-49 (new)** — Tier 2: spectral descriptors (centroid/flux/bands via the
+  `fftInPlace` already in `multicam-dsp.mjs`) + section/structure novelty, to
+  sharpen "riff vs sustained" and mark verse/chorus/solo boundaries.
+- **VS-48** — optional stem separation (Demucs) populating `source`/`stem` +
+  per-stem envelopes; only if the angle-selector evaluation justifies the
+  dependency (maintainer decision).

@@ -112,6 +112,14 @@ exercise the ffmpeg mono extraction + the real end-to-end sync.
 | 7.11 | `node tools/render-multicam-preview.mjs <multicam.json> --switch 0=<id> --switch <t>=<id2> [--start <sec>] [--width <w> --height <h>] --out preview.mp4`, then play it (the BYAM fixture is `external/multi-cam/BYAM-multicam-preview.mp4`) | A flat MP4 of the **same** angle cut as the §7.9 FCPXML: video cuts between the synced angles at the switch points, the master audio plays continuously underneath, and a chosen angle with no footage yet at a cut shows **black** until its camera rolled. `--start` trims leading dead air (re-bases the timeline + audio to that group time), matching the FCPXML `--start`. Use it to eyeball the edit and sanity-check sync without FCP. |
 | 7.12 | Export with `--start <sec>` (e.g. the latest member offset), then import into FCP | The edit begins on live footage (no black head) and stays in sync. `--start` is purely a convenience trim — audio stays locked regardless (it rides the master-audio angle); use it to drop the leading black/dead-air, not to fix sync. The flat preview (§7.11) with the same `--start` matches the FCP playback. |
 
+## 8. Non-speech audio-events pass (`tools/analyze-audio-events.mjs`)
+
+| # | Action | Expected |
+|---|--------|----------|
+| 8.1 | `node tools/analyze-audio-events.mjs <audio-or-video> --out audio-events.json` | Writes `audio-events.json` (docs/audio-events.md schema): a versioned doc with a `source`, a coarse `envelope.rmsDb` (one value per hop), and sorted `events` — `quiet`/`instrumental` sections + `onset` accents. Without `--transcript`, energetic non-quiet spans are all `instrumental` (no vocal split). On the BYAM master: a quiet intro/outro, one instrumental body, ~629 onsets. |
+| 8.2 | Re-run with `--transcript <whisper.json>` (whisper `--word_timestamps` JSON; `--offset` if the transcript is clip-relative) | The instrumental body is split into `vocal` sections (where words fall, merged within ~1.5 s and padded) and `instrumental` sections (energetic, no words — the riff). Each `vocal` event carries `data.wordCount`. |
+| 8.3 | `--quiet-db`, `--hop`, `--min-span`, `--sample-rate` knobs | Adjust the quiet floor, envelope resolution, minimum section length, and analysis rate respectively; output stays well-formed and sorted by `startSeconds`. |
+
 ## Automated Coverage Summary
 
 Covered by unit tests (do **not** re-test by hand):
@@ -150,6 +158,10 @@ Covered by unit tests (do **not** re-test by hand):
   `expandMulticamGroup` (`tests/multicam.test.ts`). 100% coverage. The ffmpeg mono
   extraction + real-audio sync in `sync-multicam.mjs` is §7 above; the multicam
   export is §7.8.
+- **`tools/audio-events.mjs`** — `rmsEnvelope`, `detectOnsets`, `vocalSpans`,
+  `sectionize`, `buildAudioEvents`, `wordsFromWhisper` (`tests/audio-events.test.ts`).
+  100% coverage. The ffmpeg mono extraction + whisper read + file write in
+  `tools/analyze-audio-events.mjs` are §8 above.
 - **`tools/multicam-groups.mjs`** — `slug`, `groupByFolder`,
   `groupByTimeWindow`, `eventKey`, `groupByFilename`, `proposeGroups`
   (`tests/multicam-groups.test.ts`). 100% coverage. The `sources.json` read +
