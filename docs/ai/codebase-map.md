@@ -61,8 +61,11 @@ and [`requirements-summary.md`](requirements-summary.md) for status.
 │   ├── editor-handoff.md       # export segments + overlays + manifest + FCPXML (shipped, VS-24/25)
 │   ├── multiple-sources.md     # draw from many files/folders (shipped, VS-26)
 │   ├── transitions.md          # DESIGN: AI FCP transition suggestions in the FCPXML (VS-23)
-│   ├── multicam.md             # audio-synced multi-cam design (VS-19); sync shipped VS-27
+│   ├── multicam.md             # audio-synced multi-cam design (VS-19); sync shipped VS-27; FCP import validated VS-36
 │   ├── multicam-sync.md        # audio sync tool requirements + research findings (VS-27, shipped)
+│   ├── audio-events.md         # DESIGN: non-speech/musical audio events spec (R-AE, VS-41 → build VS-44)
+│   ├── visual-saliency.md      # DESIGN: per-angle "what's worth showing" spec (R-VS, VS-42 → build VS-45)
+│   ├── multicam-auto-cut.md    # DESIGN: audio+visual → angle-selection model emitting switches (R-AC, VS-43 → build VS-46/47)
 │   ├── releasing.md            # release + npm trusted-publisher setup
 │   ├── manual-test-plan.md     # manual checklist for the external-tool pipeline
 │   ├── media/                  # README demo media (docs-only; gitignored binaries) — from Tears of Steel (CC BY 3.0)
@@ -170,6 +173,7 @@ launcher, `render-caption.mjs`'s Chromium path) is manual-test territory.
 | editor-handoff + multi-source feature specs (shipped) | `docs/editor-handoff.md`, `docs/multiple-sources.md` |
 | FCP transition suggestions spec (design-only) | `docs/transitions.md` |
 | multi-cam design + audio sync spec | `docs/multicam.md` (design) + `docs/multicam-sync.md` (sync tool, shipped) |
+| auto multi-cam cutting / "edit awareness" (design) | `docs/audio-events.md` (R-AE) + `docs/visual-saliency.md` (R-VS) + `docs/multicam-auto-cut.md` (R-AC) |
 | how to release | `docs/releasing.md` + `scripts/release.sh` |
 | manual pipeline tests | `docs/manual-test-plan.md` |
 | README demo media + how it's regenerated | `docs/media/` + `scripts/gen-readme-media.sh` |

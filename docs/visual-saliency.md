@@ -1,0 +1,122 @@
+# Per-angle visual saliency (design / requirements)
+
+Status: **Design only** (VS-42 research). Feeds the implementation in **VS-45** and
+the angle-selection model in [`multicam-auto-cut.md`](multicam-auto-cut.md) (VS-43).
+Cross-referenced from [`multicam.md`](multicam.md). Pairs with
+[`audio-events.md`](audio-events.md) (VS-41).
+
+## 1. Why
+
+Auto multi-cam cutting needs to know **which angle is worth showing** at each
+moment — the singer who's actually singing, the guitar during a riff, the angle
+with motion/action — and to avoid sitting on a static angle of someone doing
+nothing. The analyzer today describes **one representative frame per scene** of a
+**single** video ([`analyzeFrame`](../src/ollama.ts) → a text description). This
+doc specifies a per-angle, over-time **saliency score** so the selector (VS-43/46)
+can rank angles window by window.
+
+## 2. What to score, per angle per window
+
+- **Performer activity** — is a person singing / talking / playing vs idle
+  (mouth moving, hands on the instrument).
+- **Instrument in frame & in use** — e.g. the guitar being strummed (pairs with
+  the `instrumental` audio events from VS-41).
+- **Motion / visual energy** — cheap frame-difference magnitude.
+- **Framing / shot quality** — close-up vs wide, subject in focus, well-composed
+  vs empty/cutaway.
+- **Subject presence** — face/person count and prominence.
+
+Output is a small set of **numeric scores (0–1) + labels + confidence** per
+(angle, window), not prose — so the selector can compare angles arithmetically.
+
+## 3. Recommended approach (within the project's stack)
+
+Two-stage, **cheap signal gates the expensive model** — same ffmpeg + Ollama
+stack, no new deps:
+
+1. **Cheap, every angle, dense (ffmpeg/pure-JS):**
+   - frame-difference **motion** per window (ffmpeg `select='gt(scene,…)'` /
+     `signalstats`, or decode small thumbnails and diff in JS);
+   - reuse the existing **scene-cut** detection (`SCENE_THRESHOLD`) to find shot
+     changes;
+   - this alone gives a motion/energy score and decides **where** to spend vision.
+2. **Vision model, sampled (Ollama `analyzeFrame`, extended prompt):** at window
+   centers (gated by stage 1 + the audio-events section boundaries from VS-41,
+   not blindly every N seconds), send the angle's frame with a **structured
+   prompt** asking for the fields in §2 and request a compact JSON-ish reply;
+   parse to scores. Sampling at section/shot boundaries instead of a fixed grid is
+   what keeps the cost bounded.
+
+**Cadence & cost.** A naive fixed grid (every ~2 s × 4 angles over ~240 s) is
+~480 vision calls — minutes on local Ollama. Gating to shot-changes + audio
+sections cuts that by a large factor and concentrates calls where the picture
+actually changes. Make the cadence/cap a CLI knob and **`log()` what was skipped**
+(no silent truncation, per CLAUDE.md). Motion-only (no vision) is a valid cheap
+mode for a first cut.
+
+> **Decision flagged for the maintainer:** acceptable vision budget? Options:
+> (a) motion-only, no model (fast, crude); (b) vision at shot/section boundaries
+> (recommended balance); (c) dense vision grid (slow, most accurate). Default
+> assumed: (b).
+
+## 4. Saliency schema (proposed)
+
+Per group, per angle, a series of windows on the **group clock** (so it lines up
+with `multicam.json` offsets and `audio-events.json`):
+
+```jsonc
+{
+  "version": 1,
+  "groupId": "byam",
+  "windowSeconds": 2.0,
+  "angles": {
+    "byam-cam-1": [
+      {
+        "startSeconds": 6.0, "endSeconds": 8.0,
+        "scores": { "performer": 0.9, "instrument": 0.3, "motion": 0.4, "framing": 0.8, "presence": 1.0 },
+        "labels": ["singing", "medium-shot", "two-people"],
+        "saliency": 0.82,           // combined score the selector can use directly
+        "confidence": 0.7,
+        "source": "vision"          // or "motion" when the model was gated out
+      }
+    ],
+    "byam-cam-4": [ … ]
+  }
+}
+```
+
+- `scores` are independent 0–1 dimensions; `saliency` is a combined convenience
+  score (weights documented + tunable); `labels` are free-text tags from the model;
+  `source` records whether the window was model-scored or motion-only.
+- Windows align across angles (same `windowSeconds` grid) so the selector compares
+  like-for-like.
+
+## 5. Requirements
+
+- **R-VS1** A pass scores each synced video angle over aligned windows on the
+  group clock and emits the §4 schema (versioned; unknown fields ignored).
+- **R-VS2** A cheap motion/scene-cut stage runs for every angle and **gates** the
+  vision-model calls; vision cadence + a per-run cap are CLI knobs, and skipped
+  windows are logged (no silent truncation).
+- **R-VS3** Pure logic (windowing, motion scoring, vision-reply parsing, score
+  combination, schema assembly) is unit-tested to **100%** (added to
+  `vitest.config.ts`); frame sampling + Ollama calls stay in the I/O layer, in the
+  [`manual-test-plan.md`](manual-test-plan.md).
+- **R-VS4** Persisting into the analyzer output must bump/handle
+  `STATE_VERSION` in [`analyzer-state.ts`](../src/analyzer-state.ts) so older
+  state isn't silently misread.
+- **R-VS5** Scores/labels/confidence are advisory; the selector (VS-43/46) owns
+  the final weighting.
+
+## 6. Out of scope
+
+Face **recognition**/identity (we only need "a person, performing" + position),
+pose estimation, re-identifying the same singer across angles by appearance
+(the audio + position cues handle "who's singing"), and the selection logic
+itself (VS-43).
+
+## 7. Follow-ups
+
+- **VS-45** — implement R-VS1–R-VS5 (the pass + pure module + CLI + schema doc +
+  analyzer-state versioning).
+- Revisit cadence/cost after VS-43's evaluation on the BYAM angles.

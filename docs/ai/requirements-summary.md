@@ -18,7 +18,8 @@ sync with the requirements doc and code; the source wins on conflict.
 | Editor handoff (segments + overlays + manifest/FCPXML) | [`editor-handoff.md`](../editor-handoff.md) | **Shipped** — export + manifest + rebuild (VS-24) + FCPXML (VS-25) |
 | Multiple source videos | [`multiple-sources.md`](../multiple-sources.md) | **Shipped** (VS-26) |
 | FCP transition suggestions | [`transitions.md`](../transitions.md) | **Design only** (VS-23) |
-| Multi-cam editing | [`multicam.md`](../multicam.md), [`multicam-sync.md`](../multicam-sync.md) | **Shipped** — sync, group proposal, angle switching → flat-timeline export, drift correction applied on export, true FCPXML mc-clip asset (VS-27/29/30/31/32/33); FCP import is a manual validation |
+| Multi-cam editing | [`multicam.md`](../multicam.md), [`multicam-sync.md`](../multicam-sync.md) | **Shipped** — sync, group proposal, angle switching → flat-timeline export, drift correction applied on export, true FCPXML mc-clip asset (VS-27/29/30/31/32/33); **FCP import validated against the real app (VS-36)** |
+| Edit awareness / auto multi-cam cutting | [`audio-events.md`](../audio-events.md), [`visual-saliency.md`](../visual-saliency.md), [`multicam-auto-cut.md`](../multicam-auto-cut.md) | **Design only** — specs done (VS-41/42/43); implementation VS-44–47 |
 
 The core pipeline plus the editor handoff (export + FCPXML) and multi-source
 input are shipped. **Multi-cam** is shipped end to end (VS-27/29/30/31/32/33):
@@ -64,6 +65,15 @@ manual validation step). Design-only: **FCP transition suggestions**
   into a source pool, analyzes each independently, and writes `sources.json`
   (sources + scenes tagged with `sourceId`). Pure id/manifest logic + 100% tests
   in `tools/sources.mjs` (VS-26). Cuts draw across sources by `(sourceId, in, out)`.
+- **Edit awareness / auto multi-cam cutting (Design only)** — three specs make the
+  multi-cam edit follow the music + action instead of just speech: an audio-events
+  pass ([`audio-events.md`](../audio-events.md), R-AE, VS-41 → build VS-44), per-angle
+  visual saliency ([`visual-saliency.md`](../visual-saliency.md), R-VS, VS-42 → VS-45),
+  and an audio+visual angle selector that emits the existing `switches`
+  ([`multicam-auto-cut.md`](../multicam-auto-cut.md), R-AC, VS-43 → VS-46), wired into
+  the workflow in VS-47. All within the current ffmpeg/whisper/Ollama/pure-JS-DSP
+  stack; stem separation (Demucs) deferred. Grounded on the BYAM clip
+  (`external/multi-cam/`).
 - **FCP transition suggestions (Design only)** — on FCPXML export, insert
   AI-chosen built-in `<transition>` elements at cut points, tuned by video type +
   stylistic heuristics. Requires adding segment **handles** to the export (a

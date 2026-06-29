@@ -116,3 +116,16 @@ timeline or edit decision list.
   change is finished; CI enforces the same on push/PR.
 - **R7.4** Releases are tag-driven; CI publishes to npm with provenance. See
   [`releasing.md`](releasing.md).
+
+## 8. Functional-area docs
+
+Larger features have their own source-of-truth docs (kept in sync the same way):
+
+- **Editor handoff** — [`editor-handoff.md`](editor-handoff.md) *(shipped)*
+- **Multiple sources** — [`multiple-sources.md`](multiple-sources.md) *(shipped)*
+- **Multi-cam editing** — [`multicam.md`](multicam.md) + [`multicam-sync.md`](multicam-sync.md) *(shipped; FCP import validated, VS-36)*
+- **FCP transition suggestions** — [`transitions.md`](transitions.md) *(design only)*
+- **Edit awareness / auto multi-cam cutting** *(design only — VS-41/42/43, building in VS-44–47)*:
+  [`audio-events.md`](audio-events.md) (non-speech/musical audio events, R-AE),
+  [`visual-saliency.md`](visual-saliency.md) (per-angle "what's worth showing", R-VS),
+  and [`multicam-auto-cut.md`](multicam-auto-cut.md) (audio+visual → `switches`, R-AC).

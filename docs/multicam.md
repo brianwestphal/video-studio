@@ -133,8 +133,20 @@ findings + citations in [`multicam-sync.md` §7](multicam-sync.md#7-research-fin
   `buildMulticamFcpxml` in `tools/fcpxml.mjs`. A flat watchable preview of the same
   angle cut is `tools/render-multicam-preview.mjs` (ffmpeg I/O over the tested
   `resolveAngleCuts`). See [`multicam-sync.md`](multicam-sync.md).
-- **Caveat:** the multicam FCPXML asset is generated to the documented schema but
-  not yet round-trip-validated against a real FCP import here (manual test).
+- **Validated (VS-36):** the multicam FCPXML asset is **round-trip-validated
+  against a real Final Cut Pro import** — it imports as a live multicam clip with
+  the angle switches and the master audio in sync (DTD-checked against FCP's own
+  `FCPXMLv1_10.dtd`). See the import gotchas captured in §2 R-MC6.
+
+### Roadmap — "edit awareness" (auto angle selection, design)
+
+Switches are currently chosen manually (`--switch`) or round-robin. The next
+initiative makes the edit follow the **music and action**: an audio-events pass
+([`audio-events.md`](audio-events.md), VS-41/44), per-angle visual saliency
+([`visual-saliency.md`](visual-saliency.md), VS-42/45), and an audio+visual
+selector that emits the existing `switches`
+([`multicam-auto-cut.md`](multicam-auto-cut.md), VS-43/46), wired into the workflow
+in VS-47 — so riffs favor the guitar and vocals favor the active singer.
 
 ## 5. Open questions / follow-ups
 
