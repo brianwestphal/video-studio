@@ -23,15 +23,23 @@ export function frameDuration(fps) {
   return { num: 1, den: r }; // best effort
 }
 
-// Seconds → an exact, frame-aligned FCP rational time string ("2s", "1001/30000s").
-export function rationalTime(seconds, fps) {
+// A whole frame count → an exact FCP rational time string ("2s", "1001/30000s").
+// Spine builders that need clip offsets to sum *exactly* must work in whole
+// frames and call this directly: rounding each clip's offset and duration
+// independently from seconds yields 1-frame spine gaps/overlaps at non-integer
+// rates (T(a) + T(b−a) ≠ T(b) once round(·*fps) is involved).
+export function framesToTime(frames, fps) {
   const fd = frameDuration(fps);
-  const frames = Math.round(seconds * fps);
   let num = frames * fd.num;
   let den = fd.den;
   const g = gcd(num, den);
   num /= g; den /= g;
   return den === 1 ? `${num}s` : `${num}/${den}s`;
+}
+
+// Seconds → an exact, frame-aligned FCP rational time string ("2s", "1001/30000s").
+export function rationalTime(seconds, fps) {
+  return framesToTime(Math.round(seconds * fps), fps);
 }
 
 const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -173,12 +181,20 @@ export function buildMulticamFcpxml(group, switches, { name, width, height, tota
   const firstVideo = members.find((m) => m.kind !== "audio") || members[0];
   const sorted = (switches && switches.length ? [...switches] : [{ atSeconds: 0, memberId: firstVideo.id }]).sort((a, b) => a.atSeconds - b.atSeconds);
   const byId = new Map(members.map((m) => [m.id, m]));
+  // Lay the spine on whole-frame boundaries so consecutive clips are EXACTLY
+  // contiguous: clip i ends at frame round(tOut*fps), which is exactly where
+  // clip i+1 begins. Computing offset/duration independently via T(seconds)
+  // drifts by ±1 frame at non-integer rates and FCP mis-positions the spine.
+  const frameOf = (s) => Math.round(s * fps);
+  const Tf = (frames) => framesToTime(frames, fps);
   const clipEls = sorted.map((sw, i) => {
     if (!byId.has(sw.memberId)) throw new Error(`unknown memberId: ${sw.memberId}`);
     const tIn = sw.atSeconds;
     const tOut = i + 1 < sorted.length ? sorted[i + 1].atSeconds : total;
+    const inF = frameOf(tIn);
+    const outF = frameOf(tOut);
     return (
-      `      <mc-clip ref="${mediaId}" offset="${T(tIn)}" name="${esc(name || group.id)}" start="${T(tIn + shift)}" duration="${T(tOut - tIn)}">\n` +
+      `      <mc-clip ref="${mediaId}" offset="${Tf(inF)}" name="${esc(name || group.id)}" start="${Tf(frameOf(tIn + shift))}" duration="${Tf(outF - inF)}">\n` +
       `        <mc-source angleID="${esc(sw.memberId)}" srcEnable="video"/>\n` +
       `        <mc-source angleID="${esc(group.masterAudioId)}" srcEnable="audio"/>\n` +
       `      </mc-clip>`

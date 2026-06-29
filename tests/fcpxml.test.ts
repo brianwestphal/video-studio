@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { buildManifest } from "../tools/export-manifest.mjs";
-import { buildFcpxml, buildMulticamFcpxml, frameDuration, rationalTime } from "../tools/fcpxml.mjs";
+import { buildFcpxml, buildMulticamFcpxml, frameDuration, framesToTime, rationalTime } from "../tools/fcpxml.mjs";
 
 describe("frameDuration", () => {
   it("maps integer rates to 1/fps", () => {
@@ -31,6 +31,22 @@ describe("rationalTime", () => {
   it("keeps NTSC times rational", () => {
     // 1s @ 29.97 = 30 frames → 30*1001/30000 = 30030/30000 → 1001/1000
     expect(rationalTime(1, 29.97)).toBe("1001/1000s");
+  });
+});
+
+describe("framesToTime", () => {
+  it("renders a whole frame count as an exact rational time", () => {
+    expect(framesToTime(48, 24)).toBe("2s"); // 48/24 → 2/1
+    expect(framesToTime(12, 24)).toBe("1/2s"); // 12/24 → 1/2
+    expect(framesToTime(0, 24)).toBe("0s");
+  });
+  it("keeps NTSC frame counts rational", () => {
+    // 1 frame @ 23.976 (24000/1001) → frameDuration 1001/24000
+    expect(framesToTime(1, 24000 / 1001)).toBe("1001/24000s");
+    expect(framesToTime(30, 29.97)).toBe("1001/1000s"); // 1s
+  });
+  it("is the integer-frame core that rationalTime rounds into", () => {
+    expect(framesToTime(Math.round(1.5 * 24), 24)).toBe(rationalTime(1.5, 24));
   });
 });
 
@@ -213,5 +229,45 @@ describe("buildMulticamFcpxml", () => {
     // no video member → first span defaults to the first member (rec)
     expect(x).toContain('<mc-source angleID="rec" srcEnable="video"/>');
     expect((x.match(/<mc-angle /g) || []).length).toBe(2);
+  });
+
+  it("lays the spine on exactly contiguous frame boundaries at non-integer fps", () => {
+    // Regression: at 23.976 fps, rounding each clip's offset and duration
+    // independently from seconds left ±1-frame gaps/overlaps on the spine, which
+    // FCP mis-positions. Frame-aligned clips must abut exactly and end at the
+    // sequence duration.
+    const fps = 24000 / 1001;
+    const g = {
+      id: "ntsc",
+      projectFps: fps,
+      masterAudioId: "rec",
+      members: [
+        { id: "rec", path: "/r.wav", kind: "audio", durationSeconds: 30, offsetSeconds: 0 },
+        { id: "cam-a", path: "/a.mov", kind: "video", durationSeconds: 30, offsetSeconds: 0 },
+        { id: "cam-b", path: "/b.mov", kind: "video", durationSeconds: 30, offsetSeconds: 0 },
+      ],
+    };
+    const x = buildMulticamFcpxml(
+      g,
+      [{ atSeconds: 0, memberId: "cam-a" }, { atSeconds: 7, memberId: "cam-b" }, { atSeconds: 21, memberId: "cam-a" }],
+      { name: "n", width: 16, height: 9, totalSeconds: 30 },
+      (p) => `file://${p}`,
+    );
+    // Decode a rational FCP time string to a whole frame count.
+    const frames = (s: string) => {
+      const m = s.match(/^(\d+)(?:\/(\d+))?s$/)!;
+      const num = Number(m[1]);
+      const den = m[2] ? Number(m[2]) : 1;
+      // den is the frameDuration denominator (24000) scaled; num/den seconds * fps frames.
+      return Math.round((num / den) * fps);
+    };
+    const clips = [...x.matchAll(/<mc-clip[^>]*offset="([^"]+)"[^>]*start="([^"]+)"[^>]*duration="([^"]+)"/g)];
+    expect(clips.length).toBe(3);
+    let cursor = 0;
+    for (const c of clips) {
+      expect(frames(c[1])).toBe(cursor); // each offset == running frame sum (no gap/overlap)
+      cursor += frames(c[3]);
+    }
+    expect(cursor).toBe(frames(x.match(/<sequence[^>]*duration="([^"]+)"/)![1])); // fills the sequence
   });
 });

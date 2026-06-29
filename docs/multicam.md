@@ -61,6 +61,10 @@ quick view.
   (`export-multicam-fcpxml`, VS-33) — a `<media>`/`<multicam>` of per-angle
   `<mc-angle>` tracks referencing the original media, with one `<mc-clip>` per
   angle switch, so FCP shows a live multicam clip re-cuttable in the angle viewer.
+  The spine `<mc-clip>`s are laid on **exact frame boundaries** (offset/duration
+  in whole frames, so consecutive clips abut precisely and the last ends on the
+  sequence duration) — independent per-clip second→frame rounding otherwise left
+  ±1-frame gaps/overlaps that FCP mis-positions at non-integer rates (VS-36).
 
 ## 3. Known hard problems (how they're handled)
 
