@@ -26,21 +26,16 @@
  * All alignment is done in SECONDS via the audio sample clock, so mismatched /
  * non-integer frame rates (29.97 vs 30) need no special handling — each member
  * keeps its own fps and is conformed to the project fps on export. The pure DSP +
- * manifest math lives in ./multicam.mjs (unit-tested); this is the ffmpeg I/O.
+ * DSP lives in ./multicam-dsp.mjs and the manifest math in ./multicam.mjs (both
+ * unit-tested); this is the ffmpeg I/O.
  */
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { isAbsolute, join, resolve } from "node:path";
 import { assignSourceIds } from "./sources.mjs";
-import {
-  buildGroupManifest,
-  classifySync,
-  condition,
-  driftCorrection,
-  findOffset,
-  fitDrift,
-} from "./multicam.mjs";
+import { buildGroupManifest, classifySync } from "./multicam.mjs";
+import { condition, driftCorrection, findOffset, fitDrift } from "./multicam-dsp.mjs";
 
 function parseArgs(argv) {
   const inputs = [];

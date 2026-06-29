@@ -22,6 +22,7 @@ export default defineConfig({
         "tools/fcpxml.mjs",
         "tools/sources.mjs",
         "tools/multicam.mjs",
+        "tools/multicam-dsp.mjs",
         "tools/multicam-groups.mjs",
       ],
       thresholds: {

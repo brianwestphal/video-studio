@@ -138,10 +138,12 @@ Covered by unit tests (do **not** re-test by hand):
 - **`tools/fcpxml.mjs`** — `buildFcpxml`, `buildMulticamFcpxml`, `frameDuration`,
   `rationalTime` (`tests/fcpxml.test.ts`). 100% coverage of the XML generation;
   FCP import itself is §5 / §7.9 (the multicam asset's real-FCP validation).
-- **`tools/multicam.mjs`** — the FFT (`fftInPlace`, `crossCorrelate`,
+- **`tools/multicam-dsp.mjs`** — the DSP: FFT (`fftInPlace`, `crossCorrelate`,
   `crossCorrelatePhat`), offset/confidence (`findOffset`, `offsetSeconds`,
-  `parabolicVertex`), `fitDrift`, `classifySync`, `selectReference`,
-  `buildGroupManifest`, `resolveAngleCuts`, `driftCorrection`, `atempoChain`,
+  `parabolicVertex`), `fitDrift`, `driftCorrection`, `atempoChain`
+  (`tests/multicam-dsp.test.ts`). 100% coverage.
+- **`tools/multicam.mjs`** — group-manifest + angle assembly: `classifySync`,
+  `selectReference`, `buildGroupManifest`, `resolveAngleCuts`,
   `expandMulticamGroup` (`tests/multicam.test.ts`). 100% coverage. The ffmpeg mono
   extraction + real-audio sync in `sync-multicam.mjs` is §7 above; the multicam
   export is §7.8.

@@ -34,7 +34,8 @@ and [`requirements-summary.md`](requirements-summary.md) for status.
 │   ├── analyze-sources.mjs     # multiple-source input: files/folders → per-source analysis → sources.json (I/O)
 │   ├── sources.mjs             # pure source-id + sources-manifest logic (unit-tested)
 │   ├── sync-multicam.mjs       # multi-cam audio sync: ffmpeg mono extract + cross-correlation → multicam.json (I/O)
-│   ├── multicam.mjs            # pure FFT/GCC-PHAT cross-correlation + sub-sample peak + confidence + drift fit/correction + group-manifest + angle-cut + expandMulticamGroup (unit-tested)
+│   ├── multicam-dsp.mjs        # pure DSP: FFT/GCC-PHAT cross-correlation + sub-sample peak + confidence + drift fit/correction (unit-tested)
+│   ├── multicam.mjs            # pure group-manifest + angle-cut assembly: classifySync, buildGroupManifest, resolveAngleCuts, expandMulticamGroup (unit-tested)
 │   ├── propose-groups.mjs      # suggest multicam groups from sources.json (stat-based timestamps) (I/O)
 │   ├── multicam-groups.mjs     # pure group-proposal heuristics: folder / time-window / filename (unit-tested)
 │   └── export-multicam-fcpxml.mjs # multicam.json → true FCP <mc-clip> multicam FCPXML (I/O over buildMulticamFcpxml)
@@ -49,6 +50,7 @@ and [`requirements-summary.md`](requirements-summary.md) for status.
 │   ├── export-manifest.test.ts # unit tests for tools/export-manifest.mjs
 │   ├── fcpxml.test.ts          # unit tests for tools/fcpxml.mjs
 │   ├── sources.test.ts         # unit tests for tools/sources.mjs
+│   ├── multicam-dsp.test.ts    # unit tests for tools/multicam-dsp.mjs
 │   ├── multicam.test.ts        # unit tests for tools/multicam.mjs
 │   ├── multicam-groups.test.ts # unit tests for tools/multicam-groups.mjs
 │   └── packaging.test.ts       # guards machine-path leaks + the promo-assets packaging
@@ -121,7 +123,7 @@ Coverage is enforced (100% l/b/f/s) on the pure modules in `vitest.config.ts`
 `coverage.include`: `src/scene-math.ts`, `src/resumable-error.ts`,
 `src/analyzer-cli.ts`, `src/analyzer-state.ts`, `tools/caption-format.mjs`,
 `tools/export-manifest.mjs`, `tools/fcpxml.mjs`, `tools/sources.mjs`,
-`tools/multicam.mjs`, `tools/multicam-groups.mjs`. The
+`tools/multicam.mjs`, `tools/multicam-dsp.mjs`, `tools/multicam-groups.mjs`. The
 I/O code (`analyzer.ts` orchestration, `ffmpeg.ts`, `ollama.ts`, the `bin/`
 launcher, `render-caption.mjs`'s Chromium path) is manual-test territory.
 
@@ -158,7 +160,7 @@ launcher, `render-caption.mjs`'s Chromium path) is manual-test territory.
 | multi-cam angle cut → editor-handoff cut spec | `expandMulticamGroup` in `tools/multicam.mjs`; the `audioTrack` + drift `rateCorrection` flow through `export-manifest.mjs` + `fcpxml.mjs` |
 | multi-cam true FCPXML mc-clip asset | `buildMulticamFcpxml` in `tools/fcpxml.mjs` (pure) + `tools/export-multicam-fcpxml.mjs` (I/O) |
 | multiple-source input → sources.json | `tools/analyze-sources.mjs` (I/O) + `tools/sources.mjs` (pure) |
-| multi-cam audio sync → multicam.json | `tools/sync-multicam.mjs` (I/O) + `tools/multicam.mjs` (pure: FFT cross-correlation, confidence, drift, angle cuts) |
+| multi-cam audio sync → multicam.json | `tools/sync-multicam.mjs` (I/O) + `tools/multicam-dsp.mjs` (pure DSP: FFT cross-correlation, confidence, drift) + `tools/multicam.mjs` (pure: group manifest, angle cuts) |
 | multi-cam group proposal from a pool | `tools/propose-groups.mjs` (I/O) + `tools/multicam-groups.mjs` (pure: folder / time-window / filename heuristics) |
 | tool detection / brew install / skill install / launch | `bin/video-studio.mjs` |
 | the editing pipeline Claude runs | `skills/video-studio/SKILL.md` |

@@ -54,7 +54,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - **Docs & onboarding** — added a `README.md`, an MIT `LICENSE` file, and a `docs/` set (requirements, release guide, manual test plan, and AI-summary maps).
 - **Shippable worked examples** — the `promo-assets/` teaser + caption/wordmark example scripts now ship with the package and run anywhere (env-configurable paths; no hardcoded machine paths; use the published `domotion-svg`).
 - **Hardened toolkit** — ESLint + Vitest with **100% coverage enforced on all ten pure modules** (scene/timecode math, analyzer CLI/state, error classification, caption assembly, the export manifest + FCPXML, source/multicam manifests, and the multi-cam DSP), and a tag-driven release flow with CI publishing to npm with provenance.
-- **Internal** — the scene analyzer was split into focused modules (CLI, state, ffmpeg, ollama, error classification) with no change to its behavior or output.
+- **Internal** — the scene analyzer was split into focused modules (CLI, state, ffmpeg, ollama, error classification) with no change to its behavior or output. The multi-cam logic was likewise split: the signal DSP (FFT cross-correlation, drift fit) now lives in `tools/multicam-dsp.mjs`, with `tools/multicam.mjs` keeping the group-manifest + angle-cut assembly (no behavior change).
 
 ## [0.1.0] - 2026-06-27
 

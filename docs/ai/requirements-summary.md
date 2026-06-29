@@ -68,18 +68,17 @@ manual validation step). Design-only: **FCP transition suggestions**
   AI-chosen built-in `<transition>` elements at cut points, tuned by video type +
   stylistic heuristics. Requires adding segment **handles** to the export (a
   prerequisite). [`transitions.md`](../transitions.md), VS-23.
-- **Multi-cam (Partial)** — audio sync **shipped** (VS-27):
-  `tools/sync-multicam.mjs` (ffmpeg mono extract + run) over `tools/multicam.mjs`
-  (pure FFT cross-correlation, normalized-peak confidence gate, drift fit,
-  group-manifest + angle-cut math, 100% tests). Emits `multicam.json`; audio-only
+- **Multi-cam (Shipped)** — audio sync **shipped** (VS-27):
+  `tools/sync-multicam.mjs` (ffmpeg mono extract + run) over `tools/multicam-dsp.mjs`
+  (pure FFT cross-correlation, normalized-peak confidence gate, drift fit) +
+  `tools/multicam.mjs` (group-manifest + angle-cut math), 100% tests. Emits
+  `multicam.json`; audio-only
   members are the sync reference + master audio; all alignment is seconds-based
   (mismatched fps need no special case). Offsets are sub-sample-refined and a
   GCC-PHAT (`--feature phat`) option exists for low SNR (VS-32). **Group proposal**
   from a source pool (folder / overlapping recording windows / filename) ships as
   `propose-groups` + `tools/multicam-groups.mjs` (VS-31). Long-take **drift** is
-  detected, flagged, and a **retime correction computed** (`rateCorrection` +
-  start-anchored `correctedOffsetSeconds`, VS-30). **Deferred:** angle-switching
-  detected, flagged, and a **retime correction computed** (`rateCorrection` +
+  detected, flagged, a **retime correction computed** (`rateCorrection` +
   start-anchored `correctedOffsetSeconds`, VS-30) **and applied on export** — a
   drifting angle segment is `setpts`-stretched to fill its slot (VS-33). **Angle
   switching** ships via `expandMulticamGroup` → an editor-handoff cut spec (silent
