@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { buildManifest } from "../tools/export-manifest.mjs";
-import { audioTime, buildFcpxml, buildMulticamFcpxml, frameDuration, framesToTime, rationalTime } from "../tools/fcpxml.mjs";
+import { TRANSITION_UIDS, audioTime, buildFcpxml, buildMulticamFcpxml, frameDuration, framesToTime, rationalTime } from "../tools/fcpxml.mjs";
 
 describe("frameDuration", () => {
   it("maps integer rates to 1/fps", () => {
@@ -409,5 +409,45 @@ describe("buildFcpxml transitions (VS-28)", () => {
 
   it("throws on an unsupported transition", () => {
     expect(() => buildFcpxml(manifest([{ afterClip: 0, name: "Kaleidoscope", durationSeconds: 1 }]), src)).toThrow(/unsupported transition/);
+  });
+});
+
+describe("buildFcpxml transition palette (VS-50)", () => {
+  const src = (f: string) => `file://${f}`;
+  function withTransition(name: string) {
+    const m = buildManifest({
+      project: { fps: 24, width: 1920, height: 1080, name: "ed" },
+      clips: [
+        { source: "/a.mov", in: 10, out: 12, audio: "keep" },
+        { source: "/b.mov", in: 5, out: 8, audio: "keep" },
+      ],
+      transitions: [{ afterClip: 0, name, durationSeconds: 1 }],
+      handleSeconds: 0.5,
+    }, [], [60, 60]);
+    return buildFcpxml(m, src);
+  }
+
+  it("emits the exact effect uid for every supported transition", () => {
+    expect(Object.keys(TRANSITION_UIDS).length).toBeGreaterThanOrEqual(16);
+    for (const [name, uid] of Object.entries(TRANSITION_UIDS)) {
+      const xml = withTransition(name);
+      const escName = name.replace(/&/g, "&amp;");
+      const escUid = uid.replace(/&/g, "&amp;");
+      expect(xml).toContain(`<effect id="r4" name="${escName}" uid="${escUid}"/>`);
+      expect(xml).toContain(`<transition name="${escName}"`);
+      expect(xml).toContain(`<filter-video ref="r4" name="${escName}"/>`);
+    }
+  });
+
+  it("escapes & in the name and uid (Top & Bottom Split)", () => {
+    const xml = withTransition("Top & Bottom Split");
+    expect(xml).toContain('name="Top &amp; Bottom Split"');
+    expect(xml).toContain("Top &amp; Bottom Split.localized"); // uid path escaped too
+    expect(xml).not.toContain("Top & Bottom"); // no raw ampersand leaks into the XML
+  });
+
+  it("supports the motion-template (.motr) uids verbatim with FCP's .../ prefix", () => {
+    const xml = withTransition("Push");
+    expect(xml).toContain('uid=".../Transitions.localized/Movements.localized/Push.localized/Push.motr"');
   });
 });

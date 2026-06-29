@@ -17,7 +17,7 @@ sync with the requirements doc and code; the source wins on conflict.
 | Quality gates | R7.1–R7.4 | **Shipped** |
 | Editor handoff (segments + overlays + manifest/FCPXML) | [`editor-handoff.md`](../editor-handoff.md) | **Shipped** — export + manifest + rebuild (VS-24) + FCPXML (VS-25) |
 | Multiple source videos | [`multiple-sources.md`](../multiple-sources.md) | **Shipped** (VS-26) |
-| FCP transition suggestions | [`transitions.md`](../transitions.md) | **Shipped** (VS-28) — opt-in `transitions` → FCP `<transition>`s (Cross Dissolve + Fade To Color) + baked segment handles; DTD-valid |
+| FCP transition suggestions | [`transitions.md`](../transitions.md) | **Shipped** (VS-28, VS-50) — opt-in `transitions` → FCP `<transition>`s (16 built-ins: dissolves/fades, movements, wipes, insets/splits, Static) + baked segment handles; DTD-valid |
 | Multi-cam editing | [`multicam.md`](../multicam.md), [`multicam-sync.md`](../multicam-sync.md) | **Shipped** — sync, group proposal, angle switching → flat-timeline export, drift correction applied on export, true FCPXML mc-clip asset (VS-27/29/30/31/32/33); **FCP import validated against the real app (VS-36)** |
 | Edit awareness / auto multi-cam cutting | [`audio-events.md`](../audio-events.md), [`visual-saliency.md`](../visual-saliency.md), [`multicam-auto-cut.md`](../multicam-auto-cut.md) | **Partial** — specs done (VS-41/42/43); **audio-events Tier-1 shipped (VS-44)**; visual saliency (VS-45), selector (VS-46), integration (VS-47) pending |
 
@@ -26,8 +26,9 @@ input are shipped. **Multi-cam** is shipped end to end (VS-27/29/30/31/32/33):
 audio sync, group proposal, angle switching → a synced flat-timeline export
 (continuous master-audio track + FCPXML), drift detection + retime correction
 applied on export, and a true FCPXML `<mc-clip>` multicam asset (FCP import is a
-manual validation step). Design-only: **FCP transition suggestions**
-([`transitions.md`](../transitions.md), VS-23) — see its doc + follow-up tickets.
+manual validation step). **FCP transition suggestions** are shipped too (VS-28 +
+the full palette in VS-50). The "edit awareness" auto-cut initiative is partial
+(audio-events Tier 1 shipped, VS-44).
 
 ## Per-area notes
 
@@ -85,8 +86,9 @@ manual validation step). Design-only: **FCP transition suggestions**
   ship too: `buildManifest` records per-segment handles, `segmentArgs` bakes them,
   `rebuildScript` trims them (concat `inpoint`/`outpoint`). Effect uids captured from
   a real FCP export; output validates against FCP's bundled `FCPXMLv1_10.dtd`. The
-  AI picks transitions per cut (SKILL.md §7, hard-cut by default). More built-in
-  transitions = VS-50. [`transitions.md`](../transitions.md).
+  AI picks transitions per cut (SKILL.md §7, hard-cut by default). The full
+  16-transition palette (movements, wipes, insets/splits, Static) was added in
+  **VS-50**. [`transitions.md`](../transitions.md).
 - **Multi-cam (Shipped)** — audio sync **shipped** (VS-27):
   `tools/sync-multicam.mjs` (ffmpeg mono extract + run) over `tools/multicam-dsp.mjs`
   (pure FFT cross-correlation, normalized-peak confidence gate, drift fit) +

@@ -65,12 +65,33 @@ const baseName = (p) => p.split("/").pop().replace(/\.[^.]+$/, "");
 
 // Built-in FCP transition `uid`s (docs/transitions.md). These are FCP-internal
 // and unguessable; captured verbatim from a real FCP "File ▸ Export XML" of a
-// timeline with these transitions (VS-28 attachment). `Audio Crossfade` rides
-// every video transition (matching FCP's own output). Aliases map the ticket's
-// names to FCP's canonical names.
+// timeline containing each transition (VS-28/VS-50 attachment). Two forms appear:
+// `FxPlug:<GUID>` (stable per FCP version) and motion-template paths that FCP
+// writes with a literal `.../` prefix (these may be less install-portable than
+// the GUIDs). `&` is stored raw and escaped on output. `Audio Crossfade` rides
+// every video transition (matching FCP's own output, see below).
 export const TRANSITION_UIDS = {
+  // Dissolves / fades
   "Cross Dissolve": "FxPlug:4731E73A-8DAC-4113-9A30-AE85B1761265",
   "Fade To Color": "FxPlug:F779C565-486D-4633-8035-0374B4DB8F5C",
+  // Movements (push/slide)
+  "Slide": "FxPlug:6AAB0D54-FCD8-4EBD-A62D-D352A5ED1648",
+  "Push": ".../Transitions.localized/Movements.localized/Push.localized/Push.motr",
+  // Wipes (directional / graphic)
+  "Wipe": "FxPlug:857E2FBA-98DB-411B-A88C-CE6ABC1F65D8",
+  "Diagonal": ".../Transitions.localized/Wipes.localized/Diagonal.localized/Diagonal.motr",
+  "Clock": "FxPlug:B2C3F87B-2A21-4E13-8173-46ED4FEBC57A",
+  "Circle": "FxPlug:1C52AC71-7116-4248-B51F-5F5641EA9EDD",
+  "Chevron": "FxPlug:75E22682-425A-4B5A-A056-0ABC59B7B821",
+  "Center": "FxPlug:539C8A29-BBED-4670-B774-338109A7DB68",
+  // Insets / splits (stylized, multi-image)
+  "Circle Inset": ".../Transitions.localized/Modular Transitions.localized/Circle Inset.localized/Circle Inset.motr",
+  "Rectangle Inset": ".../Transitions.localized/Modular Transitions.localized/Rectangle Inset.localized/Rectangle Inset.motr",
+  "Shapes Inset": ".../Transitions.localized/Modular Transitions.localized/Shapes Inset.localized/Shapes Inset.motr",
+  "Side-by-Side Split": ".../Transitions.localized/Modular Transitions.localized/Side-by-Side Split.localized/Side-by-Side Split.motr",
+  "Top & Bottom Split": ".../Transitions.localized/Modular Transitions.localized/Top & Bottom Split.localized/Top & Bottom Split.motr",
+  // Lights (glitch / noise accent)
+  "Static": ".../Transitions.localized/Lights.localized/Static.localized/Static.motr",
 };
 const TRANSITION_ALIASES = { "Dip to Color": "Fade To Color", "Dip To Color": "Fade To Color", "Fade to Color": "Fade To Color" };
 const AUDIO_CROSSFADE_UID = "FFAudioTransition";
@@ -127,7 +148,7 @@ export function buildFcpxml(manifest, assetSrc) {
     if (!effectIdByUid.has(uid)) {
       const id = `r${rid++}`;
       effectIdByUid.set(uid, id);
-      effectEls.push(`    <effect id="${id}" name="${esc(name)}" uid="${uid}"/>`);
+      effectEls.push(`    <effect id="${id}" name="${esc(name)}" uid="${esc(uid)}"/>`);
     }
     return effectIdByUid.get(uid);
   };
@@ -137,8 +158,11 @@ export function buildFcpxml(manifest, assetSrc) {
     const name = TRANSITION_ALIASES[tr.name] ?? tr.name;
     const uid = TRANSITION_UIDS[name];
     if (!uid) throw new Error(`buildFcpxml: unsupported transition "${tr.name}" (have: ${Object.keys(TRANSITION_UIDS).join(", ")})`);
+    // Video effect first, then the shared Audio Crossfade — matching FCP's own
+    // resource ordering (video transition, then its audio crossfade).
+    const effectId = ensureEffect(name, uid);
     audioCrossfadeId = audioCrossfadeId || ensureEffect("Audio Crossfade", AUDIO_CROSSFADE_UID);
-    byAfter.set(tr.afterSegment, { ...tr, name, effectId: ensureEffect(name, uid) });
+    byAfter.set(tr.afterSegment, { ...tr, name, effectId });
   }
 
   // spine: segments in order; overlays nested as connected clips (lane 1); a

@@ -1,11 +1,18 @@
 # FCP Transition Suggestions
 
-Status: **Shipped (VS-28)** — opt-in `transitions` on the cut spec emit FCP
-`<transition>` elements (Cross Dissolve + Fade To Color) into the editor-handoff
-`.fcpxml`, with handle media baked into the flanking segments. Covers VS-23/VS-28;
-extends the FCPXML export ([`editor-handoff.md`](editor-handoff.md) §6, VS-25).
-The effect `uid`s + transition geometry were captured from a real FCP "Export XML"
-(VS-28) and the output validates against FCP's bundled `FCPXMLv1_10.dtd`.
+Status: **Shipped (VS-28, palette expanded VS-50)** — opt-in `transitions` on the
+cut spec emit FCP `<transition>` elements into the editor-handoff `.fcpxml`, with
+handle media baked into the flanking segments. Covers VS-23/VS-28/VS-50; extends
+the FCPXML export ([`editor-handoff.md`](editor-handoff.md) §6, VS-25). The effect
+`uid`s + transition geometry were captured from a real FCP "Export XML" and the
+output validates against FCP's bundled `FCPXMLv1_10.dtd`.
+
+**Supported transitions** (`TRANSITION_UIDS` in `tools/fcpxml.mjs`): Cross
+Dissolve, Fade To Color ("Dip to Color" alias); Slide, Push; Wipe, Diagonal,
+Clock, Circle, Chevron, Center; Circle/Rectangle/Shapes Inset, Side-by-Side Split,
+Top & Bottom Split; Static. Audio Crossfade rides every video transition. The
+`FxPlug:<GUID>` uids are stable per FCP version; the motion-template (`.motr`)
+ones use FCP's literal `.../` path prefix and may be less install-portable.
 
 > **Early concept.** Pre-1.0 feature; details may change.
 
@@ -108,10 +115,9 @@ can audit it.
 
 ## 7. Open questions / follow-ups
 
-- **More built-in transitions.** Only Cross Dissolve + Fade To Color are wired.
-  The FCP sample export (VS-28 attachment) also contains uids for Static, Circle
-  Inset, Push, Slide, etc. — adding them is a mechanical extension of
-  `TRANSITION_UIDS` (filed as a follow-up).
+- ~~**More built-in transitions.**~~ **Done (VS-50):** the full palette from the
+  FCP sample is wired (16 transitions across dissolves/fades, movements, wipes,
+  insets/splits, and Static), with the SKILL.md §4 guidance grouped by feel.
 - **Per-video-type default durations** are guidance in SKILL.md, not enforced.
 - **Deeper editorial research** to refine §4 heuristics (a `deep-research` pass)
   remains optional.
