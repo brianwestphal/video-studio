@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 // @ts-expect-error — JS module, no types
-import { AUDIO_EVENTS_VERSION, buildAudioEvents, detectOnsets, rmsEnvelope, sectionize, vocalSpans, wordsFromWhisper } from "../tools/audio-events.mjs";
+import { aggregateSpectral, AUDIO_EVENTS_VERSION, buildAudioEvents, detectOnsets, rmsEnvelope, sectionize, spectralFeatures, structureBoundaries, vocalSpans, wordsFromWhisper } from "../tools/audio-events.mjs";
 
 // Build a mono signal: `spans` is [{ amp, seconds }] concatenated at `sampleRate`.
 function signal(spans: { amp: number; seconds: number }[], sampleRate: number): Float32Array {
@@ -177,5 +177,140 @@ describe("wordsFromWhisper", () => {
   it("returns [] for a missing/empty doc", () => {
     expect(wordsFromWhisper(null)).toEqual([]);
     expect(wordsFromWhisper({})).toEqual([]);
+  });
+});
+
+// --- Tier 2: spectral descriptors + structural novelty ---
+
+// A mono sine of `freq` Hz for `seconds` at `sampleRate`.
+function sine(freq: number, seconds: number, sampleRate: number, amp = 0.8): Float32Array {
+  const n = Math.round(seconds * sampleRate);
+  const x = new Float32Array(n);
+  for (let i = 0; i < n; i++) x[i] = amp * Math.sin((2 * Math.PI * freq * i) / sampleRate);
+  return x;
+}
+
+// Concatenate Float32Arrays.
+function concat(...parts: Float32Array[]): Float32Array {
+  const total = parts.reduce((n, p) => n + p.length, 0);
+  const out = new Float32Array(total);
+  let i = 0;
+  for (const p of parts) { out.set(p, i); i += p.length; }
+  return out;
+}
+
+// A synthetic spectral-features object with `centroidHz` varying per frame and the
+// other dims derived from it; lets us test structureBoundaries deterministically.
+function specOf(centroids: number[], hopSeconds = 0.1) {
+  return {
+    hopSeconds,
+    fftSize: 8,
+    frames: centroids.map((c, k) => ({
+      time: k * hopSeconds,
+      centroidHz: c,
+      rolloffHz: c,
+      zcr: 0.1,
+      flux: 0.0,
+      bands: [c < 1000 ? 1 : 0, 0, c >= 1000 ? 1 : 0],
+    })),
+  };
+}
+
+describe("spectralFeatures", () => {
+  const sr = 16000;
+  it("requires a positive sampleRate", () => {
+    expect(() => spectralFeatures(new Float32Array(2048), {})).toThrow(/sampleRate/);
+  });
+  it("ranks a high-frequency tone brighter than a low-frequency one", () => {
+    const lo = spectralFeatures(sine(200, 0.2, sr), { sampleRate: sr });
+    const hi = spectralFeatures(sine(5000, 0.2, sr), { sampleRate: sr });
+    expect(lo.frames.length).toBeGreaterThan(0);
+    expect(lo.frames[0].centroidHz).toBeLessThan(hi.frames[0].centroidHz);
+    expect(lo.frames[0].rolloffHz).toBeLessThan(hi.frames[0].rolloffHz);
+    // low tone → low band dominant; high tone → high band dominant
+    expect(lo.frames[0].bands[0]).toBeGreaterThan(lo.frames[0].bands[2]);
+    expect(hi.frames[0].bands[2]).toBeGreaterThan(hi.frames[0].bands[0]);
+  });
+  it("registers spectral flux and zero-crossings across a tone change", () => {
+    const x = concat(sine(200, 0.15, sr), sine(6000, 0.15, sr));
+    const spec = spectralFeatures(x, { sampleRate: sr });
+    expect(spec.frames.length).toBeGreaterThan(2);
+    expect(spec.frames[0].flux).toBe(0); // first frame has no predecessor
+    expect(Math.max(...spec.frames.map((f) => f.flux))).toBeGreaterThan(0); // the change spikes flux
+    expect(spec.frames[0].zcr).toBeGreaterThan(0); // a tone crosses zero
+  });
+  it("handles a silent window (zero energy → zeroed descriptors)", () => {
+    const spec = spectralFeatures(new Float32Array(2048), { sampleRate: sr });
+    expect(spec.frames.length).toBeGreaterThan(0);
+    expect(spec.frames[0]).toMatchObject({ centroidHz: 0, rolloffHz: 0, zcr: 0, flux: 0, bands: [0, 0, 0] });
+  });
+  it("yields no frames when the signal is shorter than one window", () => {
+    expect(spectralFeatures(new Float32Array(256), { sampleRate: sr }).frames).toEqual([]);
+  });
+});
+
+describe("aggregateSpectral", () => {
+  it("returns null when no frame falls inside the span", () => {
+    expect(aggregateSpectral(specOf([100, 200], 0.1), 5, 6)).toBeNull();
+  });
+  it("means the descriptors of the frames inside the span", () => {
+    const sp = aggregateSpectral(specOf([100, 300, 5000], 0.1), 0, 0.2); // frames at 0, 0.1 (0.2 excluded)
+    expect(sp).toEqual({ centroidHz: 200, rolloffHz: 200, zcr: 0.1, flux: 0, bands: [1, 0, 0] });
+  });
+});
+
+describe("structureBoundaries", () => {
+  it("returns just the endpoints for fewer than two frames", () => {
+    expect(structureBoundaries(specOf([100], 0.1), 5)).toEqual([0, 5]);
+  });
+  it("returns just the endpoints when nothing changes (no novelty)", () => {
+    expect(structureBoundaries(specOf([500, 500, 500, 500], 0.1), 0.4)).toEqual([0, 0.4]);
+  });
+  it("finds a boundary at a spectral step", () => {
+    const spec = specOf([100, 100, 100, 100, 5000, 5000, 5000, 5000], 0.1);
+    const edges = structureBoundaries(spec, 0.8, { windowSeconds: 0.2, threshold: 0.5, minSegmentSeconds: 0.2 });
+    expect(edges[0]).toBe(0);
+    expect(edges[edges.length - 1]).toBe(0.8);
+    expect(edges).toContain(0.4); // the step is at frame index 4 → t = 0.4
+  });
+  it("suppresses boundaries closer than minSegmentSeconds", () => {
+    const spec = specOf([0, 0, 5000, 5000, 0, 0, 5000, 5000, 0, 0], 0.1);
+    const edges = structureBoundaries(spec, 1.0, { windowSeconds: 0.2, threshold: 0.4, minSegmentSeconds: 1.0 });
+    // every transition is within 1.0s of the first kept boundary → only one interior edge survives
+    expect(edges.length).toBe(3);
+    expect(edges[0]).toBe(0);
+    expect(edges[edges.length - 1]).toBe(1.0);
+  });
+});
+
+describe("buildAudioEvents Tier 2 (with samples)", () => {
+  const sr = 16000;
+  function build(samples: Float32Array, durationSeconds: number) {
+    const envelope = rmsEnvelope(samples, { sampleRate: sr, hopSeconds: 0.05 });
+    return buildAudioEvents({ sourcePath: "/m.wav", durationSeconds, sampleRate: sr, envelope, samples, words: [], opts: { minSpanSeconds: 0.2 } });
+  }
+  it("attaches spectral data to content sections and emits a structural section", () => {
+    const doc = build(sine(5000, 1, sr), 1);
+    const content = doc.events.find((e: { kind: string }) => e.kind === "instrumental");
+    expect(content.data.spectral).toMatchObject({ centroidHz: expect.any(Number), bands: expect.any(Array) });
+    const section = doc.events.find((e: { kind: string }) => e.kind === "section");
+    expect(section).toMatchObject({ startSeconds: 0, endSeconds: 1, data: { index: 1, of: 1 } });
+    expect(section.description).toContain("bright timbre"); // 5 kHz tone → high band dominant
+  });
+  it("labels a low tone as warm and a mid tone as mid", () => {
+    const warm = build(sine(120, 1, sr), 1);
+    expect(warm.events.find((e: { kind: string }) => e.kind === "section").description).toContain("low / warm timbre");
+    const mid = build(sine(1000, 1, sr), 1);
+    expect(mid.events.find((e: { kind: string }) => e.kind === "section").description).toContain("mid timbre");
+  });
+  it("omits spectral data and the timbre label when no window fits", () => {
+    // samples present (one envelope hop → a content section) but shorter than one
+    // FFT window (1024) → spec has no frames, so no spectral data is attached
+    const doc = build(new Float32Array(900), 1);
+    const content = doc.events.find((e: { kind: string }) => e.kind === "instrumental" || e.kind === "quiet");
+    expect(content.data.spectral).toBeUndefined();
+    const section = doc.events.find((e: { kind: string }) => e.kind === "section");
+    expect(section.data.spectral).toBeUndefined();
+    expect(section.description).toBe("Structural section 1/1.");
   });
 });

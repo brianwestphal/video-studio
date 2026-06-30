@@ -117,9 +117,11 @@ exercise the ffmpeg mono extraction + the real end-to-end sync.
 
 | # | Action | Expected |
 |---|--------|----------|
-| 8.1 | `node tools/analyze-audio-events.mjs <audio-or-video> --out audio-events.json` | Writes `audio-events.json` (docs/audio-events.md schema): a versioned doc with a `source`, a coarse `envelope.rmsDb` (one value per hop), and sorted `events` — `quiet`/`instrumental` sections + `onset` accents. Without `--transcript`, energetic non-quiet spans are all `instrumental` (no vocal split). On the BYAM master: a quiet intro/outro, one instrumental body, ~629 onsets. |
+| 8.1 | `node tools/analyze-audio-events.mjs <audio-or-video> --out audio-events.json` | Writes `audio-events.json` (docs/audio-events.md schema): a versioned doc with a `source`, a coarse `envelope.rmsDb` (one value per hop), and sorted `events` — `quiet`/`instrumental`/`vocal` content sections, `onset` accents, **and Tier-2 structural `section` events**. Without `--transcript`, energetic non-quiet spans are all `instrumental` (no vocal split). On the BYAM master: a quiet intro/outro, one instrumental body, ~629 onsets, **~19 structural `section` events**. |
 | 8.2 | Re-run with `--transcript <whisper.json>` (whisper `--word_timestamps` JSON; `--offset` if the transcript is clip-relative) | The instrumental body is split into `vocal` sections (where words fall, merged within ~1.5 s and padded) and `instrumental` sections (energetic, no words — the riff). Each `vocal` event carries `data.wordCount`. |
 | 8.3 | `--quiet-db`, `--hop`, `--min-span`, `--sample-rate` knobs | Adjust the quiet floor, envelope resolution, minimum section length, and analysis rate respectively; output stays well-formed and sorted by `startSeconds`. |
+| 8.4 | **Tier-2 spectral check** — inspect each section's `data.spectral` | Every content/structural `section` whose span contains an FFT window carries `data.spectral` with `centroidHz`, `rolloffHz`, `zcr`, `flux`, and `bands` (`[low, mid, high]` summing to ~1). On the BYAM master, structural-section centroids span ~1.3–2.3 kHz. |
+| 8.5 | **Tier-2 brightness check (needs a transcript)** — run 8.2 with a whisper transcript for the master, then compare `data.spectral.centroidHz`/`bands[2]` of the **instrumental (riff)** sections vs the **vocal** sections | The guitar-led instrumental spans should read **brighter** (higher centroid / high-band fraction) than the lead-vocal spans. No transcript is checked into `external/multi-cam/`, so this comparison is manual (see VS-51 for capturing one). |
 
 ## Automated Coverage Summary
 
@@ -160,7 +162,8 @@ Covered by unit tests (do **not** re-test by hand):
   extraction + real-audio sync in `sync-multicam.mjs` is §7 above; the multicam
   export is §7.8.
 - **`tools/audio-events.mjs`** — `rmsEnvelope`, `detectOnsets`, `vocalSpans`,
-  `sectionize`, `buildAudioEvents`, `wordsFromWhisper` (`tests/audio-events.test.ts`).
+  `sectionize`, `spectralFeatures`, `aggregateSpectral`, `structureBoundaries`,
+  `buildAudioEvents`, `wordsFromWhisper` (`tests/audio-events.test.ts`).
   100% coverage. The ffmpeg mono extraction + whisper read + file write in
   `tools/analyze-audio-events.mjs` are §8 above.
 - **`tools/multicam-groups.mjs`** — `slug`, `groupByFolder`,

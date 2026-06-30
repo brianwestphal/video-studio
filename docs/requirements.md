@@ -126,7 +126,7 @@ Larger features have their own source-of-truth docs (kept in sync the same way):
 - **Multiple sources** — [`multiple-sources.md`](multiple-sources.md) *(shipped)*
 - **Multi-cam editing** — [`multicam.md`](multicam.md) + [`multicam-sync.md`](multicam-sync.md) *(shipped; FCP import validated, VS-36)*
 - **FCP transition suggestions** — [`transitions.md`](transitions.md) *(design only)*
-- **Edit awareness / auto multi-cam cutting** *(design only — VS-41/42/43, building in VS-44–47)*:
-  [`audio-events.md`](audio-events.md) (non-speech/musical audio events, R-AE),
+- **Edit awareness / auto multi-cam cutting** *(specs VS-41/42/43; audio-events Tier 1+2 shipped VS-44/49; saliency/selector/integration building in VS-45–47)*:
+  [`audio-events.md`](audio-events.md) (non-speech/musical audio events, R-AE1–R-AE8),
   [`visual-saliency.md`](visual-saliency.md) (per-angle "what's worth showing", R-VS),
   and [`multicam-auto-cut.md`](multicam-auto-cut.md) (audio+visual → `switches`, R-AC).

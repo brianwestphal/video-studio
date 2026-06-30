@@ -19,7 +19,7 @@ sync with the requirements doc and code; the source wins on conflict.
 | Multiple source videos | [`multiple-sources.md`](../multiple-sources.md) | **Shipped** (VS-26) |
 | FCP transition suggestions | [`transitions.md`](../transitions.md) | **Shipped** (VS-28, VS-50) — opt-in `transitions` → FCP `<transition>`s (16 built-ins: dissolves/fades, movements, wipes, insets/splits, Static) + baked segment handles; DTD-valid |
 | Multi-cam editing | [`multicam.md`](../multicam.md), [`multicam-sync.md`](../multicam-sync.md) | **Shipped** — sync, group proposal, angle switching → flat-timeline export, drift correction applied on export, true FCPXML mc-clip asset (VS-27/29/30/31/32/33); **FCP import validated against the real app (VS-36)** |
-| Edit awareness / auto multi-cam cutting | [`audio-events.md`](../audio-events.md), [`visual-saliency.md`](../visual-saliency.md), [`multicam-auto-cut.md`](../multicam-auto-cut.md) | **Partial** — specs done (VS-41/42/43); **audio-events Tier-1 shipped (VS-44)**; visual saliency (VS-45), selector (VS-46), integration (VS-47) pending |
+| Edit awareness / auto multi-cam cutting | [`audio-events.md`](../audio-events.md), [`visual-saliency.md`](../visual-saliency.md), [`multicam-auto-cut.md`](../multicam-auto-cut.md) | **Partial** — specs done (VS-41/42/43); **audio-events Tier-1 + Tier-2 shipped (VS-44, VS-49)**; visual saliency (VS-45), selector (VS-46), integration (VS-47) pending |
 
 The core pipeline plus the editor handoff (export + FCPXML) and multi-source
 input are shipped. **Multi-cam** is shipped end to end (VS-27/29/30/31/32/33):
@@ -68,11 +68,13 @@ the full palette in VS-50). The "edit awareness" auto-cut initiative is partial
   in `tools/sources.mjs` (VS-26). Cuts draw across sources by `(sourceId, in, out)`.
 - **Edit awareness / auto multi-cam cutting (Partial)** — three specs make the
   multi-cam edit follow the music + action instead of just speech. The **audio-events
-  pass is shipped (Tier 1, VS-44)**: `tools/audio-events.mjs` (pure, 100% tested) +
-  `tools/analyze-audio-events.mjs` (ffmpeg CLI) emit `audio-events.json` — loudness
-  envelope, onsets, quiet, and whisper-gated vocal/instrumental sections
-  ([`audio-events.md`](../audio-events.md), R-AE; Tier 2 spectral/novelty = VS-49,
-  stems = VS-48). Still design-only: per-angle
+  pass is shipped (Tier 1 + Tier 2, VS-44 + VS-49)**: `tools/audio-events.mjs` (pure,
+  100% tested) + `tools/analyze-audio-events.mjs` (ffmpeg CLI) emit
+  `audio-events.json` — loudness envelope, onsets, quiet, whisper-gated
+  vocal/instrumental sections, **per-section spectral descriptors
+  (centroid/rolloff/flux/ZCR/bands) and structural `"section"` events from spectral
+  novelty** ([`audio-events.md`](../audio-events.md), R-AE1–R-AE8; optional stems =
+  VS-48). Still design-only: per-angle
   visual saliency ([`visual-saliency.md`](../visual-saliency.md), R-VS, VS-42 → VS-45),
   and an audio+visual angle selector that emits the existing `switches`
   ([`multicam-auto-cut.md`](../multicam-auto-cut.md), R-AC, VS-43 → VS-46), wired into

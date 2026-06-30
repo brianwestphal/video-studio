@@ -40,7 +40,7 @@ and [`requirements-summary.md`](requirements-summary.md) for status.
 │   ├── multicam-groups.mjs     # pure group-proposal heuristics: folder / time-window / filename (unit-tested)
 │   ├── export-multicam-fcpxml.mjs # multicam.json → true FCP <mc-clip> multicam FCPXML (I/O over buildMulticamFcpxml; ffmpeg-generates a black filler for angle leading gaps)
 │   ├── render-multicam-preview.mjs # multicam.json + switches → flat preview MP4 of the angle cut (I/O over resolveAngleCuts)
-│   ├── audio-events.mjs        # pure non-speech audio-events DSP: RMS envelope, onsets, vocal/instrumental sectioning, schema (unit-tested, VS-44)
+│   ├── audio-events.mjs        # pure non-speech audio-events DSP: RMS envelope, onsets, vocal/instrumental sectioning, spectral descriptors + structural novelty, schema (unit-tested, VS-44/49)
 │   └── analyze-audio-events.mjs # audio/video (+ whisper transcript) → audio-events.json (ffmpeg I/O over audio-events.mjs)
 ├── skills/
 │   └── video-studio/SKILL.md   # the pipeline Claude follows — primary interface
@@ -179,7 +179,7 @@ launcher, `render-caption.mjs`'s Chromium path) is manual-test territory.
 | FCP transition suggestions (shipped VS-28/50) | `docs/transitions.md` + `TRANSITION_UIDS`/handles in `tools/{fcpxml,export-manifest}.mjs` |
 | multi-cam design + audio sync spec | `docs/multicam.md` (design) + `docs/multicam-sync.md` (sync tool, shipped) |
 | auto multi-cam cutting / "edit awareness" (design) | `docs/audio-events.md` (R-AE) + `docs/visual-saliency.md` (R-VS) + `docs/multicam-auto-cut.md` (R-AC) |
-| non-speech audio-events pass → audio-events.json | `tools/analyze-audio-events.mjs` (ffmpeg I/O) + `tools/audio-events.mjs` (pure: envelope/onsets/sectioning, VS-44) |
+| non-speech audio-events pass → audio-events.json | `tools/analyze-audio-events.mjs` (ffmpeg I/O) + `tools/audio-events.mjs` (pure: envelope/onsets/sectioning + spectral descriptors/structural novelty, VS-44/49) |
 | how to release | `docs/releasing.md` + `scripts/release.sh` |
 | manual pipeline tests | `docs/manual-test-plan.md` |
 | README demo media + how it's regenerated | `docs/media/` + `scripts/gen-readme-media.sh` |

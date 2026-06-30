@@ -80,6 +80,7 @@ function main() {
       durationSeconds,
       sampleRate: opts.sampleRate,
       envelope,
+      samples,
       words,
       opts: { quietDb: opts.quietDb, minSpanSeconds: opts.minSpan },
     });

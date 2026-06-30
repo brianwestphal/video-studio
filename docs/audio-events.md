@@ -1,19 +1,22 @@
 # Non-speech audio events (design / requirements)
 
-Status: **Tier 1 shipped (VS-44)** — loudness envelope, onsets, quiet, and
-vocal-vs-instrumental sectioning (gated by the whisper transcript). Tier 2
-(spectral descriptors + section novelty) and Tier 3 (per-singer diarization,
-instrument ID, stems) are deferred — see §7. Feeds the angle-selection model in
-[`multicam-auto-cut.md`](multicam-auto-cut.md) (VS-43/46). Cross-referenced from
-[`multicam.md`](multicam.md).
+Status: **Tier 1 + Tier 2 shipped (VS-44, VS-49)** — loudness envelope, onsets,
+quiet, and vocal-vs-instrumental sectioning (gated by the whisper transcript);
+plus per-window spectral descriptors (centroid/rolloff/flux/ZCR/band energies) on
+sections and structural `"section"` events from spectral self-similarity novelty.
+Tier 3 (per-singer diarization, instrument ID, stems) is deferred — see §7. Feeds
+the angle-selection model in [`multicam-auto-cut.md`](multicam-auto-cut.md)
+(VS-43/46). Cross-referenced from [`multicam.md`](multicam.md).
 
 **Implementation:** pure analysis in [`../tools/audio-events.mjs`](../tools/audio-events.mjs)
-(`rmsEnvelope`, `detectOnsets`, `vocalSpans`, `sectionize`, `buildAudioEvents`,
-`wordsFromWhisper`; 100% unit-tested, `tests/audio-events.test.ts`); the ffmpeg
-extraction + whisper read + file write in the thin CLI
-[`../tools/analyze-audio-events.mjs`](../tools/analyze-audio-events.mjs)
+(`rmsEnvelope`, `detectOnsets`, `vocalSpans`, `sectionize`, `spectralFeatures`,
+`aggregateSpectral`, `structureBoundaries`, `buildAudioEvents`, `wordsFromWhisper`;
+the spectral pass reuses `fftInPlace` from `multicam-dsp.mjs`; 100% unit-tested,
+`tests/audio-events.test.ts`); the ffmpeg extraction + whisper read + file write
+in the thin CLI [`../tools/analyze-audio-events.mjs`](../tools/analyze-audio-events.mjs)
 (manual-test-plan §8). On the BYAM master it returns a quiet intro/outro, the
-instrumental body, 629 onsets, and — with `--transcript` — vocal sections.
+instrumental body, 629 onsets, **19 structural sections with spectral descriptors
+(centroid ~1.3–2.3 kHz)**, and — with `--transcript` — vocal sections.
 
 ## 1. Why
 
@@ -45,12 +48,18 @@ recorder track), or any single source.
   spans with words ≈ vocal; energetic spans without words ≈ instrumental
   (the guitar riff). This is the cheapest reliable "riff vs singing" signal.
 
-**Tier 2 — moderate cost, pure-DSP + heuristics (good value):**
-- **Spectral descriptors per window** — centroid, rolloff, flux, zero-crossing
-  rate, a few band energies — a compact timbre fingerprint for "bright/plucky
-  (guitar) vs mid (voice)" and for clustering.
-- **Section/structure segmentation** — novelty/self-similarity over the spectral
-  features to mark verse/chorus/solo boundaries (where a cut is musically natural).
+**Tier 2 — moderate cost, pure-DSP + heuristics (good value) — shipped (VS-49):**
+- **Spectral descriptors per window** — centroid, rolloff, normalized positive
+  flux, zero-crossing rate, and three normalized band energies (low/mid/high) — a
+  compact timbre fingerprint for "bright/plucky (guitar) vs mid (voice)" and for
+  clustering. Computed by `spectralFeatures` over a Hann-windowed FFT (reusing
+  `fftInPlace` from `multicam-dsp.mjs`); the per-section mean is attached to each
+  event's `data.spectral`.
+- **Section/structure segmentation** — `structureBoundaries` runs a checkerboard
+  adjacent-window novelty over the z-scored spectral feature vectors and emits
+  `"section"` events between the novelty peaks (a coarse timbre label —
+  bright/mid/warm — from the band balance), marking where a cut is musically
+  natural.
 
 **Tier 3 — needs a model or separation, defer / optional (highest cost):**
 - **Which singer is active** (vocalist diarization, two singers in BYAM) — speaker
@@ -116,17 +125,30 @@ heuristics aren't good enough.
       "confidence": 0.82,
       "description": "Quiet solo-guitar intro before the vocals enter.",
       "source": null,                // optional stem id once separation exists
-      "data": { "meanRmsDb": -18.4, "onsetRate": 95 }   // kind-specific extras
+      // kind-specific extras; `spectral` (Tier 2) = mean descriptors over the span
+      "data": {
+        "meanRmsDb": -18.4,
+        "spectral": { "centroidHz": 1827, "rolloffHz": 3954, "zcr": 0.12, "flux": 0.03, "bands": [0.32, 0.61, 0.07] }
+      }
     },
     { "kind": "onset", "startSeconds": 6.83, "endSeconds": 6.83, "confidence": 0.7, "description": "Strong accent." },
-    { "kind": "vocal", "startSeconds": 6.81, "endSeconds": 41.0, "confidence": 0.9, "description": "Lead vocal section (lyrics present).", "data": { "wordCount": 73 } }
+    { "kind": "vocal", "startSeconds": 6.81, "endSeconds": 41.0, "confidence": 0.9, "description": "Lead vocal section (lyrics present).", "data": { "wordCount": 73, "spectral": { "centroidHz": 1450, "rolloffHz": 3100, "zcr": 0.09, "flux": 0.02, "bands": [0.36, 0.61, 0.03] } } },
+    // Tier 2 structural section from spectral novelty (its own `"section"` kind):
+    { "kind": "section", "startSeconds": 41.0, "endSeconds": 69.7, "confidence": 0.6, "description": "Structural section 3/19 (mid timbre).", "source": null, "data": { "index": 3, "of": 19, "spectral": { "centroidHz": 1652, "rolloffHz": 3492, "zcr": 0.1, "flux": 0.04, "bands": [0.25, 0.7, 0.05] } } }
   ]
 }
 ```
 
 - **`kind`** (v1): `"envelope"`-derived `"quiet"`, `"onset"`, `"instrumental"`,
-  `"vocal"`, `"section"` (boundary/label), `"accent"`/`"hit"`. Extensible; unknown
-  kinds must be ignored by consumers.
+  `"vocal"`, `"section"` (Tier-2 structural boundary/label), `"accent"`/`"hit"`.
+  Extensible; unknown kinds must be ignored by consumers.
+- **`data.spectral`** (Tier 2, optional): mean `centroidHz`, `rolloffHz`, `zcr`,
+  `flux`, and `bands` (`[low, mid, high]` energy fractions, summing to ~1) over the
+  event's span. Omitted when no analysis window fits inside the span.
+- **`"section"` events** (Tier 2): the track split at spectral-novelty peaks;
+  `data` carries `index`/`of` and the section's mean `spectral`. They overlap the
+  content `quiet`/`vocal`/`instrumental` sections (a parallel structural view), so
+  consumers select the layer they want by `kind`.
 - Every event has `startSeconds`/`endSeconds` (instant = equal), `confidence`
   (0–1), a human `description`, optional `source`/`stem`, and a `kind`-specific
   `data` bag.
@@ -152,6 +174,16 @@ heuristics aren't good enough.
   (Tier 3 / Demucs is **deferred**).
 - **R-AE6** Confidence + `data` are advisory; the angle selector (VS-43/46) decides
   how to weight them.
+- **R-AE7** (Tier 2) A windowed-FFT spectral pass (`spectralFeatures`, reusing
+  `fftInPlace`; **no new deps**) computes per-window centroid, rolloff, normalized
+  positive flux, zero-crossing rate, and low/mid/high band-energy fractions; the
+  per-section mean is attached to each event's `data.spectral` (omitted when no
+  window fits the span). Pure + 100%-covered.
+- **R-AE8** (Tier 2) A spectral self-similarity novelty pass
+  (`structureBoundaries`) segments the track at novelty peaks and emits sorted
+  `"section"` events (`data.index`/`of` + mean `spectral` + a coarse
+  bright/mid/warm timbre label), giving a structural layer parallel to the
+  content sections. Pure + 100%-covered.
 
 ## 6. Out of scope (this doc)
 
@@ -165,9 +197,14 @@ deferred (R-AE5).
 - **VS-44 — done.** Tier 1 implemented (R-AE1–R-AE6): envelope, onsets, quiet, and
   whisper-gated vocal/instrumental sectioning. Per-singer diarization, instrument
   ID, and `"section"`-novelty labels were **not** built (Tier 2/3).
-- **VS-49 (new)** — Tier 2: spectral descriptors (centroid/flux/bands via the
-  `fftInPlace` already in `multicam-dsp.mjs`) + section/structure novelty, to
-  sharpen "riff vs sustained" and mark verse/chorus/solo boundaries.
+- **VS-49 — done.** Tier 2 implemented (R-AE7/R-AE8): per-window spectral
+  descriptors (centroid/rolloff/flux/ZCR/bands via the `fftInPlace` in
+  `multicam-dsp.mjs`) attached to sections, plus `"section"` events from spectral
+  self-similarity novelty with a coarse timbre label. Validated end-to-end on the
+  BYAM master (19 structural sections, centroids ~1.3–2.3 kHz). **Known gap:** the
+  "guitar reads brighter than vocals" check needs a checked-in whisper transcript
+  to mark the vocal spans — no transcript is in `external/multi-cam/`, so that
+  per-span comparison stays a manual step (see VS-51).
 - **VS-48** — optional stem separation (Demucs) populating `source`/`stem` +
   per-stem envelopes; only if the angle-selector evaluation justifies the
   dependency (maintainer decision).
