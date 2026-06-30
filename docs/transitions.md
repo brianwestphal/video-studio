@@ -141,13 +141,31 @@ users who never touch FCP still get them?
 - **`acrossfade`** (audio) — the matching audio cross-fade, so a video transition
   carries an audio blend just like the FCP path's Audio Crossfade.
 
-This palette **covers most of the shipped `TRANSITION_UIDS`** nearly 1:1 — Cross
-Dissolve→`fade`/`dissolve`, Fade To Color→`fadeblack`/`fadewhite`, Wipe→`wipe*`,
-Slide/Push→`slide*`, Circle→`circleopen`/`circleclose`, Clock→`radial`,
-Center→`circlecrop`. FCP-only compositing transitions (Inset shapes, Side-by-Side
-/ Top-&-Bottom **Split**, Static) have **no direct `xfade` equivalent** and would
-degrade to the nearest fade/wipe (or a `custom` expression) — acceptable, since
-those are the rarer picks.
+**Cross fade is *not* the only type we can do.** Mapping the full shipped palette
+(`TRANSITION_UIDS`, VS-50) to ffmpeg, in three tiers of effort:
+
+| FCP transition | ffmpeg | Tier |
+|---|---|---|
+| Cross Dissolve | `xfade=dissolve` (or `fade`) | **A — direct xfade** |
+| Fade To Color (black/white) | `xfade=fadeblack` / `fadewhite` | **A** |
+| Slide | `xfade=coverleft/right/up/down` or `reveal*` (one image moves) | **A** |
+| Push | `xfade=slideleft/right/up/down` (both images move) | **A** |
+| Wipe | `xfade=wipeleft/right/up/down` | **A** |
+| Diagonal | `xfade=diagtl/tr/bl/br` | **A** |
+| Clock | `xfade=radial` | **A** |
+| Circle | `xfade=circleopen` / `circleclose` | **A** |
+| Center | `xfade=circlecrop` / `rectcrop` / `squeezeh`/`v` | **A** (closest) |
+| Fade To Color (arbitrary color) | `fade=out:color=…` + `fade=in` over a color bg | **B — custom** |
+| Chevron | `xfade=custom` expr (triangle/chevron mask) or degrade to a wipe | **B** |
+| Static | noise-modulated dissolve (`xfade=pixelize`, or `custom` geq-noise) | **B** |
+| Circle / Rectangle / Shapes **Inset** | `overlay` + an animated shape **alpha mask** (`geq`/`maskedmerge`) | **C — compositing** |
+| Side-by-Side **Split** / Top & Bottom **Split** | `crop` halves + slide them apart over the incoming (`overlay` x/y expr) | **C** |
+
+So **~9 of the 16 are direct `xfade`** (Tier A), **3 more are a `custom`
+`xfade` expression** (Tier B), and only the **5 modular Inset/Split** transitions
+need a small **overlay/mask filtergraph** (Tier C) — heavier, but none are
+impossible. ffmpeg 8.1 exposes 58 `xfade` types total, so Tier A is comfortably
+the common case (dissolves, fades, wipes, slides/pushes, clock, circle).
 
 ### Why it fits the existing pipeline
 1. **The hard prerequisite — media overlap (handles) — is already produced.** §2's
@@ -171,10 +189,33 @@ the cut list; segments without a transition stay hard cuts (a zero-duration / pl
 concat join). All of that — the map and the offset/duration arithmetic — is
 **pure and 100% unit-testable**; only the ffmpeg run itself is manual/pipeline.
 
+### Performance — only re-encode the transition windows
+The maintainer's instinct is right: naively `xfade`-chaining the *whole* timeline
+re-encodes every frame, and the Tier-C compositing transitions (per-frame mask
+generation) are genuinely slower. The fix makes cost independent of clip length:
+**only re-encode the short overlap at each cut, then stream-copy-concat the rest.**
+Exported segments are **all-intra ProRes**, so they can be cut and joined on any
+frame without a re-encode. So the render is:
+
+1. For each cut with a transition, render just the **~0.5–1 s overlap** (the baked
+   handle region) through `xfade` / the compositing filtergraph → a short
+   transition clip.
+2. Emit the **between-transition body** of each segment as a stream-copy span.
+3. `concat` the bodies + transition clips in order.
+
+Cost ≈ Σ(transition duration) — a handful of sub-second renders — **not** the full
+runtime, regardless of how long the cut is or how many plain hard-cuts it has. The
+heavier Tier-C transitions then only pay over their own short windows. (Audio is
+the mirror: `acrossfade` the overlap, copy the rest.) Encode settings, thread
+count, and `xfade` vs compositing choice are second-order next to this.
+
 ### Recommendation
 **Feasible and on-mission** (the toolkit's whole point is finished ffmpeg output,
 not just timelines). Worth building as an **opt-in render mode** that reuses the
 already-baked handles, leaving the FCPXML suggestion path untouched. Filed as a
-follow-up feature (**VS-54**). Main caveats to handle there: the `xfade` `offset`
-bookkeeping across many segments, transitions that overrun a short clip's handle,
-and the FCP-only split/inset transitions that must degrade gracefully.
+follow-up feature (**VS-54**). Suggested build order: **Tier A first** (the
+direct-`xfade` palette covers ~9 of the 16 and most real use), then Tier B/C as
+demand warrants. Main caveats: the per-cut **windowed re-encode** above (the key
+to acceptable speed), the `xfade`/concat `offset` bookkeeping, transitions that
+overrun a short clip's handle (clamp duration to ≤ 2×handle), and building the
+Tier-C overlay/mask filtergraphs for the Inset/Split transitions.
