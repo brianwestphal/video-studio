@@ -97,8 +97,11 @@ quick view.
     (`bext`/`minf`/`elm1`/`regn`/`umid`): every edit referencing them imports as
     "Invalid edit with no respective media." Re-encode to a canonical `fmt`+`data`
     WAV (`ffmpeg -fflags +bitexact -i in.wav -map_metadata -1 -c:a pcm_s16le
-    -ac 2 -ar 48000 out.wav`) and reference that. (Follow-up: have the toolkit
-    detect/normalize this on sync/export — see the Hot Sheet.)
+    -ac 2 -ar 48000 out.wav`) and reference that. **`sync-multicam` and
+    `export-multicam-fcpxml` now detect this and warn** (with the fix command) on
+    any audio member that won't import — see
+    [`fcp-audio-compat.md`](fcp-audio-compat.md) (VS-40). Warn-only; opt-in
+    auto-normalize is deferred (VS-53).
 
 ## 3. Known hard problems (how they're handled)
 

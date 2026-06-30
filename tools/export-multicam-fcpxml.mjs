@@ -37,6 +37,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, isAbsolute, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { buildMulticamFcpxml } from "./fcpxml.mjs";
+import { warnFcpAudioCompat } from "./wav-compat-io.mjs";
 
 // fps as a "num/den" string for ffmpeg (keeps NTSC rates exact).
 function fpsArg(fps) {
@@ -81,6 +82,10 @@ function main() {
 
   const name = opts.name || group.id;
   const outPath = opts.out ? (isAbsolute(opts.out) ? opts.out : resolve(opts.out)) : resolve(`${name}.multicam.fcpxml`);
+
+  // The master audio is referenced by the FCPXML; warn if it's a WAV FCP would
+  // reject (Pro Tools / BWF chunking) so the import doesn't come in silent (VS-40).
+  for (const m of group.members.filter((m) => m.kind === "audio" && m.path)) warnFcpAudioCompat(m.path, m.id);
 
   // Each camera angle has a leading gap before that camera rolled. FCP anchors the
   // multicam to the earliest camera and clamps the master audio's head-start

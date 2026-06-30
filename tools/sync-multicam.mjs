@@ -36,6 +36,7 @@ import { isAbsolute, join, resolve } from "node:path";
 import { assignSourceIds } from "./sources.mjs";
 import { buildGroupManifest, classifySync } from "./multicam.mjs";
 import { condition, driftCorrection, findOffset, fitDrift } from "./multicam-dsp.mjs";
+import { warnFcpAudioCompat } from "./wav-compat-io.mjs";
 
 function parseArgs(argv) {
   const inputs = [];
@@ -175,6 +176,10 @@ function main() {
   const pool = audioOnly.length ? audioOnly : probed;
   const reference = pool.reduce((best, m) => (m.durationSeconds > best.durationSeconds ? m : best), pool[0]);
   console.log(`Reference: ${reference.id} (${reference.kind})`);
+
+  // Warn if any audio member is a WAV that FCP's importer would reject (Pro Tools
+  // / BWF chunking), so the master audio doesn't silently fail to import (VS-40).
+  for (const m of audioOnly) warnFcpAudioCompat(m.path, m.id);
 
   // "phat" is a correlation METHOD on the raw (mean-removed) waveform; "envelope"
   // / "raw" are conditioning features correlated with the standard method.

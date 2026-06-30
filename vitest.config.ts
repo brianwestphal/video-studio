@@ -25,6 +25,7 @@ export default defineConfig({
         "tools/multicam-dsp.mjs",
         "tools/multicam-groups.mjs",
         "tools/audio-events.mjs",
+        "tools/wav-compat.mjs",
       ],
       thresholds: {
         lines: 100,

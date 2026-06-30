@@ -123,6 +123,19 @@ exercise the ffmpeg mono extraction + the real end-to-end sync.
 | 8.4 | **Tier-2 spectral check** — inspect each section's `data.spectral` | Every content/structural `section` whose span contains an FFT window carries `data.spectral` with `centroidHz`, `rolloffHz`, `zcr`, `flux`, and `bands` (`[low, mid, high]` summing to ~1). On the BYAM master, structural-section centroids span ~1.3–2.3 kHz. |
 | 8.5 | **Tier-2 brightness check (needs a transcript)** — run 8.2 with a whisper transcript for the master, then compare `data.spectral.centroidHz`/`bands[2]` of the **instrumental (riff)** sections vs the **vocal** sections | The guitar-led instrumental spans should read **brighter** (higher centroid / high-band fraction) than the lead-vocal spans. No transcript is checked into `external/multi-cam/`, so this comparison is manual (see VS-51 for capturing one). |
 
+## 9. FCP-incompatible source audio warning (`tools/wav-compat-io.mjs`, VS-40)
+
+The pure detection (`tools/wav-compat.mjs`) is unit-tested; this exercises the
+real-file warning wired into `sync-multicam` / `export-multicam-fcpxml`. See
+[`fcp-audio-compat.md`](fcp-audio-compat.md).
+
+| # | Action | Expected |
+|---|--------|----------|
+| 9.1 | `node tools/sync-multicam.mjs "external/multi-cam/BYAM-audio.wav" "external/multi-cam/BYAM cam 1.mp4" …` (the **raw** Pro Tools / BWF WAV) | A stderr **WARNING** that the audio "may not import into Final Cut Pro", naming the non-canonical 40-byte `fmt ` chunk + the `junk, bext, minf, elm1` metadata chunks, the silent-import symptom, and the `ffmpeg -fflags +bitexact … -map_metadata -1 …` fix. The sync still completes normally. |
+| 9.2 | Re-run 9.1 with the **clean** WAV (`BYAM-audio-clean.wav`) | **No** warning (canonical 16-byte `fmt `, no metadata chunks). |
+| 9.3 | `node tools/export-multicam-fcpxml.mjs multicam.json` where the group's audio member is a BWF WAV | The same warning prints before the FCPXML is written; camera `.mp4`/`.mov` members never trigger it. |
+| 9.4 | **Normalize the source** with the suggested `ffmpeg` command, repoint the input, and re-run | No warning; FCP imports the master audio with sound (the VS-36 manual FCP-import check passes). |
+
 ## Automated Coverage Summary
 
 Covered by unit tests (do **not** re-test by hand):
@@ -164,6 +177,10 @@ Covered by unit tests (do **not** re-test by hand):
 - **`tools/audio-events.mjs`** — `rmsEnvelope`, `detectOnsets`, `vocalSpans`,
   `sectionize`, `spectralFeatures`, `aggregateSpectral`, `structureBoundaries`,
   `buildAudioEvents`, `wordsFromWhisper` (`tests/audio-events.test.ts`).
+- **`tools/wav-compat.mjs`** — `parseRiffChunks`, `classifyWavFcpCompat`,
+  `fcpCompatWarning` (`tests/wav-compat.test.ts`). 100% coverage — so §9's WAV
+  FCP-compat *classification* is unit-covered; §9 rows stay to verify the real
+  file read + warning + the FCP import after normalization.
   100% coverage. The ffmpeg mono extraction + whisper read + file write in
   `tools/analyze-audio-events.mjs` are §8 above.
 - **`tools/multicam-groups.mjs`** — `slug`, `groupByFolder`,
