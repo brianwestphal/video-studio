@@ -1,14 +1,14 @@
 # FCP Transition Suggestions
 
-Status: **Shipped (VS-28, palette expanded VS-50; ffmpeg render VS-54)** — opt-in
+Status: **Shipped (VS-28, palette expanded VS-50; ffmpeg render VS-54/55)** — opt-in
 `transitions` on the cut spec emit FCP `<transition>` elements into the
 editor-handoff `.fcpxml`, with handle media baked into the flanking segments
 (VS-23/VS-28/VS-50; extends the FCPXML export, [`editor-handoff.md`](editor-handoff.md)
 §6, VS-25). The effect `uid`s + transition geometry were captured from a real FCP
 "Export XML" and the output validates against FCP's bundled `FCPXMLv1_10.dtd`.
-**`render-transitions` (VS-54)** additionally bakes the transitions into a finished
-video with **no FCP required**, via ffmpeg `xfade`/`acrossfade` over the same baked
-handles (Tier A palette; see §8).
+**`render-transitions` (VS-54/55)** additionally bakes the transitions into a finished
+video with **no FCP required** — a windowed re-encode (cost ≈ Σ transition duration)
+with native Tier A/B/C transitions; see §8 and [`render-transitions.md`](render-transitions.md).
 
 **Supported transitions** (`TRANSITION_UIDS` in `tools/fcpxml.mjs`): Cross
 Dissolve, Fade To Color ("Dip to Color" alias); Slide, Push; Wipe, Diagonal,
@@ -212,31 +212,41 @@ heavier Tier-C transitions then only pay over their own short windows. (Audio is
 the mirror: `acrossfade` the overlap, copy the rest.) Encode settings, thread
 count, and `xfade` vs compositing choice are second-order next to this.
 
-### Shipped — `render-transitions` (VS-54, Tier A)
+### Shipped — `render-transitions` (VS-54 + VS-55)
 
 ```
-node tools/render-transitions.mjs <export>/manifest.json [--out <file.mov>]
+node tools/render-transitions.mjs <export>/manifest.json [--out <file.mov>] [--full-chain]
 ```
 
 Reads an editor-handoff export (its `segments` carry the baked handles + the
-`transitions` list) and renders one finished video, dissolving/wiping/sliding
-through each cut. The FCPXML suggestion path is untouched — this is an additional
-output for users who never open FCP.
+`transitions` list) and renders one finished video, dissolving/wiping/sliding/
+insetting through each cut. The FCPXML suggestion path is untouched — this is an
+additional output for users who never open FCP. **Full requirements:
+[`render-transitions.md`](render-transitions.md) (R-RT1–R-RT9).**
 
-- **`tools/transitions-render.mjs`** (pure, 100%): `TRANSITION_FFMPEG` (name →
-  `xfade` id), `xfadeId`, `buildTransitionRenderPlan` (per-segment trims + per-join
-  arithmetic: each `xfade` `offset` = running output length − duration; duration
-  **clamped to ≤ 2×available handle**; a cut with no handle material degrades to a
-  hard `concat`), and `transitionFilterComplex` (the `xfade`/`acrossfade` graph).
-- **`tools/render-transitions.mjs`** (thin I/O): trims each segment to its piece,
-  runs the one filtergraph, and muxes the continuous master audio afterward in the
-  multicam case. Validated on a synthetic 3-clip cut (manual-test-plan §10): the
-  output length equals the visible timeline (handles absorb the dissolves) and a
-  mid-dissolve frame is a genuine A→B blend.
-- **Tier mapping:** Tier A transitions use their direct `xfade` id; Tier B/C
-  (chevron/static/inset/split) currently fall back to the nearest Tier-A look.
-
-**Deferred (VS-55):** the **windowed re-encode** above (only re-encode the overlap,
-stream-copy the rest) — the current renderer re-encodes the whole timeline, which
-is correct but not yet optimized — plus native Tier-B/C transitions
-(custom-expression / overlay-mask filtergraphs).
+- **Windowed re-encode (default, VS-55).** Since the exported segments are
+  all-intra ProRes, the renderer re-encodes **only the short overlap at each
+  transition** and stream-copy-concats the bodies (via the concat demuxer's
+  frame-exact `inpoint`/`outpoint`), so render **cost ≈ Σ(transition duration)**
+  regardless of clip length or hard-cut count. `--full-chain` keeps the original
+  whole-timeline `xfade`/`acrossfade` graph for comparison / sample-exact duration.
+- **Native Tier-B/C (VS-55).** Each transition clip is rendered as its own
+  filtergraph, so the windowed path reproduces all three tiers natively:
+  **Tier A** direct `xfade`; **Tier B** `xfade=custom` expressions — Chevron (a
+  sideways-V wipe) and Static (a noise-modulated dissolve); **Tier C** overlay +
+  animated mask / crop-and-slide — Circle/Shapes/Rectangle **Inset** (a growing
+  alpha mask) and Side-by-Side / Top & Bottom **Split** (halves slide apart). The
+  full-chain path still degrades Tier B/C to the nearest Tier-A `xfade` look.
+- **`tools/transitions-render.mjs`** (pure, 100%): `TRANSITION_FFMPEG`/`xfadeId`
+  (Tier-A id map), `TRANSITION_RECIPES`/`transitionRecipe` + `CHEVRON_EXPR`/
+  `STATIC_EXPR` (native recipes), `buildTransitionRenderPlan`/
+  `transitionFilterComplex` (full-chain plan + graph), `buildWindowedRenderPlan`
+  (body/clip span arithmetic; transition duration **clamped to ≤ 2×available
+  handle**; a cut with no handle material degrades to a hard concat) and
+  `windowedClipFilter` (the per-clip filtergraph).
+- **`tools/render-transitions.mjs`** (thin I/O): renders each transition clip,
+  builds the concat list, concat-copies the bodies + clips, and muxes the
+  continuous master audio afterward in the multicam case. Validated on synthetic
+  3-clip (crossfade) and multicam (continuous, video-only) cuts (manual-test-plan
+  §10): the output frame count equals the visible timeline (handles absorb the
+  transitions) and mid-transition frames are genuine A→B composites for every tier.

@@ -44,8 +44,8 @@ and [`requirements-summary.md`](requirements-summary.md) for status.
 │   ├── analyze-audio-events.mjs # audio/video (+ whisper transcript) → audio-events.json (ffmpeg I/O over audio-events.mjs)
 │   ├── wav-compat.mjs          # pure RIFF parse + FCP-compat classification + sidecar path/ffmpeg-argv helpers for WAV source audio (unit-tested, VS-40/53)
 │   ├── wav-compat-io.mjs       # thin I/O: read a file's RIFF header, warn (or with --fcp-normalize-audio re-encode + repoint) FCP-incompatible WAVs (over wav-compat.mjs)
-│   ├── transitions-render.mjs  # pure: shipped-transition→xfade map + render plan (per-seg trims, xfade/concat join math) + filter_complex (unit-tested, VS-54)
-│   └── render-transitions.mjs  # bake transitions into a finished video via ffmpeg xfade/acrossfade — no FCP (I/O over transitions-render.mjs)
+│   ├── transitions-render.mjs  # pure: transition→recipe maps (Tier A xfade / B custom-expr / C overlay-mask) + full-chain & windowed render plans + filter_complex (unit-tested, VS-54/55)
+│   └── render-transitions.mjs  # bake transitions into a finished video via ffmpeg — no FCP; windowed re-encode (default) or --full-chain (I/O over transitions-render.mjs)
 ├── skills/
 │   └── video-studio/SKILL.md   # the pipeline Claude follows — primary interface
 ├── tests/
@@ -69,7 +69,8 @@ and [`requirements-summary.md`](requirements-summary.md) for status.
 │   ├── requirements.md         # source-of-truth requirements (shipped pipeline)
 │   ├── editor-handoff.md       # export segments + overlays + manifest + FCPXML (shipped, VS-24/25)
 │   ├── multiple-sources.md     # draw from many files/folders (shipped, VS-26)
-│   ├── transitions.md          # FCP transition suggestions in the FCPXML — shipped VS-28 (Cross Dissolve + Fade To Color + handles)
+│   ├── transitions.md          # FCP transition suggestions in the FCPXML — shipped VS-28/50 (full palette + handles)
+│   ├── render-transitions.md   # bake transitions into the video, no FCP — windowed re-encode + native Tier A/B/C (R-RT, VS-54/55)
 │   ├── multicam.md             # audio-synced multi-cam design (VS-19); sync shipped VS-27; FCP import validated VS-36
 │   ├── multicam-sync.md        # audio sync tool requirements + research findings (VS-27, shipped)
 │   ├── audio-events.md         # DESIGN: non-speech/musical audio events spec (R-AE, VS-41 → build VS-44)
@@ -183,7 +184,7 @@ launcher, `render-caption.mjs`'s Chromium path) is manual-test territory.
 | what the toolkit must do | `docs/requirements.md` |
 | editor-handoff + multi-source feature specs (shipped) | `docs/editor-handoff.md`, `docs/multiple-sources.md` |
 | FCP transition suggestions (shipped VS-28/50) | `docs/transitions.md` + `TRANSITION_UIDS`/handles in `tools/{fcpxml,export-manifest}.mjs` |
-| render transitions into video without FCP (VS-54) | `docs/transitions.md` §8 + `tools/transitions-render.mjs` (pure: xfade map + plan) + `tools/render-transitions.mjs` (ffmpeg I/O) |
+| render transitions into video without FCP (VS-54/55) | `docs/render-transitions.md` (R-RT) + `tools/transitions-render.mjs` (pure: recipe maps + full-chain/windowed plans + `windowedClipFilter`) + `tools/render-transitions.mjs` (ffmpeg I/O: windowed default, `--full-chain`) |
 | multi-cam design + audio sync spec | `docs/multicam.md` (design) + `docs/multicam-sync.md` (sync tool, shipped) |
 | auto multi-cam cutting / "edit awareness" (design) | `docs/audio-events.md` (R-AE) + `docs/visual-saliency.md` (R-VS) + `docs/multicam-auto-cut.md` (R-AC) |
 | non-speech audio-events pass → audio-events.json | `tools/analyze-audio-events.mjs` (ffmpeg I/O) + `tools/audio-events.mjs` (pure: envelope/onsets/sectioning + spectral descriptors/structural novelty, VS-44/49) |

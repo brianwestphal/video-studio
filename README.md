@@ -204,8 +204,9 @@ than locking you into its render.
 | [`tools/render-caption.mjs`](tools/render-caption.mjs) | Caption / lower-third / CTA → animated SVG → alpha video. |
 | [`tools/analyze-sources.mjs`](tools/analyze-sources.mjs) | Multiple-source input: files/folders → per-source analysis → `sources.json`. |
 | [`tools/sync-multicam.mjs`](tools/sync-multicam.mjs) | Audio-sync a multi-cam group → `multicam.json` (over the pure DSP in [`tools/multicam.mjs`](tools/multicam.mjs)). |
-| [`tools/export-project.mjs`](tools/export-project.mjs) | Editor handoff: cut spec → ProRes segments + alpha overlays + manifest + `rebuild.sh` + `.fcpxml`. |
-| [`docs/multicam-sync.md`](docs/multicam-sync.md) · [`docs/editor-handoff.md`](docs/editor-handoff.md) · [`docs/multiple-sources.md`](docs/multiple-sources.md) | Feature specs for multi-cam, the editor handoff, and multi-source input. |
+| [`tools/export-project.mjs`](tools/export-project.mjs) | Editor handoff: cut spec → ProRes segments + alpha overlays + manifest + `rebuild.sh` + `.fcpxml` (with optional FCP transitions). |
+| [`tools/render-transitions.mjs`](tools/render-transitions.mjs) | Bake the cut's transitions into a finished `.mov` with **no Final Cut Pro** — fast windowed re-encode, native dissolves/wipes/slides/insets/splits. |
+| [`docs/multicam-sync.md`](docs/multicam-sync.md) · [`docs/editor-handoff.md`](docs/editor-handoff.md) · [`docs/multiple-sources.md`](docs/multiple-sources.md) · [`docs/render-transitions.md`](docs/render-transitions.md) | Feature specs for multi-cam, the editor handoff, multi-source input, and rendering transitions without FCP. |
 | [`docs/manual-test-plan.md`](docs/manual-test-plan.md) | Manual checklist for the external-tool pipeline. |
 
 ## Development

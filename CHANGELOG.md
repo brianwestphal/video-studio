@@ -75,6 +75,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   offset (disable with `--no-black-fill`) (VS-36).
   The multicam FCPXML is generated to spec but should be validated by a real FCP
   import (see the manual test plan).
+- **Transitions** — an opt-in `transitions` block on the cut spec emits Final Cut
+  Pro `<transition>` elements into the editor-handoff `.fcpxml` (the full 16-built-in
+  palette: dissolves/fades, movements, wipes, insets/splits, Static), with handle
+  media baked into the flanking segments; the output validates against FCP's bundled
+  DTD (VS-28/50). New **`render-transitions`** additionally bakes the transitions
+  into a finished `.mov` with **no Final Cut Pro required** (VS-54/55). The default
+  **windowed** renderer re-encodes only the short overlap at each transition and
+  stream-copy-concats the rest, so the cost is ≈ the total transition duration
+  regardless of how long the cut is (`--full-chain` keeps the original
+  whole-timeline graph). All three effort tiers render natively: Tier A direct
+  `xfade`, Tier B `xfade=custom` expressions (Chevron, Static), and Tier C
+  overlay-mask / crop-and-slide (Circle/Rectangle/Shapes Inset, Side-by-Side /
+  Top & Bottom Split). Pure recipe maps + render plans in
+  `tools/transitions-render.mjs` (100% tested). See `docs/render-transitions.md`.
 - **Launcher** — the launcher now pauses ("Press Enter to launch Claude…") so its getting-started splash is readable before Claude's UI takes over the terminal (skipped with `--yes` or no TTY).
 - **Docs & onboarding** — added a `README.md`, an MIT `LICENSE` file, and a `docs/` set (requirements, release guide, manual test plan, and AI-summary maps).
 - **Shippable worked examples** — the `promo-assets/` teaser + caption/wordmark example scripts now ship with the package and run anywhere (env-configurable paths; no hardcoded machine paths; use the published `domotion-svg`).

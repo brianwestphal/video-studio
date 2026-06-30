@@ -17,7 +17,8 @@ sync with the requirements doc and code; the source wins on conflict.
 | Quality gates | R7.1–R7.4 | **Shipped** |
 | Editor handoff (segments + overlays + manifest/FCPXML) | [`editor-handoff.md`](../editor-handoff.md) | **Shipped** — export + manifest + rebuild (VS-24) + FCPXML (VS-25) |
 | Multiple source videos | [`multiple-sources.md`](../multiple-sources.md) | **Shipped** (VS-26) |
-| FCP transition suggestions + ffmpeg render | [`transitions.md`](../transitions.md) | **Shipped** (VS-28, VS-50) — opt-in `transitions` → FCP `<transition>`s (16 built-ins: dissolves/fades, movements, wipes, insets/splits, Static) + baked segment handles; DTD-valid. **`render-transitions` (VS-54)** bakes them into a finished video with **no FCP** via ffmpeg `xfade`/`acrossfade` over the same handles (Tier A direct; Tier B/C fall back to nearest look). Windowed-render optimization + native Tier B/C deferred (VS-55). |
+| FCP transition suggestions | [`transitions.md`](../transitions.md) | **Shipped** (VS-28, VS-50) — opt-in `transitions` → FCP `<transition>`s (16 built-ins: dissolves/fades, movements, wipes, insets/splits, Static) + baked segment handles; DTD-valid. |
+| Render transitions into the video (no FCP) | [`render-transitions.md`](../render-transitions.md) | **Shipped** (VS-54 + VS-55, R-RT1–R-RT9) — `render-transitions` bakes the transitions into a finished video with **no FCP**, reusing the baked handles. **Windowed re-encode** (default): re-encode only each transition overlap + stream-copy-concat the bodies (cost ≈ Σ transition duration); `--full-chain` for the whole-timeline graph. **Native Tier A/B/C**: Tier A direct `xfade`, Tier B `xfade=custom` (chevron/static), Tier C overlay-mask/crop-slide (inset/split). |
 | Multi-cam editing | [`multicam.md`](../multicam.md), [`multicam-sync.md`](../multicam-sync.md) | **Shipped** — sync, group proposal, angle switching → flat-timeline export, drift correction applied on export, true FCPXML mc-clip asset (VS-27/29/30/31/32/33); **FCP import validated against the real app (VS-36)** |
 | FCP-incompatible source audio detection | [`fcp-audio-compat.md`](../fcp-audio-compat.md) | **Shipped** (VS-40 + VS-53) — detect Pro Tools / BWF WAVs (non-16-byte PCM `fmt `, `bext`/`minf`/`elm1`/`JUNK`…) that FCP imports silently; `sync-multicam` + `export-multicam-fcpxml` warn with the `ffmpeg` fix, or with `--fcp-normalize-audio` re-encode to a canonical `<name>.fcp.wav` sidecar + repoint (R-FA1–R-FA5). |
 | Edit awareness / auto multi-cam cutting | [`audio-events.md`](../audio-events.md), [`visual-saliency.md`](../visual-saliency.md), [`multicam-auto-cut.md`](../multicam-auto-cut.md) | **Partial** — specs done (VS-41/42/43); **audio-events Tier-1 + Tier-2 shipped (VS-44, VS-49)**; visual saliency (VS-45), selector (VS-46), integration (VS-47) pending |
@@ -91,13 +92,15 @@ the full palette in VS-50). The "edit awareness" auto-cut initiative is partial
   a real FCP export; output validates against FCP's bundled `FCPXMLv1_10.dtd`. The
   AI picks transitions per cut (SKILL.md §7, hard-cut by default). The full
   16-transition palette (movements, wipes, insets/splits, Static) was added in
-  **VS-50**. **`render-transitions` (VS-54)** also bakes the transitions into a
-  finished video with **no FCP** — `tools/transitions-render.mjs` (pure: name→`xfade`
-  map + per-segment trims + xfade/concat join math + `filter_complex`, 100% tested)
-  + `tools/render-transitions.mjs` (ffmpeg I/O) reuse the baked handles to
-  dissolve/wipe/slide through each cut. Tier A maps directly; Tier B/C fall back to
-  the nearest look; the windowed-render optimization is deferred (VS-55).
-  [`transitions.md`](../transitions.md) §8.
+  **VS-50**. **`render-transitions` (VS-54 + VS-55)** also bakes the transitions into a
+  finished video with **no FCP** — `tools/transitions-render.mjs` (pure: recipe maps +
+  full-chain & **windowed** render plans + `windowedClipFilter`, 100% tested) +
+  `tools/render-transitions.mjs` (ffmpeg I/O) reuse the baked handles. The default
+  **windowed** render re-encodes only each transition overlap and stream-copy-concats
+  the bodies (cost ≈ Σ transition duration); `--full-chain` keeps the whole-timeline
+  graph. **Native Tier A/B/C**: Tier A direct `xfade`, Tier B `xfade=custom`
+  (chevron/static), Tier C overlay-mask/crop-slide (inset/split). See
+  [`render-transitions.md`](../render-transitions.md) + [`transitions.md`](../transitions.md) §8.
 - **Multi-cam (Shipped)** — audio sync **shipped** (VS-27):
   `tools/sync-multicam.mjs` (ffmpeg mono extract + run) over `tools/multicam-dsp.mjs`
   (pure FFT cross-correlation, normalized-peak confidence gate, drift fit) +
