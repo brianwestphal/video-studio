@@ -71,6 +71,23 @@ export function classifyWavFcpCompat(summary) {
   return { isWav: true, safe: reasons.length === 0, reasons };
 }
 
+// The canonical-sidecar path for a source WAV: `<dir>/<base>.fcp.wav` (a trailing
+// extension is replaced; a path with no extension just gets `.fcp.wav` appended).
+// This is where the opt-in auto-normalize (VS-53) writes the FCP-safe re-encode.
+export function fcpSidecarPath(srcPath) {
+  const dot = srcPath.lastIndexOf(".");
+  const slash = Math.max(srcPath.lastIndexOf("/"), srcPath.lastIndexOf("\\"));
+  const stem = dot > slash ? srcPath.slice(0, dot) : srcPath;
+  return `${stem}.fcp.wav`;
+}
+
+// ffmpeg argv for the canonical FCP-safe re-encode of `srcPath` → `outPath`
+// (the WAV_NORMALIZE_HINT command: bit-exact, metadata stripped, 16-bit/48k stereo
+// PCM). The actual run lives in the I/O wrapper.
+export function fcpNormalizeArgs(srcPath, outPath) {
+  return ["-v", "error", "-y", "-fflags", "+bitexact", "-i", srcPath, "-map_metadata", "-1", "-c:a", "pcm_s16le", "-ac", "2", "-ar", "48000", outPath];
+}
+
 // Format a human warning for a classified WAV, or null when there is nothing to
 // warn about (FCP-safe, or not a WAV). `label` identifies the file in the message.
 export function fcpCompatWarning(label, classification) {

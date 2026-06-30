@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 // @ts-expect-error — JS module, no types
-import { classifyWavFcpCompat, fcpCompatWarning, parseRiffChunks, WAV_NORMALIZE_HINT } from "../tools/wav-compat.mjs";
+import { classifyWavFcpCompat, fcpCompatWarning, fcpNormalizeArgs, fcpSidecarPath, parseRiffChunks, WAV_NORMALIZE_HINT } from "../tools/wav-compat.mjs";
 
 // --- byte builders for synthetic WAV headers ---
 
@@ -121,5 +121,27 @@ describe("fcpCompatWarning", () => {
     expect(w).toContain("byam-audio may not import into Final Cut Pro");
     expect(w).toContain("a; b.");
     expect(w).toContain(WAV_NORMALIZE_HINT);
+  });
+});
+
+describe("fcpSidecarPath", () => {
+  it("replaces a trailing extension with .fcp.wav", () => {
+    expect(fcpSidecarPath("/a/b/BYAM-audio.wav")).toBe("/a/b/BYAM-audio.fcp.wav");
+    expect(fcpSidecarPath("/a/b/track.aiff")).toBe("/a/b/track.fcp.wav");
+  });
+  it("appends .fcp.wav when the basename has no extension", () => {
+    expect(fcpSidecarPath("/a/b/master")).toBe("/a/b/master.fcp.wav");
+  });
+  it("does not treat a dot in a parent directory as an extension", () => {
+    expect(fcpSidecarPath("/a.dir/master")).toBe("/a.dir/master.fcp.wav");
+  });
+});
+
+describe("fcpNormalizeArgs", () => {
+  it("builds the canonical bit-exact, metadata-stripped 16-bit/48k stereo re-encode", () => {
+    expect(fcpNormalizeArgs("in.wav", "out.fcp.wav")).toEqual([
+      "-v", "error", "-y", "-fflags", "+bitexact", "-i", "in.wav",
+      "-map_metadata", "-1", "-c:a", "pcm_s16le", "-ac", "2", "-ar", "48000", "out.fcp.wav",
+    ]);
   });
 });

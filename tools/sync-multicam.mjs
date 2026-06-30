@@ -36,7 +36,7 @@ import { isAbsolute, join, resolve } from "node:path";
 import { assignSourceIds } from "./sources.mjs";
 import { buildGroupManifest, classifySync } from "./multicam.mjs";
 import { condition, driftCorrection, findOffset, fitDrift } from "./multicam-dsp.mjs";
-import { warnFcpAudioCompat } from "./wav-compat-io.mjs";
+import { ensureFcpCompatAudio } from "./wav-compat-io.mjs";
 
 function parseArgs(argv) {
   const inputs = [];
@@ -53,6 +53,7 @@ function parseArgs(argv) {
     window: 30,
     interpolate: true,
     out: undefined,
+    fcpNormalizeAudio: false,
   };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
@@ -66,12 +67,13 @@ function parseArgs(argv) {
     else if (a === "--drift-min") opts.driftMin = Number(argv[++i]);
     else if (a === "--window") opts.window = Number(argv[++i]);
     else if (a === "--no-interpolate") opts.interpolate = false;
+    else if (a === "--fcp-normalize-audio") opts.fcpNormalizeAudio = true;
     else if (a === "--out") opts.out = argv[++i];
     else if (a === "--manual") {
       const [id, sec] = String(argv[++i]).split("=");
       manual.set(id, Number(sec));
     } else if (a === "-h" || a === "--help") {
-      console.log("Usage: sync-multicam <clip…> [--group-id <id>] [--project-fps <n>] [--sample-rate <hz>] [--feature <envelope|raw|phat>] [--max-offset <sec>] [--accept <0..1>] [--reject <0..1>] [--drift-min <sec>] [--window <sec>] [--no-interpolate] [--manual <id>=<sec>] [--out <multicam.json>]");
+      console.log("Usage: sync-multicam <clip…> [--group-id <id>] [--project-fps <n>] [--sample-rate <hz>] [--feature <envelope|raw|phat>] [--max-offset <sec>] [--accept <0..1>] [--reject <0..1>] [--drift-min <sec>] [--window <sec>] [--no-interpolate] [--fcp-normalize-audio] [--manual <id>=<sec>] [--out <multicam.json>]");
       process.exit(0);
     } else if (a.startsWith("-")) {
       console.error(`Unknown option: ${a}`);
@@ -179,7 +181,11 @@ function main() {
 
   // Warn if any audio member is a WAV that FCP's importer would reject (Pro Tools
   // / BWF chunking), so the master audio doesn't silently fail to import (VS-40).
-  for (const m of audioOnly) warnFcpAudioCompat(m.path, m.id);
+  // With --fcp-normalize-audio, write a canonical <name>.fcp.wav sidecar and
+  // repoint the member at it so multicam.json carries the FCP-safe file (VS-53).
+  for (const m of audioOnly) {
+    m.path = ensureFcpCompatAudio(m.path, { label: m.id, normalize: opts.fcpNormalizeAudio }).path;
+  }
 
   // "phat" is a correlation METHOD on the raw (mean-removed) waveform; "envelope"
   // / "raw" are conditioning features correlated with the standard method.

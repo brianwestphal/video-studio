@@ -1,16 +1,18 @@
 # FCP-incompatible source audio detection (requirements)
 
-Status: **Shipped (VS-40)** — warn-only detection of WAV source audio that Final
-Cut Pro's FCPXML importer would reject. Follow-up from
-[`multicam.md`](multicam.md) / VS-36. Cross-referenced from
-[`requirements.md`](requirements.md).
+Status: **Shipped (VS-40 detection + VS-53 opt-in auto-normalize)** — detect WAV
+source audio that Final Cut Pro's FCPXML importer would reject and, by default,
+warn; with `--fcp-normalize-audio`, write a canonical sidecar and repoint the
+export at it. Follow-up from [`multicam.md`](multicam.md) / VS-36. Cross-referenced
+from [`requirements.md`](requirements.md).
 
-**Implementation:** pure RIFF parse + classification in
+**Implementation:** pure RIFF parse + classification + path/argv helpers in
 [`../tools/wav-compat.mjs`](../tools/wav-compat.mjs) (`parseRiffChunks`,
-`classifyWavFcpCompat`, `fcpCompatWarning`; 100% unit-tested,
-`tests/wav-compat.test.ts`); the file-header read + stderr warning in the thin I/O
-wrapper [`../tools/wav-compat-io.mjs`](../tools/wav-compat-io.mjs) (`readRiffHeader`,
-`warnFcpAudioCompat`; manual-test-plan §9), called by `sync-multicam` and
+`classifyWavFcpCompat`, `fcpCompatWarning`, `fcpSidecarPath`, `fcpNormalizeArgs`;
+100% unit-tested, `tests/wav-compat.test.ts`); the file-header read + warn/normalize
+orchestration in the thin I/O wrapper
+[`../tools/wav-compat-io.mjs`](../tools/wav-compat-io.mjs) (`readRiffHeader`,
+`ensureFcpCompatAudio`; manual-test-plan §9), called by `sync-multicam` and
 `export-multicam-fcpxml` on their audio members.
 
 ## 1. Why
@@ -42,11 +44,17 @@ they hit a silent import.
   `JUNK` is present (matched case-insensitively).
 - Non-WAV inputs (camera `.mov`/`.mp4`, truncated/unreadable reads) are reported
   as **not a WAV** and pass silently — the check only concerns WAV source audio.
-- **Policy: warn-only.** When an audio member needs normalization, the toolkit
-  prints a loud stderr warning (naming the file, the reasons, the silent-import
-  symptom, and the exact `ffmpeg` fix) but does **not** modify or repoint media.
-  Auto-normalize-and-repoint is intentionally deferred (see §5) — it writes a new
-  file next to the source, which should be an explicit opt-in.
+- **Default policy: warn-only.** When an audio member needs normalization, the
+  toolkit prints a loud stderr warning (naming the file, the reasons, the
+  silent-import symptom, and the exact `ffmpeg` fix) but does **not** modify or
+  repoint media.
+- **Opt-in auto-normalize (`--fcp-normalize-audio`, VS-53).** When the flag is set
+  and a member needs normalization, the toolkit re-encodes it to a canonical
+  **`<name>.fcp.wav`** sidecar **next to the source** (the maintainer's choice over
+  a temp/output dir, so the FCPXML asset has a stable path that outlives the run)
+  and **repoints** the manifest / FCPXML asset at it. A sidecar that already exists
+  and is at least as new as the source is **reused** (no re-encode). Off by default
+  because it writes a new file beside the source.
 
 ## 3. Requirements
 
@@ -57,19 +65,22 @@ they hit a silent import.
   member** and warn (stderr) when its WAV would not import into FCP, citing the
   reasons and the canonical `ffmpeg` re-encode. The check never throws or aborts
   the sync/export (a read failure is ignored).
-- **R-FA3** Warn-only: the toolkit does not rewrite or repoint source media. The
-  `ffmpeg` normalization itself stays a manual/pipeline step (manual-test-plan §9).
+- **R-FA3** Default warn-only: without the flag, the toolkit does not rewrite or
+  repoint source media.
 - **R-FA4** Non-WAV and unreadable inputs are treated as safe (no false warnings
   on camera video files).
+- **R-FA5** (VS-53) With `--fcp-normalize-audio`, a needs-normalization member is
+  re-encoded to a canonical `<name>.fcp.wav` sidecar **next to the source** and the
+  manifest / FCPXML asset is **repointed** at it. The pure pieces — the sidecar
+  **path** (`fcpSidecarPath`) and the `ffmpeg` **argv** (`fcpNormalizeArgs`) — are
+  100%-covered; the re-encode run is manual/pipeline. An up-to-date sidecar is
+  reused (no redundant re-encode).
 
 ## 4. Out of scope
 
-The FCPXML generation (correct + DTD-valid, VS-36); non-WAV audio containers;
-repairing the audio (re-encoding is the documented manual `ffmpeg` step); deep BWF
-metadata parsing beyond chunk presence.
+The FCPXML generation (correct + DTD-valid, VS-36); non-WAV audio containers; deep
+BWF metadata parsing beyond chunk presence.
 
 ## 5. Follow-ups
 
-- **Opt-in auto-normalize (VS-53)** — an explicit flag that, on detecting an
-  FCP-incompatible WAV, writes a canonical sidecar (`<name>.fcp.wav`) and repoints
-  the export at it, so the FCP import "just works" without a manual re-encode.
+None open. (VS-53 — opt-in auto-normalize — is now shipped, above.)

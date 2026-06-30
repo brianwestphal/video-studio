@@ -42,8 +42,8 @@ and [`requirements-summary.md`](requirements-summary.md) for status.
 │   ├── render-multicam-preview.mjs # multicam.json + switches → flat preview MP4 of the angle cut (I/O over resolveAngleCuts)
 │   ├── audio-events.mjs        # pure non-speech audio-events DSP: RMS envelope, onsets, vocal/instrumental sectioning, spectral descriptors + structural novelty, schema (unit-tested, VS-44/49)
 │   ├── analyze-audio-events.mjs # audio/video (+ whisper transcript) → audio-events.json (ffmpeg I/O over audio-events.mjs)
-│   ├── wav-compat.mjs          # pure RIFF parse + FCP-compat classification of WAV source audio (unit-tested, VS-40)
-│   └── wav-compat-io.mjs       # thin I/O: read a file's RIFF header + warn on FCP-incompatible WAVs (over wav-compat.mjs)
+│   ├── wav-compat.mjs          # pure RIFF parse + FCP-compat classification + sidecar path/ffmpeg-argv helpers for WAV source audio (unit-tested, VS-40/53)
+│   └── wav-compat-io.mjs       # thin I/O: read a file's RIFF header, warn (or with --fcp-normalize-audio re-encode + repoint) FCP-incompatible WAVs (over wav-compat.mjs)
 ├── skills/
 │   └── video-studio/SKILL.md   # the pipeline Claude follows — primary interface
 ├── tests/
@@ -183,7 +183,7 @@ launcher, `render-caption.mjs`'s Chromium path) is manual-test territory.
 | multi-cam design + audio sync spec | `docs/multicam.md` (design) + `docs/multicam-sync.md` (sync tool, shipped) |
 | auto multi-cam cutting / "edit awareness" (design) | `docs/audio-events.md` (R-AE) + `docs/visual-saliency.md` (R-VS) + `docs/multicam-auto-cut.md` (R-AC) |
 | non-speech audio-events pass → audio-events.json | `tools/analyze-audio-events.mjs` (ffmpeg I/O) + `tools/audio-events.mjs` (pure: envelope/onsets/sectioning + spectral descriptors/structural novelty, VS-44/49) |
-| FCP-incompatible WAV audio detection (warn-only) | `docs/fcp-audio-compat.md` (R-FA) + `tools/wav-compat.mjs` (pure) + `tools/wav-compat-io.mjs` (I/O warn), wired into `sync-multicam`/`export-multicam-fcpxml` (VS-40) |
+| FCP-incompatible WAV audio detection + opt-in normalize | `docs/fcp-audio-compat.md` (R-FA) + `tools/wav-compat.mjs` (pure) + `tools/wav-compat-io.mjs` (I/O warn / `--fcp-normalize-audio` re-encode), wired into `sync-multicam`/`export-multicam-fcpxml` (VS-40/53) |
 | how to release | `docs/releasing.md` + `scripts/release.sh` |
 | manual pipeline tests | `docs/manual-test-plan.md` |
 | README demo media + how it's regenerated | `docs/media/` + `scripts/gen-readme-media.sh` |

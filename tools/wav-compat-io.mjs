@@ -3,8 +3,9 @@
 // parse/classify/format logic is in wav-compat.mjs (100% unit-tested); the file
 // read here is manual/pipeline-tested (docs/manual-test-plan.md). Used by
 // sync-multicam and export-multicam-fcpxml on their audio members.
-import { closeSync, openSync, readSync } from "node:fs";
-import { classifyWavFcpCompat, fcpCompatWarning, parseRiffChunks } from "./wav-compat.mjs";
+import { execFileSync } from "node:child_process";
+import { closeSync, existsSync, openSync, readSync, statSync } from "node:fs";
+import { classifyWavFcpCompat, fcpCompatWarning, fcpNormalizeArgs, fcpSidecarPath, parseRiffChunks } from "./wav-compat.mjs";
 
 // Read up to `bytes` from the start of `path` (the RIFF header; the chunk table +
 // metadata precede the audio data, so 64 KB is ample). Returns a Uint8Array of the
@@ -20,20 +21,35 @@ export function readRiffHeader(path, bytes = 65536) {
   }
 }
 
-// Inspect `path` and, if it's a WAV that FCP may reject, print a warning to stderr.
-// `label` names the file in the message. Returns true when a warning was emitted.
-// Never throws on a read failure — a compatibility check must not break sync/export.
-export function warnFcpAudioCompat(path, label = path) {
+// Ensure `path` is an FCP-importable WAV. Reads + classifies the header; then:
+//   - FCP-safe / not-a-WAV / unreadable → returns the path unchanged.
+//   - needs normalization + `normalize` false → warns to stderr (warn-only, VS-40)
+//     and returns the path unchanged.
+//   - needs normalization + `normalize` true → writes (or reuses a fresh) canonical
+//     `<name>.fcp.wav` sidecar via ffmpeg and returns THAT path (VS-53).
+// Returns { path, normalized }. Never throws on a read failure — a compatibility
+// check must not break sync/export.
+export function ensureFcpCompatAudio(path, { label = path, normalize = false } = {}) {
   let classification;
   try {
     classification = classifyWavFcpCompat(parseRiffChunks(readRiffHeader(path)));
   } catch {
-    return false; // unreadable / not a real file → skip the advisory check
+    return { path, normalized: false }; // unreadable / not a real file → leave as-is
   }
-  const warning = fcpCompatWarning(label, classification);
-  if (warning) {
-    console.warn(warning);
-    return true;
+  if (!classification.isWav || classification.safe) return { path, normalized: false };
+
+  if (!normalize) {
+    console.warn(fcpCompatWarning(label, classification));
+    return { path, normalized: false };
   }
-  return false;
+
+  const out = fcpSidecarPath(path);
+  // Reuse an existing sidecar that is at least as new as the source; else re-encode.
+  if (existsSync(out) && statSync(out).mtimeMs >= statSync(path).mtimeMs) {
+    console.warn(`Using existing FCP-safe WAV for ${label}: ${out}`);
+  } else {
+    execFileSync("ffmpeg", fcpNormalizeArgs(path, out));
+    console.warn(`Normalized ${label} → ${out} (canonical FCP-safe WAV).`);
+  }
+  return { path: out, normalized: true };
 }

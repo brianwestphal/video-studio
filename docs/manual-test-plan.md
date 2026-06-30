@@ -152,10 +152,11 @@ the angle selector (VS-46) needs robust instrument/vocal brightness, stems are t
 way; the per-window descriptors themselves are correct and discriminate strongly
 on single-source tones (8.4 / `tests/audio-events.test.ts`).
 
-## 9. FCP-incompatible source audio warning (`tools/wav-compat-io.mjs`, VS-40)
+## 9. FCP-incompatible source audio: warn + opt-in normalize (`tools/wav-compat-io.mjs`, VS-40/53)
 
-The pure detection (`tools/wav-compat.mjs`) is unit-tested; this exercises the
-real-file warning wired into `sync-multicam` / `export-multicam-fcpxml`. See
+The pure detection + path/argv helpers (`tools/wav-compat.mjs`) are unit-tested;
+this exercises the real-file warning and the `ffmpeg` re-encode (`ensureFcpCompatAudio`)
+wired into `sync-multicam` / `export-multicam-fcpxml`. See
 [`fcp-audio-compat.md`](fcp-audio-compat.md).
 
 | # | Action | Expected |
@@ -163,7 +164,9 @@ real-file warning wired into `sync-multicam` / `export-multicam-fcpxml`. See
 | 9.1 | `node tools/sync-multicam.mjs "external/multi-cam/BYAM-audio.wav" "external/multi-cam/BYAM cam 1.mp4" …` (the **raw** Pro Tools / BWF WAV) | A stderr **WARNING** that the audio "may not import into Final Cut Pro", naming the non-canonical 40-byte `fmt ` chunk + the `junk, bext, minf, elm1` metadata chunks, the silent-import symptom, and the `ffmpeg -fflags +bitexact … -map_metadata -1 …` fix. The sync still completes normally. |
 | 9.2 | Re-run 9.1 with the **clean** WAV (`BYAM-audio-clean.wav`) | **No** warning (canonical 16-byte `fmt `, no metadata chunks). |
 | 9.3 | `node tools/export-multicam-fcpxml.mjs multicam.json` where the group's audio member is a BWF WAV | The same warning prints before the FCPXML is written; camera `.mp4`/`.mov` members never trigger it. |
-| 9.4 | **Normalize the source** with the suggested `ffmpeg` command, repoint the input, and re-run | No warning; FCP imports the master audio with sound (the VS-36 manual FCP-import check passes). |
+| 9.4 | Re-run 9.1 / 9.3 with **`--fcp-normalize-audio`** (VS-53) | The toolkit re-encodes the BWF WAV to a canonical **`<name>.fcp.wav`** sidecar next to the source (`Normalized … → ….fcp.wav`) and repoints the manifest / FCPXML asset at it. The sidecar parses as `fmt (16)` + `data` (canonical PCM) and no longer warns. |
+| 9.5 | Run 9.4 a **second time** (sidecar already present + up to date) | The sidecar is **reused** (`Using existing FCP-safe WAV …`), no re-encode. Touch/delete the sidecar (or modify the source) to force a fresh re-encode. |
+| 9.6 | Import the FCPXML (built with `--fcp-normalize-audio`) into Final Cut Pro | The master audio imports **with sound** — the VS-36 silent-import case is resolved without a manual `ffmpeg` step. |
 
 ## Automated Coverage Summary
 

@@ -37,7 +37,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, isAbsolute, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { buildMulticamFcpxml } from "./fcpxml.mjs";
-import { warnFcpAudioCompat } from "./wav-compat-io.mjs";
+import { ensureFcpCompatAudio } from "./wav-compat-io.mjs";
 
 // fps as a "num/den" string for ffmpeg (keeps NTSC rates exact).
 function fpsArg(fps) {
@@ -48,7 +48,7 @@ function fpsArg(fps) {
 }
 
 function parseArgs(argv) {
-  const opts = { file: undefined, group: undefined, name: undefined, total: undefined, start: undefined, width: undefined, height: undefined, out: undefined, switches: [], blackFill: true };
+  const opts = { file: undefined, group: undefined, name: undefined, total: undefined, start: undefined, width: undefined, height: undefined, out: undefined, switches: [], blackFill: true, fcpNormalizeAudio: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--group") opts.group = argv[++i];
@@ -58,12 +58,13 @@ function parseArgs(argv) {
     else if (a === "--width") opts.width = Number(argv[++i]);
     else if (a === "--height") opts.height = Number(argv[++i]);
     else if (a === "--no-black-fill") opts.blackFill = false;
+    else if (a === "--fcp-normalize-audio") opts.fcpNormalizeAudio = true;
     else if (a === "--out") opts.out = argv[++i];
     else if (a === "--switch") {
       const [sec, id] = String(argv[++i]).split("=");
       opts.switches.push({ atSeconds: Number(sec), memberId: id });
     } else if (a === "-h" || a === "--help") {
-      console.log("Usage: export-multicam-fcpxml <multicam.json> --width <w> --height <h> [--group <id>] [--switch <sec>=<id>]… [--name <name>] [--total <sec>] [--start <sec>] [--no-black-fill] [--out <file.fcpxml>]");
+      console.log("Usage: export-multicam-fcpxml <multicam.json> --width <w> --height <h> [--group <id>] [--switch <sec>=<id>]… [--name <name>] [--total <sec>] [--start <sec>] [--no-black-fill] [--fcp-normalize-audio] [--out <file.fcpxml>]");
       process.exit(0);
     } else if (a.startsWith("-")) { console.error(`Unknown option: ${a}`); process.exit(2); }
     else opts.file = a;
@@ -83,9 +84,13 @@ function main() {
   const name = opts.name || group.id;
   const outPath = opts.out ? (isAbsolute(opts.out) ? opts.out : resolve(opts.out)) : resolve(`${name}.multicam.fcpxml`);
 
-  // The master audio is referenced by the FCPXML; warn if it's a WAV FCP would
-  // reject (Pro Tools / BWF chunking) so the import doesn't come in silent (VS-40).
-  for (const m of group.members.filter((m) => m.kind === "audio" && m.path)) warnFcpAudioCompat(m.path, m.id);
+  // The master audio is referenced by the FCPXML; if it's a WAV FCP would reject
+  // (Pro Tools / BWF chunking), warn so the import doesn't come in silent (VS-40),
+  // or with --fcp-normalize-audio write a canonical <name>.fcp.wav sidecar and
+  // repoint the asset at it so the FCP import has sound (VS-53).
+  for (const m of group.members.filter((m) => m.kind === "audio" && m.path)) {
+    m.path = ensureFcpCompatAudio(m.path, { label: m.id, normalize: opts.fcpNormalizeAudio }).path;
+  }
 
   // Each camera angle has a leading gap before that camera rolled. FCP anchors the
   // multicam to the earliest camera and clamps the master audio's head-start

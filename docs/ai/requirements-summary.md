@@ -19,7 +19,7 @@ sync with the requirements doc and code; the source wins on conflict.
 | Multiple source videos | [`multiple-sources.md`](../multiple-sources.md) | **Shipped** (VS-26) |
 | FCP transition suggestions | [`transitions.md`](../transitions.md) | **Shipped** (VS-28, VS-50) — opt-in `transitions` → FCP `<transition>`s (16 built-ins: dissolves/fades, movements, wipes, insets/splits, Static) + baked segment handles; DTD-valid. **VS-52 investigation:** ffmpeg `xfade`/`acrossfade` can render real transitions into the toolkit's own MP4 (no FCP) reusing the baked handles → opt-in render mode filed as VS-54 (transitions.md §8). |
 | Multi-cam editing | [`multicam.md`](../multicam.md), [`multicam-sync.md`](../multicam-sync.md) | **Shipped** — sync, group proposal, angle switching → flat-timeline export, drift correction applied on export, true FCPXML mc-clip asset (VS-27/29/30/31/32/33); **FCP import validated against the real app (VS-36)** |
-| FCP-incompatible source audio detection | [`fcp-audio-compat.md`](../fcp-audio-compat.md) | **Shipped** (VS-40) — warn-only detection of Pro Tools / BWF WAVs (non-16-byte PCM `fmt `, `bext`/`minf`/`elm1`/`JUNK`…) that FCP imports silently; `sync-multicam` + `export-multicam-fcpxml` warn with the `ffmpeg` fix (R-FA). Auto-normalize deferred (VS-53). |
+| FCP-incompatible source audio detection | [`fcp-audio-compat.md`](../fcp-audio-compat.md) | **Shipped** (VS-40 + VS-53) — detect Pro Tools / BWF WAVs (non-16-byte PCM `fmt `, `bext`/`minf`/`elm1`/`JUNK`…) that FCP imports silently; `sync-multicam` + `export-multicam-fcpxml` warn with the `ffmpeg` fix, or with `--fcp-normalize-audio` re-encode to a canonical `<name>.fcp.wav` sidecar + repoint (R-FA1–R-FA5). |
 | Edit awareness / auto multi-cam cutting | [`audio-events.md`](../audio-events.md), [`visual-saliency.md`](../visual-saliency.md), [`multicam-auto-cut.md`](../multicam-auto-cut.md) | **Partial** — specs done (VS-41/42/43); **audio-events Tier-1 + Tier-2 shipped (VS-44, VS-49)**; visual saliency (VS-45), selector (VS-46), integration (VS-47) pending |
 
 The core pipeline plus the editor handoff (export + FCPXML) and multi-source
@@ -112,14 +112,17 @@ the full palette in VS-50). The "edit awareness" auto-cut initiative is partial
   (`export-multicam-fcpxml` + `buildMulticamFcpxml`) emits a live re-cuttable angle
   clip referencing the original media (VS-33; FCP import is a manual validation).
   See [`multicam.md`](../multicam.md) + [`multicam-sync.md`](../multicam-sync.md).
-- **FCP-incompatible source audio detection (Shipped, VS-40)** — `tools/wav-compat.mjs`
-  (pure RIFF parse + classify, 100% tests) + `tools/wav-compat-io.mjs` (header read +
-  stderr warn) detect Pro Tools / BWF WAVs that FCP's importer rejects (non-16-byte
-  PCM `fmt `, `bext`/`minf`/`elm1`/`regn`/`umid`/`JUNK` chunks) — the silent
-  "Invalid edit with no respective media" case from VS-36. `sync-multicam` and
-  `export-multicam-fcpxml` warn on their audio members with the canonical `ffmpeg`
-  fix. **Warn-only** by policy; opt-in auto-normalize is deferred (VS-53). See
-  [`fcp-audio-compat.md`](../fcp-audio-compat.md) (R-FA).
+- **FCP-incompatible source audio detection (Shipped, VS-40 + VS-53)** —
+  `tools/wav-compat.mjs` (pure RIFF parse + classify + sidecar-path/ffmpeg-argv
+  helpers, 100% tests) + `tools/wav-compat-io.mjs` (header read + warn/normalize)
+  detect Pro Tools / BWF WAVs that FCP's importer rejects (non-16-byte PCM `fmt `,
+  `bext`/`minf`/`elm1`/`regn`/`umid`/`JUNK` chunks) — the silent "Invalid edit with
+  no respective media" case from VS-36. `sync-multicam` and `export-multicam-fcpxml`
+  **warn** on their audio members with the canonical `ffmpeg` fix by default, or
+  with **`--fcp-normalize-audio`** re-encode to a canonical `<name>.fcp.wav` sidecar
+  next to the source and **repoint** the manifest / FCPXML asset (reusing an
+  up-to-date sidecar). See [`fcp-audio-compat.md`](../fcp-audio-compat.md)
+  (R-FA1–R-FA5).
 
 ## Known gaps / follow-ups
 

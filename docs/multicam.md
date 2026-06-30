@@ -99,9 +99,9 @@ quick view.
     WAV (`ffmpeg -fflags +bitexact -i in.wav -map_metadata -1 -c:a pcm_s16le
     -ac 2 -ar 48000 out.wav`) and reference that. **`sync-multicam` and
     `export-multicam-fcpxml` now detect this and warn** (with the fix command) on
-    any audio member that won't import — see
-    [`fcp-audio-compat.md`](fcp-audio-compat.md) (VS-40). Warn-only; opt-in
-    auto-normalize is deferred (VS-53).
+    any audio member that won't import — or, with **`--fcp-normalize-audio`**,
+    re-encode to a canonical `<name>.fcp.wav` sidecar and repoint the export at it.
+    See [`fcp-audio-compat.md`](fcp-audio-compat.md) (VS-40 + VS-53).
 
 ## 3. Known hard problems (how they're handled)
 
