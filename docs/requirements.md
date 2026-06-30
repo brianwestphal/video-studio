@@ -107,7 +107,7 @@ timeline or edit decision list.
   `src/analyzer-state.ts`, `src/resumable-error.ts`, `tools/caption-format.mjs`,
   `tools/export-manifest.mjs`, `tools/fcpxml.mjs`, `tools/sources.mjs`,
   `tools/multicam-dsp.mjs`, `tools/multicam.mjs`, `tools/multicam-groups.mjs`,
-  `tools/audio-events.mjs`, `tools/wav-compat.mjs`) is
+  `tools/audio-events.mjs`, `tools/wav-compat.mjs`, `tools/transitions-render.mjs`) is
   unit-tested to 100%
   lines/branches/functions/statements (Vitest); every file in `vitest.config.ts`
   `coverage.include` is held to that threshold.
@@ -126,7 +126,7 @@ Larger features have their own source-of-truth docs (kept in sync the same way):
 - **Multiple sources** — [`multiple-sources.md`](multiple-sources.md) *(shipped)*
 - **Multi-cam editing** — [`multicam.md`](multicam.md) + [`multicam-sync.md`](multicam-sync.md) *(shipped; FCP import validated, VS-36)*
 - **FCP-incompatible source audio detection** — [`fcp-audio-compat.md`](fcp-audio-compat.md) *(shipped, VS-40; warn-only, R-FA)*
-- **FCP transition suggestions** — [`transitions.md`](transitions.md) *(design only)*
+- **FCP transition suggestions + ffmpeg render** — [`transitions.md`](transitions.md) *(shipped: FCPXML `<transition>`s VS-28/50; `render-transitions` bakes them into the video with no FCP, Tier A, VS-54)*
 - **Edit awareness / auto multi-cam cutting** *(specs VS-41/42/43; audio-events Tier 1+2 shipped VS-44/49; saliency/selector/integration building in VS-45–47)*:
   [`audio-events.md`](audio-events.md) (non-speech/musical audio events, R-AE1–R-AE8),
   [`visual-saliency.md`](visual-saliency.md) (per-angle "what's worth showing", R-VS),

@@ -168,6 +168,19 @@ wired into `sync-multicam` / `export-multicam-fcpxml`. See
 | 9.5 | Run 9.4 a **second time** (sidecar already present + up to date) | The sidecar is **reused** (`Using existing FCP-safe WAV …`), no re-encode. Touch/delete the sidecar (or modify the source) to force a fresh re-encode. |
 | 9.6 | Import the FCPXML (built with `--fcp-normalize-audio`) into Final Cut Pro | The master audio imports **with sound** — the VS-36 silent-import case is resolved without a manual `ffmpeg` step. |
 
+## 10. Render transitions into video without FCP (`tools/render-transitions.mjs`, VS-54)
+
+The pure plan + `xfade` map + `filter_complex` (`tools/transitions-render.mjs`) are
+unit-tested; this exercises the real ffmpeg render. See
+[`transitions.md`](transitions.md) §8.
+
+| # | Action | Expected |
+|---|--------|----------|
+| 10.1 | Export a cut with `transitions` (so segments carry handles), then `node tools/render-transitions.mjs <export>/manifest.json` | Writes `<name>.transitions.mov` (`Wrote … N segment(s), {"xfade":k} join(s)`). Plays the cut dissolving/wiping/sliding through each transitioned cut. |
+| 10.2 | Inspect the output duration | Equals the **visible** timeline length (handles absorb the transitions; visible content is not shortened). On the synthetic 3-clip/2-transition check (0.4 s each): output is 3.00 s and a mid-dissolve frame is a genuine A→B colour blend. |
+| 10.3 | Render a multicam flat export (manifest has an `audioTrack`) | Video transitions through the angle cuts while the **continuous master audio** is muxed under it unchanged (no `acrossfade`). |
+| 10.4 | A transition longer than the available handle, or a cut with no handle on a side | The transition is clamped to ≤ 2×handle, or the cut degrades to a clean hard cut — no error, no lost frames. |
+
 ## Automated Coverage Summary
 
 Covered by unit tests (do **not** re-test by hand):
@@ -210,9 +223,14 @@ Covered by unit tests (do **not** re-test by hand):
   `sectionize`, `spectralFeatures`, `aggregateSpectral`, `structureBoundaries`,
   `buildAudioEvents`, `wordsFromWhisper` (`tests/audio-events.test.ts`).
 - **`tools/wav-compat.mjs`** — `parseRiffChunks`, `classifyWavFcpCompat`,
-  `fcpCompatWarning` (`tests/wav-compat.test.ts`). 100% coverage — so §9's WAV
-  FCP-compat *classification* is unit-covered; §9 rows stay to verify the real
-  file read + warning + the FCP import after normalization.
+  `fcpCompatWarning`, `fcpSidecarPath`, `fcpNormalizeArgs` (`tests/wav-compat.test.ts`).
+  100% coverage — so §9's WAV FCP-compat *classification* + sidecar path/argv are
+  unit-covered; §9 rows stay to verify the real file read + warning + the
+  re-encode + the FCP import after normalization.
+- **`tools/transitions-render.mjs`** — `TRANSITION_FFMPEG`, `xfadeId`,
+  `buildTransitionRenderPlan`, `transitionFilterComplex` (`tests/transitions-render.test.ts`).
+  100% coverage — so §10's transition→`xfade` map + render-plan/offset arithmetic +
+  `filter_complex` are unit-covered; §10 rows stay to verify the real ffmpeg render.
   100% coverage. The ffmpeg mono extraction + whisper read + file write in
   `tools/analyze-audio-events.mjs` are §8 above.
 - **`tools/multicam-groups.mjs`** — `slug`, `groupByFolder`,

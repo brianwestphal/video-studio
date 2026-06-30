@@ -43,7 +43,9 @@ and [`requirements-summary.md`](requirements-summary.md) for status.
 │   ├── audio-events.mjs        # pure non-speech audio-events DSP: RMS envelope, onsets, vocal/instrumental sectioning, spectral descriptors + structural novelty, schema (unit-tested, VS-44/49)
 │   ├── analyze-audio-events.mjs # audio/video (+ whisper transcript) → audio-events.json (ffmpeg I/O over audio-events.mjs)
 │   ├── wav-compat.mjs          # pure RIFF parse + FCP-compat classification + sidecar path/ffmpeg-argv helpers for WAV source audio (unit-tested, VS-40/53)
-│   └── wav-compat-io.mjs       # thin I/O: read a file's RIFF header, warn (or with --fcp-normalize-audio re-encode + repoint) FCP-incompatible WAVs (over wav-compat.mjs)
+│   ├── wav-compat-io.mjs       # thin I/O: read a file's RIFF header, warn (or with --fcp-normalize-audio re-encode + repoint) FCP-incompatible WAVs (over wav-compat.mjs)
+│   ├── transitions-render.mjs  # pure: shipped-transition→xfade map + render plan (per-seg trims, xfade/concat join math) + filter_complex (unit-tested, VS-54)
+│   └── render-transitions.mjs  # bake transitions into a finished video via ffmpeg xfade/acrossfade — no FCP (I/O over transitions-render.mjs)
 ├── skills/
 │   └── video-studio/SKILL.md   # the pipeline Claude follows — primary interface
 ├── tests/
@@ -60,6 +62,7 @@ and [`requirements-summary.md`](requirements-summary.md) for status.
 │   ├── multicam-groups.test.ts # unit tests for tools/multicam-groups.mjs
 │   ├── audio-events.test.ts   # unit tests for tools/audio-events.mjs
 │   ├── wav-compat.test.ts     # unit tests for tools/wav-compat.mjs
+│   ├── transitions-render.test.ts # unit tests for tools/transitions-render.mjs
 │   └── packaging.test.ts       # guards machine-path leaks + the promo-assets packaging
 ├── promo-assets/               # worked-example assembly scripts (sources shipped via promo-assets/*.{mjs,sh}; generated SVGs + nested node_modules excluded)
 ├── docs/
@@ -180,6 +183,7 @@ launcher, `render-caption.mjs`'s Chromium path) is manual-test territory.
 | what the toolkit must do | `docs/requirements.md` |
 | editor-handoff + multi-source feature specs (shipped) | `docs/editor-handoff.md`, `docs/multiple-sources.md` |
 | FCP transition suggestions (shipped VS-28/50) | `docs/transitions.md` + `TRANSITION_UIDS`/handles in `tools/{fcpxml,export-manifest}.mjs` |
+| render transitions into video without FCP (VS-54) | `docs/transitions.md` §8 + `tools/transitions-render.mjs` (pure: xfade map + plan) + `tools/render-transitions.mjs` (ffmpeg I/O) |
 | multi-cam design + audio sync spec | `docs/multicam.md` (design) + `docs/multicam-sync.md` (sync tool, shipped) |
 | auto multi-cam cutting / "edit awareness" (design) | `docs/audio-events.md` (R-AE) + `docs/visual-saliency.md` (R-VS) + `docs/multicam-auto-cut.md` (R-AC) |
 | non-speech audio-events pass → audio-events.json | `tools/analyze-audio-events.mjs` (ffmpeg I/O) + `tools/audio-events.mjs` (pure: envelope/onsets/sectioning + spectral descriptors/structural novelty, VS-44/49) |
