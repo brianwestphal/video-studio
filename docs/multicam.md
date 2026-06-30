@@ -141,15 +141,16 @@ findings + citations in [`multicam-sync.md` §7](multicam-sync.md#7-research-fin
   the angle switches and the master audio in sync (DTD-checked against FCP's own
   `FCPXMLv1_10.dtd`). See the import gotchas captured in §2 R-MC6.
 
-### Roadmap — "edit awareness" (auto angle selection, design)
+### Roadmap — "edit awareness" (auto angle selection)
 
-Switches are currently chosen manually (`--switch`) or round-robin. The next
-initiative makes the edit follow the **music and action**: an audio-events pass
-([`audio-events.md`](audio-events.md), VS-41/44), per-angle visual saliency
-([`visual-saliency.md`](visual-saliency.md), VS-42/45), and an audio+visual
+Switches are currently chosen manually (`--switch`) or round-robin. The
+"edit awareness" initiative makes the edit follow the **music and action**: an
+audio-events pass (**shipped**, [`audio-events.md`](audio-events.md), VS-41/44/49),
+per-angle visual saliency (**shipped**, [`visual-saliency.md`](visual-saliency.md),
+VS-42/45 — `analyze-visual-saliency` → `saliency.json`), and an audio+visual
 selector that emits the existing `switches`
-([`multicam-auto-cut.md`](multicam-auto-cut.md), VS-43/46), wired into the workflow
-in VS-47 — so riffs favor the guitar and vocals favor the active singer.
+([`multicam-auto-cut.md`](multicam-auto-cut.md), VS-43 → VS-46), wired into the
+workflow in VS-47 — so riffs favor the guitar and vocals favor the active singer.
 
 ## 5. Open questions / follow-ups
 

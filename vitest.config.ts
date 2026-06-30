@@ -27,6 +27,7 @@ export default defineConfig({
         "tools/audio-events.mjs",
         "tools/wav-compat.mjs",
         "tools/transitions-render.mjs",
+        "tools/visual-saliency.mjs",
       ],
       thresholds: {
         lines: 100,

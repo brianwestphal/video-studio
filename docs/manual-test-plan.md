@@ -183,6 +183,20 @@ are unit-tested; this exercises the real ffmpeg render. See
 | 10.5 | **Windowed vs `--full-chain` on a long cut** — render the same manifest both ways and time them (`time node tools/render-transitions.mjs … [--full-chain]`) | Both produce the same visible cut. The **windowed** default is much faster on a long cut with few transitions (re-encodes only the overlaps); `--full-chain` re-encodes the whole timeline. |
 | 10.6 | **Native Tier B/C** — export with `Chevron`, `Static`, `Circle Inset`, `Rectangle Inset`, `Side-by-Side Split`, `Top & Bottom Split` and render (default windowed) | Each renders its native look — chevron-edged wipe; static-noise dissolve; a growing circle/rectangle revealing the incoming clip; the outgoing clip's halves sliding apart. The run reports `tiers {"A":…,"B":…,"C":…}`. With `--full-chain` they degrade to the nearest Tier-A `xfade`. |
 
+## 11. Per-angle visual saliency (`tools/analyze-visual-saliency.mjs`, VS-45)
+
+The pure windowing / motion-normalization / vision-reply parsing / gating / schema
+(`tools/visual-saliency.mjs`) are unit-tested; this exercises the ffmpeg motion pass
+and the Ollama vision calls. See [`visual-saliency.md`](visual-saliency.md). Needs a
+synced `multicam.json` (the BYAM group) + a running Ollama with a vision model.
+
+| # | Action | Expected |
+|---|--------|----------|
+| 11.1 | `node tools/analyze-visual-saliency.mjs external/multi-cam/multicam.json --mode motion --window 2` | Writes `saliency.json`: `version`, `groupId`, `windowSeconds`, and per-angle window arrays on the group clock. Each window has `scores` (motion populated), `saliency`, `confidence`, `source:"motion"`. Windows before an angle's footage rolls are omitted (group→media mapping). Fast (no model). |
+| 11.2 | Run with `--mode vision --audio-events external/multi-cam/BYAM-audio-events.json --cap 60` | Windows near a section boundary / with high motion get `source:"vision"` with model `scores` + `labels`; the rest stay motion-only. The run logs the vision-vs-motion split per angle and the total (no silent truncation). |
+| 11.3 | Inspect the BYAM scores | The active singer's angle scores high `performer`/`presence` during vocal sections; the guitar angle scores `instrument` during the riff; static/empty angles score low. (Advisory — the selector VS-46 owns final weighting.) |
+| 11.4 | `--mode grid` and a large `--cap` | Every covered window is vision-scored (slowest, most accurate); `--cap` still bounds the calls and the skipped count is logged. |
+
 ## Automated Coverage Summary
 
 Covered by unit tests (do **not** re-test by hand):
@@ -236,6 +250,12 @@ Covered by unit tests (do **not** re-test by hand):
   §10's transition→recipe maps + full-chain/windowed plan arithmetic + per-clip and
   whole-timeline `filter_complex` (incl. native Tier B/C) are unit-covered; §10 rows
   stay to verify the real ffmpeg render.
+- **`tools/visual-saliency.mjs`** — `buildWindows`, `sourceTime`/`angleCoversWindow`,
+  `normalizeMotion`, `parseVisionReply`, `combineSaliency`, `selectVisionWindows`,
+  `sectionBoundaries`, `assembleWindowScore`, `buildSaliency`, `visionPrompt`
+  (`tests/visual-saliency.test.ts`). 100% coverage — so §11's windowing, group-clock
+  mapping, motion normalization, vision-reply parsing, gating, and schema are
+  unit-covered; §11 rows stay to verify the real ffmpeg motion pass + Ollama calls.
   100% coverage. The ffmpeg mono extraction + whisper read + file write in
   `tools/analyze-audio-events.mjs` are §8 above.
 - **`tools/multicam-groups.mjs`** — `slug`, `groupByFolder`,

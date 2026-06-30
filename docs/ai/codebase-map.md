@@ -45,7 +45,9 @@ and [`requirements-summary.md`](requirements-summary.md) for status.
 │   ├── wav-compat.mjs          # pure RIFF parse + FCP-compat classification + sidecar path/ffmpeg-argv helpers for WAV source audio (unit-tested, VS-40/53)
 │   ├── wav-compat-io.mjs       # thin I/O: read a file's RIFF header, warn (or with --fcp-normalize-audio re-encode + repoint) FCP-incompatible WAVs (over wav-compat.mjs)
 │   ├── transitions-render.mjs  # pure: transition→recipe maps (Tier A xfade / B custom-expr / C overlay-mask) + full-chain & windowed render plans + filter_complex (unit-tested, VS-54/55)
-│   └── render-transitions.mjs  # bake transitions into a finished video via ffmpeg — no FCP; windowed re-encode (default) or --full-chain (I/O over transitions-render.mjs)
+│   ├── render-transitions.mjs  # bake transitions into a finished video via ffmpeg — no FCP; windowed re-encode (default) or --full-chain (I/O over transitions-render.mjs)
+│   ├── visual-saliency.mjs     # pure: per-angle saliency windowing + group-clock map + motion norm + vision-reply parse + gating + schema (unit-tested, VS-45)
+│   └── analyze-visual-saliency.mjs # per-angle saliency.json: ffmpeg motion pass gates Ollama vision over multicam angles (I/O over visual-saliency.mjs)
 ├── skills/
 │   └── video-studio/SKILL.md   # the pipeline Claude follows — primary interface
 ├── tests/
@@ -74,7 +76,7 @@ and [`requirements-summary.md`](requirements-summary.md) for status.
 │   ├── multicam.md             # audio-synced multi-cam design (VS-19); sync shipped VS-27; FCP import validated VS-36
 │   ├── multicam-sync.md        # audio sync tool requirements + research findings (VS-27, shipped)
 │   ├── audio-events.md         # DESIGN: non-speech/musical audio events spec (R-AE, VS-41 → build VS-44)
-│   ├── visual-saliency.md      # DESIGN: per-angle "what's worth showing" spec (R-VS, VS-42 → build VS-45)
+│   ├── visual-saliency.md      # per-angle "what's worth showing" — shipped (R-VS, VS-42 design → VS-45 build)
 │   ├── multicam-auto-cut.md    # DESIGN: audio+visual → angle-selection model emitting switches (R-AC, VS-43 → build VS-46/47)
 │   ├── releasing.md            # release + npm trusted-publisher setup
 │   ├── manual-test-plan.md     # manual checklist for the external-tool pipeline
@@ -138,9 +140,11 @@ Coverage is enforced (100% l/b/f/s) on the pure modules in `vitest.config.ts`
 `src/analyzer-cli.ts`, `src/analyzer-state.ts`, `tools/caption-format.mjs`,
 `tools/export-manifest.mjs`, `tools/fcpxml.mjs`, `tools/sources.mjs`,
 `tools/multicam.mjs`, `tools/multicam-dsp.mjs`, `tools/multicam-groups.mjs`,
-`tools/audio-events.mjs`. The
+`tools/audio-events.mjs`, `tools/wav-compat.mjs`, `tools/transitions-render.mjs`,
+`tools/visual-saliency.mjs`. The
 I/O code (`analyzer.ts` orchestration, `ffmpeg.ts`, `ollama.ts`, the `bin/`
-launcher, `render-caption.mjs`'s Chromium path) is manual-test territory.
+launcher, `render-caption.mjs`'s Chromium path, the `analyze-*` tools) is
+manual-test territory.
 
 ## Settings / config
 
@@ -186,8 +190,9 @@ launcher, `render-caption.mjs`'s Chromium path) is manual-test territory.
 | FCP transition suggestions (shipped VS-28/50) | `docs/transitions.md` + `TRANSITION_UIDS`/handles in `tools/{fcpxml,export-manifest}.mjs` |
 | render transitions into video without FCP (VS-54/55) | `docs/render-transitions.md` (R-RT) + `tools/transitions-render.mjs` (pure: recipe maps + full-chain/windowed plans + `windowedClipFilter`) + `tools/render-transitions.mjs` (ffmpeg I/O: windowed default, `--full-chain`) |
 | multi-cam design + audio sync spec | `docs/multicam.md` (design) + `docs/multicam-sync.md` (sync tool, shipped) |
-| auto multi-cam cutting / "edit awareness" (design) | `docs/audio-events.md` (R-AE) + `docs/visual-saliency.md` (R-VS) + `docs/multicam-auto-cut.md` (R-AC) |
+| auto multi-cam cutting / "edit awareness" | `docs/audio-events.md` (R-AE, shipped) + `docs/visual-saliency.md` (R-VS, shipped) + `docs/multicam-auto-cut.md` (R-AC, design → VS-46) |
 | non-speech audio-events pass → audio-events.json | `tools/analyze-audio-events.mjs` (ffmpeg I/O) + `tools/audio-events.mjs` (pure: envelope/onsets/sectioning + spectral descriptors/structural novelty, VS-44/49) |
+| per-angle visual saliency → saliency.json | `tools/analyze-visual-saliency.mjs` (ffmpeg motion pass + gated Ollama vision, I/O) + `tools/visual-saliency.mjs` (pure: windowing, group-clock map, motion norm, vision-reply parse, gating, schema, VS-45) |
 | FCP-incompatible WAV audio detection + opt-in normalize | `docs/fcp-audio-compat.md` (R-FA) + `tools/wav-compat.mjs` (pure) + `tools/wav-compat-io.mjs` (I/O warn / `--fcp-normalize-audio` re-encode), wired into `sync-multicam`/`export-multicam-fcpxml` (VS-40/53) |
 | how to release | `docs/releasing.md` + `scripts/release.sh` |
 | manual pipeline tests | `docs/manual-test-plan.md` |

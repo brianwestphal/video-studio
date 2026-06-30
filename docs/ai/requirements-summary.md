@@ -21,7 +21,7 @@ sync with the requirements doc and code; the source wins on conflict.
 | Render transitions into the video (no FCP) | [`render-transitions.md`](../render-transitions.md) | **Shipped** (VS-54 + VS-55, R-RT1–R-RT9) — `render-transitions` bakes the transitions into a finished video with **no FCP**, reusing the baked handles. **Windowed re-encode** (default): re-encode only each transition overlap + stream-copy-concat the bodies (cost ≈ Σ transition duration); `--full-chain` for the whole-timeline graph. **Native Tier A/B/C**: Tier A direct `xfade`, Tier B `xfade=custom` (chevron/static), Tier C overlay-mask/crop-slide (inset/split). |
 | Multi-cam editing | [`multicam.md`](../multicam.md), [`multicam-sync.md`](../multicam-sync.md) | **Shipped** — sync, group proposal, angle switching → flat-timeline export, drift correction applied on export, true FCPXML mc-clip asset (VS-27/29/30/31/32/33); **FCP import validated against the real app (VS-36)** |
 | FCP-incompatible source audio detection | [`fcp-audio-compat.md`](../fcp-audio-compat.md) | **Shipped** (VS-40 + VS-53) — detect Pro Tools / BWF WAVs (non-16-byte PCM `fmt `, `bext`/`minf`/`elm1`/`JUNK`…) that FCP imports silently; `sync-multicam` + `export-multicam-fcpxml` warn with the `ffmpeg` fix, or with `--fcp-normalize-audio` re-encode to a canonical `<name>.fcp.wav` sidecar + repoint (R-FA1–R-FA5). |
-| Edit awareness / auto multi-cam cutting | [`audio-events.md`](../audio-events.md), [`visual-saliency.md`](../visual-saliency.md), [`multicam-auto-cut.md`](../multicam-auto-cut.md) | **Partial** — specs done (VS-41/42/43); **audio-events Tier-1 + Tier-2 shipped (VS-44, VS-49)**; visual saliency (VS-45), selector (VS-46), integration (VS-47) pending |
+| Edit awareness / auto multi-cam cutting | [`audio-events.md`](../audio-events.md), [`visual-saliency.md`](../visual-saliency.md), [`multicam-auto-cut.md`](../multicam-auto-cut.md) | **Partial** — specs done (VS-41/42/43); **audio-events Tier-1 + Tier-2 shipped (VS-44, VS-49)**; **per-angle visual saliency shipped (VS-45)** — `analyze-visual-saliency` → `saliency.json` (motion pass gates Ollama vision, pure core 100%-tested, R-VS1–R-VS5); selector (VS-46) + integration (VS-47) pending |
 
 The core pipeline plus the editor handoff (export + FCPXML) and multi-source
 input are shipped. **Multi-cam** is shipped end to end (VS-27/29/30/31/32/33):
@@ -76,13 +76,17 @@ the full palette in VS-50). The "edit awareness" auto-cut initiative is partial
   vocal/instrumental sections, **per-section spectral descriptors
   (centroid/rolloff/flux/ZCR/bands) and structural `"section"` events from spectral
   novelty** ([`audio-events.md`](../audio-events.md), R-AE1–R-AE8; optional stems =
-  VS-48). Still design-only: per-angle
-  visual saliency ([`visual-saliency.md`](../visual-saliency.md), R-VS, VS-42 → VS-45),
-  and an audio+visual angle selector that emits the existing `switches`
-  ([`multicam-auto-cut.md`](../multicam-auto-cut.md), R-AC, VS-43 → VS-46), wired into
-  the workflow in VS-47. All within the current ffmpeg/whisper/Ollama/pure-JS-DSP
-  stack; stem separation (Demucs) deferred. Grounded on the BYAM clip
-  (`external/multi-cam/`).
+  VS-48). **Per-angle visual saliency is shipped (VS-45)**:
+  `tools/visual-saliency.mjs` (pure, 100% tested) + `tools/analyze-visual-saliency.mjs`
+  emit `saliency.json` — per angle, per window on the group clock, a cheap ffmpeg
+  motion pass (`tblend`+`signalstats`) gates Ollama vision (`performer`/`instrument`/
+  `motion`/`framing`/`presence` + labels + a combined `saliency`), with section-
+  boundary/high-motion gating + a per-run cap ([`visual-saliency.md`](../visual-saliency.md),
+  R-VS1–R-VS5). Still design-only: an audio+visual angle selector that emits the
+  existing `switches` ([`multicam-auto-cut.md`](../multicam-auto-cut.md), R-AC, VS-43 →
+  VS-46), wired into the workflow in VS-47. All within the current
+  ffmpeg/whisper/Ollama/pure-JS-DSP stack; stem separation (Demucs) deferred.
+  Grounded on the BYAM clip (`external/multi-cam/`).
 - **FCP transition suggestions (Shipped, VS-28)** — opt-in `transitions` on the cut
   spec emit FCP `<transition>` elements at the chosen cuts in the editor-handoff
   `.fcpxml` (Cross Dissolve + Fade To Color; "Dip to Color" alias), centered on the

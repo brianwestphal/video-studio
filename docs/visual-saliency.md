@@ -1,9 +1,11 @@
 # Per-angle visual saliency (design / requirements)
 
-Status: **Design only** (VS-42 research). Feeds the implementation in **VS-45** and
-the angle-selection model in [`multicam-auto-cut.md`](multicam-auto-cut.md) (VS-43).
-Cross-referenced from [`multicam.md`](multicam.md). Pairs with
-[`audio-events.md`](audio-events.md) (VS-41).
+Status: **Shipped (VS-45)** — design from VS-42. Implemented as
+`tools/visual-saliency.mjs` (pure, 100% unit-tested) + `tools/analyze-visual-saliency.mjs`
+(ffmpeg motion pass + gated Ollama vision → `saliency.json`). Feeds the
+angle-selection model in [`multicam-auto-cut.md`](multicam-auto-cut.md) (VS-43 →
+build VS-46). Cross-referenced from [`multicam.md`](multicam.md). Pairs with
+[`audio-events.md`](audio-events.md) (VS-41/44).
 
 ## 1. Why
 
@@ -115,8 +117,39 @@ pose estimation, re-identifying the same singer across angles by appearance
 (the audio + position cues handle "who's singing"), and the selection logic
 itself (VS-43).
 
-## 7. Follow-ups
+## 7. Implementation (shipped, VS-45)
 
-- **VS-45** — implement R-VS1–R-VS5 (the pass + pure module + CLI + schema doc +
-  analyzer-state versioning).
-- Revisit cadence/cost after VS-43's evaluation on the BYAM angles.
+```
+node tools/analyze-visual-saliency.mjs <multicam.json> [--group id] [--window sec] \
+  [--audio-events path] [--mode motion|vision|grid] [--cap n] [--motion-scale n] \
+  [--model name] [--total sec] [--out path]
+```
+
+- **`tools/visual-saliency.mjs`** (pure, 100% coverage in
+  `tests/visual-saliency.test.ts`): `buildWindows` (aligned group-clock grid),
+  `sourceTime`/`angleCoversWindow` (group→media mapping, mirrors `resolveAngleCuts`),
+  `normalizeMotion`, `parseVisionReply` (robust JSON-ish parse), `combineSaliency` +
+  `DEFAULT_WEIGHTS`, `selectVisionWindows` (the gating, R-VS2), `sectionBoundaries`
+  (audio-events → boundary times), `assembleWindowScore`, `buildSaliency` (the §4
+  schema, `SALIENCY_VERSION`), and `visionPrompt`.
+- **`tools/analyze-visual-saliency.mjs`** (I/O, manual-test-plan §11): one cheap
+  ffmpeg pass per angle (`scale=64:36,fps=2,tblend=difference,signalstats` → the
+  difference frame's average luma = motion magnitude, decoded only as far as the
+  group clock needs), which scores every covered window and **gates** the Ollama
+  vision calls; selected windows extract a frame and ask the model for the §2
+  fields. Writes `saliency.json`.
+- **Cadence/cost:** `--mode vision` (default) runs the model only at section
+  boundaries / high-motion windows, `--cap` bounds the calls per angle, and the run
+  logs the vision-vs-motion-only split (no silent truncation). `--mode motion` skips
+  the model entirely; `--mode grid` scores every covered window.
+- **No analyzer-state bump (R-VS4):** saliency is a **separate per-group artifact**
+  (`saliency.json`, like `audio-events.json`), not stored in the analyzer's
+  per-video `state.json`, so `STATE_VERSION` is untouched. The doc itself is
+  versioned (`SALIENCY_VERSION`).
+
+## 8. Follow-ups
+
+- Revisit cadence/weights after VS-46's evaluation on the BYAM angles (the
+  selector consumes this and owns the final weighting, R-VS5).
+- A frame-difference motion metric is coarse; an optional flow/feature signal could
+  sharpen it later if the selector needs it.
