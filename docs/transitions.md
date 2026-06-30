@@ -121,3 +121,60 @@ can audit it.
 - **Per-video-type default durations** are guidance in SKILL.md, not enforced.
 - **Deeper editorial research** to refine §4 heuristics (a `deep-research` pass)
   remains optional.
+
+## 8. Rendering transitions without Final Cut Pro (investigation, VS-52)
+
+**Question:** the shipped transitions are *FCPXML suggestions* — they only render
+when the user opens the timeline in FCP. Can the toolkit bake real transitions
+into its own finished `.mp4`/`.mov` output (the teaser / social / long cuts) so
+users who never touch FCP still get them?
+
+**Answer: yes, and the groundwork is already laid.** Verified against ffmpeg 8.1.
+
+### What ffmpeg gives us
+- **`xfade`** (video) — a two-input cross-fade filter with **58 transition types**
+  (`fade`, `dissolve`, `wipeleft/right/up/down`, `slide*`, `smooth*`,
+  `circleopen/close`, `circlecrop`, `rectcrop`, `radial`, `fadeblack/white`,
+  `pixelize`, `diag*`, `*slice`, `squeeze*`, `hblur`, `fadegrays`, …) plus a
+  `custom` expression mode. Parameters: `transition`, `duration`, and `offset`
+  (when the wipe starts on the first input).
+- **`acrossfade`** (audio) — the matching audio cross-fade, so a video transition
+  carries an audio blend just like the FCP path's Audio Crossfade.
+
+This palette **covers most of the shipped `TRANSITION_UIDS`** nearly 1:1 — Cross
+Dissolve→`fade`/`dissolve`, Fade To Color→`fadeblack`/`fadewhite`, Wipe→`wipe*`,
+Slide/Push→`slide*`, Circle→`circleopen`/`circleclose`, Clock→`radial`,
+Center→`circlecrop`. FCP-only compositing transitions (Inset shapes, Side-by-Side
+/ Top-&-Bottom **Split**, Static) have **no direct `xfade` equivalent** and would
+degrade to the nearest fade/wipe (or a `custom` expression) — acceptable, since
+those are the rarer picks.
+
+### Why it fits the existing pipeline
+1. **The hard prerequisite — media overlap (handles) — is already produced.** §2's
+   handles: when `transitions` are requested, `buildManifest` bakes
+   `handleStartSeconds`/`handleEndSeconds` of extra source past each cut into every
+   segment (`tools/export-manifest.mjs`). `xfade` consumes exactly that overlap.
+   Today `rebuild.sh` *trims* the handles and hard-concats; a render mode would
+   instead **keep** them and `xfade`-chain consecutive segments over the handle
+   region.
+2. **Segments are already conformed** to one size/fps/pixel-format (ProRes at the
+   project fps), satisfying `xfade`'s "both inputs identical format" requirement.
+3. **The export already re-encodes** (overlay compositing), so the extra
+   decode+filter+encode `xfade` needs is not a new cost class.
+
+### Sketch
+A pure `TRANSITION_FFMPEG` map (name → `xfade` transition id), parallel to
+`TRANSITION_UIDS`, plus pure **offset math** (each `xfade`'s `offset` =
+cumulative timeline position of the cut, `duration` = the transition length ≤
+2×handle). The rebuild composes a filtergraph chaining `xfade`+`acrossfade` across
+the cut list; segments without a transition stay hard cuts (a zero-duration / plain
+concat join). All of that — the map and the offset/duration arithmetic — is
+**pure and 100% unit-testable**; only the ffmpeg run itself is manual/pipeline.
+
+### Recommendation
+**Feasible and on-mission** (the toolkit's whole point is finished ffmpeg output,
+not just timelines). Worth building as an **opt-in render mode** that reuses the
+already-baked handles, leaving the FCPXML suggestion path untouched. Filed as a
+follow-up feature (**VS-54**). Main caveats to handle there: the `xfade` `offset`
+bookkeeping across many segments, transitions that overrun a short clip's handle,
+and the FCP-only split/inset transitions that must degrade gracefully.
