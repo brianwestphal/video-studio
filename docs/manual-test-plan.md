@@ -121,7 +121,36 @@ exercise the ffmpeg mono extraction + the real end-to-end sync.
 | 8.2 | Re-run with `--transcript <whisper.json>` (whisper `--word_timestamps` JSON; `--offset` if the transcript is clip-relative) | The instrumental body is split into `vocal` sections (where words fall, merged within ~1.5 s and padded) and `instrumental` sections (energetic, no words — the riff). Each `vocal` event carries `data.wordCount`. |
 | 8.3 | `--quiet-db`, `--hop`, `--min-span`, `--sample-rate` knobs | Adjust the quiet floor, envelope resolution, minimum section length, and analysis rate respectively; output stays well-formed and sorted by `startSeconds`. |
 | 8.4 | **Tier-2 spectral check** — inspect each section's `data.spectral` | Every content/structural `section` whose span contains an FFT window carries `data.spectral` with `centroidHz`, `rolloffHz`, `zcr`, `flux`, and `bands` (`[low, mid, high]` summing to ~1). On the BYAM master, structural-section centroids span ~1.3–2.3 kHz. |
-| 8.5 | **Tier-2 brightness check (needs a transcript)** — run 8.2 with a whisper transcript for the master, then compare `data.spectral.centroidHz`/`bands[2]` of the **instrumental (riff)** sections vs the **vocal** sections | The guitar-led instrumental spans should read **brighter** (higher centroid / high-band fraction) than the lead-vocal spans. No transcript is checked into `external/multi-cam/`, so this comparison is manual (see VS-51 for capturing one). |
+| 8.5 | **Tier-2 brightness check (needs a transcript)** — generate a word-timestamp transcript for the master, then run 8.2 and compare `data.spectral.centroidHz`/`bands[2]` of the **instrumental (riff)** sections vs the **vocal** sections | Instrumental spans read **at least as bright** as vocal spans (higher/equal centroid + high-band fraction). See the **VS-51 finding** below — on the full-band BYAM mix the separation is real but **marginal**. |
+
+**Generating the transcript** (`external/` is gitignored, so the transcript is a local regenerable fixture, not committed):
+
+```
+cd external/multi-cam
+whisper BYAM-audio-clean.wav --model large-v3-turbo --word_timestamps True \
+  --output_format json --output_dir . --language en --fp16 False
+mv BYAM-audio-clean.json BYAM-audio-clean.transcript.json
+node ../../tools/analyze-audio-events.mjs BYAM-audio-clean.wav \
+  --transcript BYAM-audio-clean.transcript.json --out audio-events.json
+```
+
+**VS-51 finding (recorded 2026-06-30, duration-weighted means over the BYAM master):**
+
+| Section kind | n | total dur | mean centroid | mean high-band | mean rolloff |
+|---|---|---|---|---|---|
+| instrumental (riff) | 20 | 84.2 s | **1723 Hz** | **0.073** | 3691 Hz |
+| vocal (sung) | 21 | 145.9 s | 1721 Hz | 0.071 | 3615 Hz |
+
+Direction is as expected (instrumental brighter) but the margin is **tiny** (+2 Hz
+centroid, +0.002 high-band). The master is a **full-band mix** — the band keeps
+playing under the vocals, and the whisper gate splits spans by *lyrics present*,
+not by isolating a vocal stem, so the two groups' spectra are nearly identical.
+**Implication:** energy+spectral heuristics on the mixed master give only a weak
+"riff vs voice" timbre separation — this is exactly the evidence
+[`fcp`/stem-separation gate](audio-events.md) **VS-48** (Demucs) was waiting on. If
+the angle selector (VS-46) needs robust instrument/vocal brightness, stems are the
+way; the per-window descriptors themselves are correct and discriminate strongly
+on single-source tones (8.4 / `tests/audio-events.test.ts`).
 
 ## 9. FCP-incompatible source audio warning (`tools/wav-compat-io.mjs`, VS-40)
 

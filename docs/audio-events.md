@@ -201,10 +201,18 @@ deferred (R-AE5).
   descriptors (centroid/rolloff/flux/ZCR/bands via the `fftInPlace` in
   `multicam-dsp.mjs`) attached to sections, plus `"section"` events from spectral
   self-similarity novelty with a coarse timbre label. Validated end-to-end on the
-  BYAM master (19 structural sections, centroids ~1.3–2.3 kHz). **Known gap:** the
-  "guitar reads brighter than vocals" check needs a checked-in whisper transcript
-  to mark the vocal spans — no transcript is in `external/multi-cam/`, so that
-  per-span comparison stays a manual step (see VS-51).
+  BYAM master (19 structural sections, centroids ~1.3–2.3 kHz).
+- **VS-51 — done (validation).** Generated a whisper transcript for the BYAM master
+  and ran the brightness comparison ([`manual-test-plan.md`](manual-test-plan.md)
+  §8.5). Finding: instrumental (riff) spans are brighter than vocal spans only
+  **marginally** (centroid 1723 vs 1721 Hz; high-band 0.073 vs 0.071) — the
+  full-band mix means the whisper-gated vocal spans still carry the whole band, so
+  the spectral heuristic separates "riff vs voice" only weakly. The per-window
+  descriptors are correct and discriminate strongly on single-source tones; robust
+  instrument/vocal timbre would need **stems (VS-48)**. The transcript is a local
+  regenerable fixture (`external/` is gitignored), not committed.
 - **VS-48** — optional stem separation (Demucs) populating `source`/`stem` +
-  per-stem envelopes; only if the angle-selector evaluation justifies the
+  per-stem envelopes. **The VS-51 finding above is the first concrete evidence the
+  mixed-master heuristic is weak** (near-zero riff-vs-vocal brightness margin); the
+  maintainer-decision gate (§3) stands. Only if the angle-selector evaluation justifies the
   dependency (maintainer decision).
