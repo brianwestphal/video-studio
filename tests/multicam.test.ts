@@ -7,6 +7,7 @@ import {
   expandMulticamGroup,
   resolveAngleCuts,
   selectReference,
+  switchesFromDoc,
 } from "../tools/multicam.mjs";
 
 describe("classifySync", () => {
@@ -228,5 +229,47 @@ describe("expandMulticamGroup", () => {
     const g = { ...group, members: [{ id: "rec", path: "/r.wav", kind: "audio", durationSeconds: 8 }, ...group.members.slice(1)] };
     const spec = expandMulticamGroup(g, [{ atSeconds: 0, memberId: "rec" }], { width: 1, height: 1 });
     expect(spec.audioTrack.in).toBe(0);
+  });
+});
+
+describe("switchesFromDoc", () => {
+  it("extracts the switches array from a propose-switches document", () => {
+    const doc = {
+      version: 1,
+      groupId: "g",
+      switches: [
+        { atSeconds: 0, memberId: "a" },
+        { atSeconds: 4, memberId: "b" },
+      ],
+      rationale: [{ atSeconds: 0, memberId: "a", why: "x" }],
+    };
+    expect(switchesFromDoc(doc)).toEqual([
+      { atSeconds: 0, memberId: "a" },
+      { atSeconds: 4, memberId: "b" },
+    ]);
+  });
+
+  it("accepts a bare array and normalizes away extra keys", () => {
+    const arr = [{ atSeconds: 2, memberId: "a", why: "kept out" }];
+    expect(switchesFromDoc(arr)).toEqual([{ atSeconds: 2, memberId: "a" }]);
+  });
+
+  it("returns [] for absent/nonsense input", () => {
+    expect(switchesFromDoc(null)).toEqual([]);
+    expect(switchesFromDoc({})).toEqual([]);
+    expect(switchesFromDoc({ switches: "nope" })).toEqual([]);
+  });
+
+  it("drops invalid entries (null, NaN atSeconds, empty/non-string memberId)", () => {
+    const doc = {
+      switches: [
+        null,
+        { atSeconds: Number.NaN, memberId: "a" },
+        { atSeconds: 1, memberId: "" },
+        { atSeconds: 2, memberId: 5 },
+        { atSeconds: 3, memberId: "ok" },
+      ],
+    };
+    expect(switchesFromDoc(doc)).toEqual([{ atSeconds: 3, memberId: "ok" }]);
   });
 });

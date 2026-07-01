@@ -30,10 +30,10 @@ import { execFileSync } from "node:child_process";
 import { existsSync, mkdtempSync, rmSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { isAbsolute, join, resolve } from "node:path";
-import { resolveAngleCuts } from "./multicam.mjs";
+import { resolveAngleCuts, switchesFromDoc } from "./multicam.mjs";
 
 function parseArgs(argv) {
-  const opts = { file: undefined, group: undefined, total: undefined, start: undefined, width: 1280, height: 720, crf: 23, out: undefined, switches: [] };
+  const opts = { file: undefined, group: undefined, total: undefined, start: undefined, width: 1280, height: 720, crf: 23, out: undefined, switches: [], switchesPath: undefined };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--group") opts.group = argv[++i];
@@ -43,11 +43,12 @@ function parseArgs(argv) {
     else if (a === "--height") opts.height = Number(argv[++i]);
     else if (a === "--crf") opts.crf = Number(argv[++i]);
     else if (a === "--out") opts.out = argv[++i];
+    else if (a === "--switches") opts.switchesPath = argv[++i];
     else if (a === "--switch") {
       const [sec, id] = String(argv[++i]).split("=");
       opts.switches.push({ atSeconds: Number(sec), memberId: id });
     } else if (a === "-h" || a === "--help") {
-      console.log("Usage: render-multicam-preview <multicam.json> [--group <id>] [--switch <sec>=<id>]… [--total <sec>] [--start <sec>] [--width <w>] [--height <h>] [--crf <n>] [--out <file.mp4>]");
+      console.log("Usage: render-multicam-preview <multicam.json> [--group <id>] [--switches <switches.json> | --switch <sec>=<id>…] [--total <sec>] [--start <sec>] [--width <w>] [--height <h>] [--crf <n>] [--out <file.mp4>]");
       process.exit(0);
     } else if (a.startsWith("-")) { console.error(`Unknown option: ${a}`); process.exit(2); }
     else opts.file = a;
@@ -79,6 +80,11 @@ function main() {
   const origin = opts.start ?? 0; // group time that maps to timeline 0 (dead-air trim)
   if (origin < 0 || origin >= total) { console.error(`Error: --start must be in [0, ${total}).`); process.exit(1); }
 
+  // Auto-cut integration (VS-47): load a `propose-switches` switches.json via
+  // --switches; explicit --switch flags win when both are given.
+  if (opts.switchesPath && opts.switches.length === 0) {
+    opts.switches = switchesFromDoc(JSON.parse(readFileSync(opts.switchesPath, "utf8")));
+  }
   // Default to a single span on the first video angle, mirroring the FCPXML export.
   const firstVideo = group.members.find((m) => m.kind !== "audio") || group.members[0];
   const switches = opts.switches.length ? opts.switches : [{ atSeconds: 0, memberId: firstVideo.id }];

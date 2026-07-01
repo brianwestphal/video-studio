@@ -197,6 +197,24 @@ synced `multicam.json` (the BYAM group) + a running Ollama with a vision model.
 | 11.3 | Inspect the BYAM scores | The active singer's angle scores high `performer`/`presence` during vocal sections; the guitar angle scores `instrument` during the riff; static/empty angles score low. (Advisory — the selector VS-46 owns final weighting.) |
 | 11.4 | `--mode grid` and a large `--cap` | Every covered window is vision-scored (slowest, most accurate); `--cap` still bounds the calls and the skipped count is logged. |
 
+## 12. Auto multi-cam angle selection (`tools/propose-switches.mjs`, VS-46/47)
+
+The selection model + metrics are unit-tested (`tools/multicam-autocut.mjs`, 100%)
+and the `switches.json` → exporter glue (`switchesFromDoc`) is unit-tested
+(`tools/multicam.mjs`); these rows exercise the CLI wiring + the **BYAM
+demonstration** the ticket calls for (favor the guitar during riffs, the singer
+during vocals), which needs the external BYAM media + a real audio-events/saliency
+run. See [`multicam-auto-cut.md`](multicam-auto-cut.md) (R-AC) + [`multicam.md`](multicam.md) R-MC7.
+
+| # | Action | Expected |
+|---|--------|----------|
+| 12.1 | With the BYAM group synced (`external/multi-cam/multicam.json`), its `audio-events.json` (§8) and `saliency.json` (§11), run `node tools/propose-switches.mjs external/multi-cam/multicam.json --audio-events <…>/audio-events.json --saliency <…>/saliency.json --eval` | Writes `switches.json` next to the input: a versioned doc with a `switches` list (`{ atSeconds, memberId }`, strictly increasing, first at the trim start) **and a parallel `rationale`** naming why each cut was made (`instrumental → <angle>`, `vocals → active singer <angle>`, or `highest saliency → …`). stdout prints the same rationale + a ready-to-run `export-multicam-fcpxml … --switches …` line. |
+| 12.2 | **BYAM editorial check** (the maintainer's flags) — inspect the rationale + `--eval` metrics, and compare the cut against the hand-built `external/multi-cam/BYAM-multicam-preview.mp4` | During the **riff/instrumental** sections the on-screen angle is the **guitar**; during **vocals** it's the **active singer** (not the idle person). `evaluate()` reports `instrumentalOnInstrumentAngle` and `vocalOnSingingAngle` **high (target ≳ 0.7)**, shot lengths within `[minShot, maxShot]`, and a switch count in the same ballpark as the hand edit (not wildly over/under-cut). Record the numbers here when run. |
+| 12.3 | `node tools/render-multicam-preview.mjs external/multi-cam/multicam.json --switches <…>/switches.json --out preview.mp4` and play it | A flat MP4 whose angle cuts match `switches.json` (same as feeding the equivalent `--switch` flags); master audio continuous underneath. Eyeball it against §11.3's saliency and the hand edit. |
+| 12.4 | `node tools/export-multicam-fcpxml.mjs external/multi-cam/multicam.json --width <w> --height <h> --switches <…>/switches.json --out byam-auto.fcpxml`, import into FCP | A live multicam clip cut at the proposed switch points (as §7.9, but auto-chosen). The console reports the loaded switch count. |
+| 12.5 | **Override** — hand-edit `switches.json` (move/remove a cut), re-run 12.3/12.4 | The exporters honor the edited file verbatim; passing an explicit `--switch` flag alongside `--switches` makes the flags win (the file is ignored). |
+| 12.6 | **Degraded paths** — run 12.1 with `--saliency` omitted, then with `--audio-events` omitted | No saliency → a footage-based round-robin (a `Note:` is logged); no audio-events → the riff/vocal priors + onset snapping are dropped (a `Note:` is logged). Neither crashes; both still produce a valid `switches.json`. |
+
 ## Automated Coverage Summary
 
 Covered by unit tests (do **not** re-test by hand):
@@ -232,9 +250,13 @@ Covered by unit tests (do **not** re-test by hand):
   (`tests/multicam-dsp.test.ts`). 100% coverage.
 - **`tools/multicam.mjs`** — group-manifest + angle assembly: `classifySync`,
   `selectReference`, `buildGroupManifest`, `resolveAngleCuts`,
-  `expandMulticamGroup` (`tests/multicam.test.ts`). 100% coverage. The ffmpeg mono
-  extraction + real-audio sync in `sync-multicam.mjs` is §7 above; the multicam
-  export is §7.8.
+  `expandMulticamGroup`, `switchesFromDoc` (`tests/multicam.test.ts`). 100% coverage.
+  The ffmpeg mono extraction + real-audio sync in `sync-multicam.mjs` is §7 above;
+  the multicam export is §7.8; the `--switches` file wiring in the exporters is §12.
+- **`tools/multicam-autocut.mjs`** — the auto angle selector: `audioContextAt`,
+  `cutBoundaries`, `snapToBoundary`, `autoCut`, `evaluate`
+  (`tests/multicam-autocut.test.ts`). 100% coverage — so §12's selection model +
+  metrics are unit-covered; §12 rows exercise the CLI + the BYAM demonstration.
 - **`tools/audio-events.mjs`** — `rmsEnvelope`, `detectOnsets`, `vocalSpans`,
   `sectionize`, `spectralFeatures`, `aggregateSpectral`, `structureBoundaries`,
   `buildAudioEvents`, `wordsFromWhisper` (`tests/audio-events.test.ts`).

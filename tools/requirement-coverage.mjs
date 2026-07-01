@@ -147,6 +147,7 @@ export const REQUIREMENT_COVERAGE = {
   "R-MC4": { status: "unit", tests: ["multicam.test.ts"] },
   "R-MC5": { status: "unit", tests: ["multicam.test.ts"] },
   "R-MC6": { status: "unit", tests: ["multicam.test.ts", "fcpxml.test.ts"], note: "FCP import manual" },
+  "R-MC7": { status: "unit", tests: ["multicam.test.ts", "multicam-autocut.test.ts"], note: "auto angle selection: switchesFromDoc glue + selector; CLI --switches wiring + skill step manual (VS-46/47)" },
 
   // Multi-cam sync — pure DSP unit-tested; the ffmpeg extract + run is manual.
   "R-MCS1": { status: "unit", tests: ["multicam-dsp.test.ts"] },
@@ -189,7 +190,8 @@ export const REQUIREMENT_COVERAGE = {
   "R-AC3": { status: "unit", tests: ["multicam-autocut.test.ts"] },
   "R-AC4": { status: "unit", tests: ["multicam-autocut.test.ts"] },
   "R-AC5": { status: "unit", tests: ["multicam-autocut.test.ts"] },
-  "R-AC6": { status: "manual", note: "propose-switches CLI I/O; end-to-end wiring VS-47" },
+  "R-AC6": { status: "manual", note: "propose-switches CLI I/O" },
+  "R-AC7": { status: "unit", tests: ["multicam.test.ts"], note: "switchesFromDoc glue for --switches; CLI wiring + skill step manual (VS-47)" },
 };
 
 // Audit the manifest against the ids actually defined in the docs. Pure: caller

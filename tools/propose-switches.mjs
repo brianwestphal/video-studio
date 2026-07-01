@@ -65,6 +65,11 @@ function main() {
   const outPath = opts.out ? (isAbsolute(opts.out) ? opts.out : resolve(opts.out)) : join(dirname(resolve(opts.file)), "switches.json");
   writeFileSync(outPath, JSON.stringify(result, null, 2) + "\n");
   console.log(`Wrote ${outPath}: ${result.switches.length} switch(es) over group "${group.id}".`);
+  // Surface the per-switch rationale so the user sees *why* it cut to each angle
+  // (VS-47). Feed the file straight to export-multicam-fcpxml/render-multicam-preview
+  // via --switches, or hand-edit switches.json first.
+  for (const r of result.rationale) console.log(`  ${r.atSeconds}s → ${r.memberId}: ${r.why}`);
+  console.log(`Next: export-multicam-fcpxml ${opts.file} --switches ${outPath} --width <w> --height <h>`);
 
   if (opts.eval) {
     const m = evaluate({ group, audioEvents, saliency, switches: result.switches });

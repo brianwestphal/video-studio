@@ -118,6 +118,20 @@ export function resolveAngleCuts(switches, members, { totalSeconds }) {
   return segments;
 }
 
+// Extract the `switches` list from a parsed switches.json (the `propose-switches`
+// output, VS-46/47), tolerating either the full `{ version, switches, rationale }`
+// document or a bare array. Invalid entries (missing/NaN `atSeconds` or empty
+// `memberId`) are dropped, and each is normalized to `{ atSeconds, memberId }` so a
+// hand-edited file can carry extra keys. Returns `[]` when absent, letting the CLI
+// fall back to its single-span default. This is the glue that lets the auto-cut
+// generator feed `export-multicam-fcpxml` / `render-multicam-preview` (R-MC7).
+export function switchesFromDoc(doc) {
+  const list = Array.isArray(doc) ? doc : Array.isArray(doc?.switches) ? doc.switches : [];
+  return list
+    .filter((s) => s && Number.isFinite(s.atSeconds) && typeof s.memberId === "string" && s.memberId.length > 0)
+    .map((s) => ({ atSeconds: s.atSeconds, memberId: s.memberId }));
+}
+
 // Expand a synced group + angle switches into an editor-handoff CUT SPEC (the
 // shape export-manifest.mjs consumes): a flat sequence of **silent** video angle
 // segments over a **continuous master-audio track**. This is the "synced flat

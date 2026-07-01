@@ -40,6 +40,19 @@ node "$TOOLKIT/tools/sync-multicam.mjs" <clipA> <clipB> <recorder.wav> --group-i
 node "$TOOLKIT/tools/export-multicam-fcpxml.mjs" "$WORK/multicam.json" --width <w> --height <h> --switch 0=<id> --switch <t>=<id2> --out "<video-dir>/event.multicam.fcpxml"
 ```
 
+**Auto-cut the angles (optional, VS-46/47):** instead of hand-picking switch points, let the toolkit propose them from the music + action. It correlates the synced group with `audio-events.json` (Step: run `analyze-audio-events.mjs`) and per-angle visual saliency (`analyze-visual-saliency.mjs`) — favoring the instrument angle during riffs and the active singer during vocals. Keep it a **separate, inspectable step**: propose, review the rationale, hand-edit if needed, then export.
+```bash
+node "$TOOLKIT/tools/propose-switches.mjs" "$WORK/multicam.json" \
+  --audio-events "$WORK/audio-events.json" --saliency "$WORK/saliency.json" --eval
+# → writes $WORK/switches.json (switches + a per-switch `rationale`) and prints why it cut to each angle
+```
+`switches.json` is a plain, editable `{ atSeconds, memberId }` list — **read the rationale, then hand-edit any cut you disagree with** before exporting. Feed it straight to either exporter with `--switches` (equivalent to the `--switch` flags; explicit `--switch` wins if you pass both):
+```bash
+node "$TOOLKIT/tools/export-multicam-fcpxml.mjs" "$WORK/multicam.json" --width <w> --height <h> --switches "$WORK/switches.json" --out "<video-dir>/event.multicam.fcpxml"
+node "$TOOLKIT/tools/render-multicam-preview.mjs" "$WORK/multicam.json" --switches "$WORK/switches.json" --out "$WORK/preview.mp4"   # flat MP4 to eyeball the cut
+```
+With no `--saliency` it degrades to a footage round-robin; with no `--audio-events` it drops the riff/vocal priors. `--eval` prints quantitative metrics (% of instrumental time on the instrument angle, % of vocal time on the singer, shot-length stats).
+
 **Then describe the scenes yourself:** to get an overview cheaply, tile the per-scene frames into contact sheets and Read those, rather than 50 separate reads:
 ```bash
 ffmpeg -y -i "$DATADIR/frames/scene-%04d.jpg" -vf "scale=320:-1,tile=6x6" "$WORK/contact-%d.png"

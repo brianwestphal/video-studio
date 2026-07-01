@@ -37,6 +37,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, isAbsolute, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { buildMulticamFcpxml } from "./fcpxml.mjs";
+import { switchesFromDoc } from "./multicam.mjs";
 import { ensureFcpCompatAudio } from "./wav-compat-io.mjs";
 
 // fps as a "num/den" string for ffmpeg (keeps NTSC rates exact).
@@ -48,7 +49,7 @@ function fpsArg(fps) {
 }
 
 function parseArgs(argv) {
-  const opts = { file: undefined, group: undefined, name: undefined, total: undefined, start: undefined, width: undefined, height: undefined, out: undefined, switches: [], blackFill: true, fcpNormalizeAudio: false };
+  const opts = { file: undefined, group: undefined, name: undefined, total: undefined, start: undefined, width: undefined, height: undefined, out: undefined, switches: [], switchesPath: undefined, blackFill: true, fcpNormalizeAudio: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--group") opts.group = argv[++i];
@@ -60,11 +61,12 @@ function parseArgs(argv) {
     else if (a === "--no-black-fill") opts.blackFill = false;
     else if (a === "--fcp-normalize-audio") opts.fcpNormalizeAudio = true;
     else if (a === "--out") opts.out = argv[++i];
+    else if (a === "--switches") opts.switchesPath = argv[++i];
     else if (a === "--switch") {
       const [sec, id] = String(argv[++i]).split("=");
       opts.switches.push({ atSeconds: Number(sec), memberId: id });
     } else if (a === "-h" || a === "--help") {
-      console.log("Usage: export-multicam-fcpxml <multicam.json> --width <w> --height <h> [--group <id>] [--switch <sec>=<id>]… [--name <name>] [--total <sec>] [--start <sec>] [--no-black-fill] [--fcp-normalize-audio] [--out <file.fcpxml>]");
+      console.log("Usage: export-multicam-fcpxml <multicam.json> --width <w> --height <h> [--group <id>] [--switches <switches.json> | --switch <sec>=<id>…] [--name <name>] [--total <sec>] [--start <sec>] [--no-black-fill] [--fcp-normalize-audio] [--out <file.fcpxml>]");
       process.exit(0);
     } else if (a.startsWith("-")) { console.error(`Unknown option: ${a}`); process.exit(2); }
     else opts.file = a;
@@ -80,6 +82,13 @@ function main() {
   const groups = doc.groups || [];
   const group = opts.group ? groups.find((g) => g.id === opts.group) : groups[0];
   if (!group) { console.error(opts.group ? `Error: group not found: ${opts.group}` : "Error: no groups in the file."); process.exit(1); }
+
+  // Auto-cut integration (VS-47): a `switches.json` from `propose-switches` feeds
+  // the exporter via --switches. Explicit --switch flags win when both are given.
+  if (opts.switchesPath && opts.switches.length === 0) {
+    opts.switches = switchesFromDoc(JSON.parse(readFileSync(opts.switchesPath, "utf8")));
+    console.log(`Loaded ${opts.switches.length} switch(es) from ${opts.switchesPath}.`);
+  }
 
   const name = opts.name || group.id;
   const outPath = opts.out ? (isAbsolute(opts.out) ? opts.out : resolve(opts.out)) : resolve(`${name}.multicam.fcpxml`);

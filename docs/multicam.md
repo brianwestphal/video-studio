@@ -103,6 +103,24 @@ quick view.
     re-encode to a canonical `<name>.fcp.wav` sidecar and repoint the export at it.
     See [`fcp-audio-compat.md`](fcp-audio-compat.md) (VS-40 + VS-53).
 
+- **R-MC7 Auto angle selection.** *(Shipped — VS-46 model + VS-47 workflow
+  integration.)* The angle switches from R-MC5 need not be chosen by hand: the
+  auto-cut generator ([`multicam-auto-cut.md`](multicam-auto-cut.md), R-AC)
+  correlates the synced group + `audio-events.json` (VS-44) + per-angle visual
+  saliency (VS-45) into a `switches` list — favoring the instrument angle during
+  riffs and the active singer during vocals, honoring min/max shot length and
+  cut-on-onset snapping. **`propose-switches <multicam.json> [--audio-events p]
+  [--saliency p] [--eval]`** writes `switches.json` (the `switches` list **plus a
+  per-switch `rationale`** recording *why* each cut was made) and prints the
+  rationale. That file drops straight into the R-MC6 handoff: both
+  **`export-multicam-fcpxml`** and **`render-multicam-preview`** accept
+  **`--switches <switches.json>`** (equivalent to the hand-authored
+  `--switch <sec>=<id>` flags, which still win when both are given). The selection
+  is a **proposal**: the maintainer hand-edits `switches.json` — a plain, editable
+  list of `{ atSeconds, memberId }` — before export to override any cut. The
+  degraded path (no saliency → footage round-robin; no audio-events → no priors)
+  keeps it usable on a bare synced group.
+
 ## 3. Known hard problems (how they're handled)
 
 The VS-19/VS-27 deep research confirmed the technique and how to face each — full

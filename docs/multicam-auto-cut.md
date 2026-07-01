@@ -1,10 +1,12 @@
-# Auto multi-cam angle selection (design / requirements)
+# Auto multi-cam angle selection
 
-Status: **Design only** (VS-43 research). Synthesizes
-[`audio-events.md`](audio-events.md) (VS-41) + [`visual-saliency.md`](visual-saliency.md)
-(VS-42) into a switch-generation algorithm. Feeds the implementation in **VS-46**
-and the workflow integration in **VS-47**. Cross-referenced from
-[`multicam.md`](multicam.md).
+Status: **Shipped** — the selector (**VS-46**, `tools/multicam-autocut.mjs` pure +
+100% tested, `propose-switches` CLI) and its workflow integration (**VS-47**,
+`--switches` on `export-multicam-fcpxml`/`render-multicam-preview` + the skill
+auto-cut step) are built; the BYAM demonstration (§6) remains a manual run. This
+doc began as VS-43 research synthesizing [`audio-events.md`](audio-events.md)
+(VS-41) + [`visual-saliency.md`](visual-saliency.md) (VS-42) into a
+switch-generation algorithm. See [`multicam.md`](multicam.md) R-MC7.
 
 ## 1. Problem
 
@@ -123,9 +125,16 @@ identical `switches`.
   with `minShotSeconds` (never worse than today's manual default).
 - **R-AC6** A thin CLI reads the three inputs and writes/prints the switches;
   ffmpeg/model work belongs to VS-44/45, not here.
+- **R-AC7** *(VS-47)* The proposed `switches.json` feeds the R-MC6 handoff via
+  **`--switches <switches.json>`** on `export-multicam-fcpxml` and
+  `render-multicam-preview` (a plain `{ atSeconds, memberId }` list the maintainer
+  can hand-edit to override); the per-switch `rationale` is surfaced on stdout by
+  `propose-switches` and travels inside `switches.json`. Explicit `--switch` flags
+  still win when both are supplied.
 
 ## 8. Follow-ups
 
-- **VS-46** — implement R-AC1–R-AC6 (pure selector + CLI + tests + this schema).
+- **VS-46** — implement R-AC1–R-AC6 (pure selector + CLI + tests + this schema). *(Shipped.)*
 - **VS-47** — wire it into the skill/CLI end to end with manual override + surfaced
-  rationale; demonstrate on BYAM.
+  rationale (R-AC7 / R-MC7). *(Shipped; the BYAM demonstration in §6 is a manual
+  run pending the external media.)*
