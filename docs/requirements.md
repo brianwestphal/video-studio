@@ -103,26 +103,30 @@ timeline or edit decision list.
 
 ## 7. Quality gates
 
-- **R7.1** Pure logic (`src/scene-math.ts`, `src/analyzer-cli.ts`,
-  `src/analyzer-state.ts`, `src/resumable-error.ts`, `tools/caption-format.mjs`,
-  `tools/export-manifest.mjs`, `tools/fcpxml.mjs`, `tools/sources.mjs`,
-  `tools/multicam-dsp.mjs`, `tools/multicam.mjs`, `tools/multicam-groups.mjs`,
-  `tools/audio-events.mjs`, `tools/wav-compat.mjs`, `tools/transitions-render.mjs`,
-  `tools/visual-saliency.mjs`) is
-  unit-tested to 100%
+- **R7.1** Pure logic is unit-tested to 100%
   lines/branches/functions/statements (Vitest); every file in `vitest.config.ts`
-  `coverage.include` is held to that threshold.
+  `coverage.include` is held to that threshold. That list is the source of truth
+  for which modules are covered (currently the `src/` analyzer cores plus the pure
+  `tools/*.mjs` modules); a pure module must be added to it when extracted.
 - **R7.2** The external-tool pipeline is covered by
   [`manual-test-plan.md`](manual-test-plan.md).
-- **R7.3** `npm run check` (lint → typecheck → test → build) must pass before a
-  change is finished; CI enforces the same on push/PR.
+- **R7.3** `npm run check` (lint → typecheck → test → `check:features` → build)
+  must pass before a change is finished; CI enforces the same on push/PR.
 - **R7.4** Releases are tag-driven; CI publishes to npm with provenance. See
   [`releasing.md`](releasing.md).
+- **R7.5** Coverage is measured on **two orthogonal axes**: line/branch coverage
+  (100% on the pure modules) proves every line *ran*; **feature/requirement
+  coverage** ([`feature-coverage.md`](feature-coverage.md)) proves every documented
+  requirement is *asserted* by a test (or a deliberate manual/review/gate/deferred
+  classification). `npm run check:features` (and `tests/conventions.test.ts`) fail
+  if any documented requirement — including a state *transition* — has no coverage
+  decision. Line coverage is a **floor, not a ceiling**.
 
 ## 8. Functional-area docs
 
 Larger features have their own source-of-truth docs (kept in sync the same way):
 
+- **Feature / requirement coverage** — [`feature-coverage.md`](feature-coverage.md) *(shipped, R7.5; the second coverage axis + `check:features`)*
 - **Editor handoff** — [`editor-handoff.md`](editor-handoff.md) *(shipped)*
 - **Multiple sources** — [`multiple-sources.md`](multiple-sources.md) *(shipped)*
 - **Multi-cam editing** — [`multicam.md`](multicam.md) + [`multicam-sync.md`](multicam-sync.md) *(shipped; FCP import validated, VS-36)*

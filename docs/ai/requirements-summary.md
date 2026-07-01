@@ -14,14 +14,15 @@ sync with the requirements doc and code; the source wins on conflict.
 | Scene analyzer | R4.1–R4.8 | **Shipped** |
 | Overlay generator | R5.1–R5.5 | **Shipped** |
 | The skill | R6.1–R6.5 | **Shipped** |
-| Quality gates | R7.1–R7.4 | **Shipped** |
+| Quality gates | R7.1–R7.5 | **Shipped** — incl. feature/requirement coverage (VS-58) |
+| Feature/requirement coverage (2nd axis) | [`feature-coverage.md`](../feature-coverage.md) (R-EC) | **Shipped** (VS-58) — `check:features` + `conventions.test.ts` |
 | Editor handoff (segments + overlays + manifest/FCPXML) | [`editor-handoff.md`](../editor-handoff.md) | **Shipped** — export + manifest + rebuild (VS-24) + FCPXML (VS-25) |
 | Multiple source videos | [`multiple-sources.md`](../multiple-sources.md) | **Shipped** (VS-26) |
 | FCP transition suggestions | [`transitions.md`](../transitions.md) | **Shipped** (VS-28, VS-50) — opt-in `transitions` → FCP `<transition>`s (16 built-ins: dissolves/fades, movements, wipes, insets/splits, Static) + baked segment handles; DTD-valid. |
 | Render transitions into the video (no FCP) | [`render-transitions.md`](../render-transitions.md) | **Shipped** (VS-54 + VS-55, R-RT1–R-RT9) — `render-transitions` bakes the transitions into a finished video with **no FCP**, reusing the baked handles. **Windowed re-encode** (default): re-encode only each transition overlap + stream-copy-concat the bodies (cost ≈ Σ transition duration); `--full-chain` for the whole-timeline graph. **Native Tier A/B/C**: Tier A direct `xfade`, Tier B `xfade=custom` (chevron/static), Tier C overlay-mask/crop-slide (inset/split). |
 | Multi-cam editing | [`multicam.md`](../multicam.md), [`multicam-sync.md`](../multicam-sync.md) | **Shipped** — sync, group proposal, angle switching → flat-timeline export, drift correction applied on export, true FCPXML mc-clip asset (VS-27/29/30/31/32/33); **FCP import validated against the real app (VS-36)** |
 | FCP-incompatible source audio detection | [`fcp-audio-compat.md`](../fcp-audio-compat.md) | **Shipped** (VS-40 + VS-53) — detect Pro Tools / BWF WAVs (non-16-byte PCM `fmt `, `bext`/`minf`/`elm1`/`JUNK`…) that FCP imports silently; `sync-multicam` + `export-multicam-fcpxml` warn with the `ffmpeg` fix, or with `--fcp-normalize-audio` re-encode to a canonical `<name>.fcp.wav` sidecar + repoint (R-FA1–R-FA5). |
-| Edit awareness / auto multi-cam cutting | [`audio-events.md`](../audio-events.md), [`visual-saliency.md`](../visual-saliency.md), [`multicam-auto-cut.md`](../multicam-auto-cut.md) | **Partial** — specs done (VS-41/42/43); **audio-events Tier-1 + Tier-2 shipped (VS-44, VS-49)**; **per-angle visual saliency shipped (VS-45)** — `analyze-visual-saliency` → `saliency.json` (motion pass gates Ollama vision, pure core 100%-tested, R-VS1–R-VS5); selector (VS-46) + integration (VS-47) pending |
+| Edit awareness / auto multi-cam cutting | [`audio-events.md`](../audio-events.md), [`visual-saliency.md`](../visual-saliency.md), [`multicam-auto-cut.md`](../multicam-auto-cut.md) | **Partial** — specs done (VS-41/42/43); **audio-events Tier-1 + Tier-2 shipped (VS-44, VS-49)**; **per-angle visual saliency shipped (VS-45)** — `analyze-visual-saliency` → `saliency.json` (motion pass gates Ollama vision, pure core 100%-tested, R-VS1–R-VS5); **angle-switch selector shipped (VS-46)** — `tools/multicam-autocut.mjs` (pure, 100%-tested) + `propose-switches` CLI emit `switches.json` (R-AC1–R-AC6); end-to-end workflow integration (VS-47) pending |
 
 The core pipeline plus the editor handoff (export + FCPXML) and multi-source
 input are shipped. **Multi-cam** is shipped end to end (VS-27/29/30/31/32/33):
@@ -56,9 +57,17 @@ the full palette in VS-50). The "edit awareness" auto-cut initiative is partial
   intermediates — `timeline.json` descriptions + `<dataDir>/transcripts/`) is a
   skill-guidance convention; committed examples live in `docs/samples/`
   (`tears-of-steel.scenes.json` + `.transcript.{json,txt}`).
-- **Quality gates (R7)** — Shipped. Vitest 100% on the two pure modules; manual
-  test plan for the pipeline; `npm run check` + CI; tag-driven release with
-  provenance.
+- **Quality gates (R7)** — Shipped. Vitest 100% l/b/f/s on the pure modules in
+  `vitest.config.ts` `coverage.include`; manual test plan for the pipeline;
+  `npm run check` + CI; tag-driven release with provenance. **R7.5 — feature/
+  requirement coverage (the second axis, VS-58):** `tools/requirement-coverage.mjs`
+  (pure, 100% tested) extracts the requirement index from the `- **R<id>**`
+  definitions across `docs/*.md` and audits it against a coverage manifest mapping
+  every requirement to how a regression is caught (`unit`/`manual`/`review`/`gate`/
+  `deferred`); `npm run check:features` + `tests/conventions.test.ts` fail on any
+  documented requirement with no coverage decision (or a `unit` entry with no test).
+  Line coverage is a floor, not a ceiling. See
+  [`feature-coverage.md`](../feature-coverage.md) (R-EC1–R-EC4).
 - **Editor handoff (Shipped)** — `tools/export-project.mjs` turns a cut spec into
   segment files (ProRes 422 HQ) + overlay files (ProRes 4444 alpha) + a JSON
   manifest + `rebuild.sh` (VS-24) **and** a Final Cut Pro `.fcpxml` (VS-25). Pure

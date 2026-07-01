@@ -47,7 +47,11 @@ and [`requirements-summary.md`](requirements-summary.md) for status.
 │   ├── transitions-render.mjs  # pure: transition→recipe maps (Tier A xfade / B custom-expr / C overlay-mask) + full-chain & windowed render plans + filter_complex (unit-tested, VS-54/55)
 │   ├── render-transitions.mjs  # bake transitions into a finished video via ffmpeg — no FCP; windowed re-encode (default) or --full-chain (I/O over transitions-render.mjs)
 │   ├── visual-saliency.mjs     # pure: per-angle saliency windowing + group-clock map + motion norm + vision-reply parse + gating + schema (unit-tested, VS-45)
-│   └── analyze-visual-saliency.mjs # per-angle saliency.json: ffmpeg motion pass gates Ollama vision over multicam angles (I/O over visual-saliency.mjs)
+│   ├── analyze-visual-saliency.mjs # per-angle saliency.json: ffmpeg motion pass gates Ollama vision over multicam angles (I/O over visual-saliency.mjs)
+│   ├── multicam-autocut.mjs    # pure: auto angle-switch selection (audio-events + saliency → switches + rationale) + evaluate() metrics (unit-tested, VS-46)
+│   ├── propose-switches.mjs    # thin CLI: read multicam.json + audio-events.json + saliency.json → switches.json (I/O over multicam-autocut.mjs)
+│   ├── requirement-coverage.mjs # pure: requirement-index extraction + the feature-coverage manifest + audit (unit-tested, VS-58)
+│   └── check-features.mjs      # feature/requirement coverage report + gate (I/O over requirement-coverage.mjs); `npm run check:features`
 ├── skills/
 │   └── video-studio/SKILL.md   # the pipeline Claude follows — primary interface
 ├── tests/
@@ -65,10 +69,15 @@ and [`requirements-summary.md`](requirements-summary.md) for status.
 │   ├── audio-events.test.ts   # unit tests for tools/audio-events.mjs
 │   ├── wav-compat.test.ts     # unit tests for tools/wav-compat.mjs
 │   ├── transitions-render.test.ts # unit tests for tools/transitions-render.mjs
+│   ├── visual-saliency.test.ts # unit tests for tools/visual-saliency.mjs
+│   ├── multicam-autocut.test.ts # unit tests for tools/multicam-autocut.mjs
+│   ├── requirement-coverage.test.ts # unit tests for tools/requirement-coverage.mjs
+│   ├── conventions.test.ts     # feature-coverage audit gate + dependency/coverage-include invariants (VS-58)
 │   └── packaging.test.ts       # guards machine-path leaks + the promo-assets packaging
 ├── promo-assets/               # worked-example assembly scripts (sources shipped via promo-assets/*.{mjs,sh}; generated SVGs + nested node_modules excluded)
 ├── docs/
 │   ├── requirements.md         # source-of-truth requirements (shipped pipeline)
+│   ├── feature-coverage.md     # the second coverage axis: requirement index + manifest + check:features (R7.5/R-EC, VS-58)
 │   ├── editor-handoff.md       # export segments + overlays + manifest + FCPXML (shipped, VS-24/25)
 │   ├── multiple-sources.md     # draw from many files/folders (shipped, VS-26)
 │   ├── transitions.md          # FCP transition suggestions in the FCPXML — shipped VS-28/50 (full palette + handles)
@@ -132,19 +141,21 @@ used by the `gen-readme-*` scripts).
 | Typecheck | `npm run typecheck` |
 | Lint | `npm run lint` |
 | Unit tests + coverage | `npm test` |
-| Everything | `npm run check` (lint → typecheck → test → build) |
+| Feature/requirement coverage | `npm run check:features` |
+| Everything | `npm run check` (lint → typecheck → test → check:features → build) |
 | Run launcher | `npm run studio` · doctor `npm run doctor` |
 
-Coverage is enforced (100% l/b/f/s) on the pure modules in `vitest.config.ts`
-`coverage.include`: `src/scene-math.ts`, `src/resumable-error.ts`,
-`src/analyzer-cli.ts`, `src/analyzer-state.ts`, `tools/caption-format.mjs`,
-`tools/export-manifest.mjs`, `tools/fcpxml.mjs`, `tools/sources.mjs`,
-`tools/multicam.mjs`, `tools/multicam-dsp.mjs`, `tools/multicam-groups.mjs`,
-`tools/audio-events.mjs`, `tools/wav-compat.mjs`, `tools/transitions-render.mjs`,
-`tools/visual-saliency.mjs`. The
-I/O code (`analyzer.ts` orchestration, `ffmpeg.ts`, `ollama.ts`, the `bin/`
-launcher, `render-caption.mjs`'s Chromium path, the `analyze-*` tools) is
-manual-test territory.
+Coverage runs on **two axes**. (1) Line/branch coverage is enforced (100% l/b/f/s)
+on the pure modules in `vitest.config.ts` `coverage.include` (the authoritative
+list — read it from the file): the `src/` analyzer cores plus the pure `tools/*.mjs`
+(`caption-format`, `export-manifest`, `fcpxml`, `sources`, `multicam*`,
+`audio-events`, `wav-compat`, `transitions-render`, `visual-saliency`,
+`multicam-autocut`, `requirement-coverage`). The I/O code (`analyzer.ts`
+orchestration, `ffmpeg.ts`, `ollama.ts`, the `bin/` launcher, `render-caption.mjs`'s
+Chromium path, the `analyze-*` + `propose-switches` + `check-features` CLIs) is
+manual-test territory. (2) **Feature/requirement coverage** (`docs/feature-coverage.md`,
+`tools/requirement-coverage.mjs`) asserts every documented requirement is tested or
+consciously classified — line coverage is a floor, not a ceiling.
 
 ## Settings / config
 
@@ -190,7 +201,9 @@ manual-test territory.
 | FCP transition suggestions (shipped VS-28/50) | `docs/transitions.md` + `TRANSITION_UIDS`/handles in `tools/{fcpxml,export-manifest}.mjs` |
 | render transitions into video without FCP (VS-54/55) | `docs/render-transitions.md` (R-RT) + `tools/transitions-render.mjs` (pure: recipe maps + full-chain/windowed plans + `windowedClipFilter`) + `tools/render-transitions.mjs` (ffmpeg I/O: windowed default, `--full-chain`) |
 | multi-cam design + audio sync spec | `docs/multicam.md` (design) + `docs/multicam-sync.md` (sync tool, shipped) |
-| auto multi-cam cutting / "edit awareness" | `docs/audio-events.md` (R-AE, shipped) + `docs/visual-saliency.md` (R-VS, shipped) + `docs/multicam-auto-cut.md` (R-AC, design → VS-46) |
+| auto multi-cam cutting / "edit awareness" | `docs/audio-events.md` (R-AE, shipped) + `docs/visual-saliency.md` (R-VS, shipped) + `docs/multicam-auto-cut.md` (R-AC, model shipped VS-46 → integration VS-47) |
+| auto angle-switch selection → switches.json | `tools/propose-switches.mjs` (I/O CLI) + `tools/multicam-autocut.mjs` (pure: weighted scoring + constraint smoothing + `evaluate()` metrics, VS-46) |
+| is every documented requirement tested? (feature coverage) | `docs/feature-coverage.md` (R7.5/R-EC) + `tools/requirement-coverage.mjs` (pure: index + manifest + audit) + `tools/check-features.mjs` (report/gate) + `tests/conventions.test.ts` |
 | non-speech audio-events pass → audio-events.json | `tools/analyze-audio-events.mjs` (ffmpeg I/O) + `tools/audio-events.mjs` (pure: envelope/onsets/sectioning + spectral descriptors/structural novelty, VS-44/49) |
 | per-angle visual saliency → saliency.json | `tools/analyze-visual-saliency.mjs` (ffmpeg motion pass + gated Ollama vision, I/O) + `tools/visual-saliency.mjs` (pure: windowing, group-clock map, motion norm, vision-reply parse, gating, schema, VS-45) |
 | FCP-incompatible WAV audio detection + opt-in normalize | `docs/fcp-audio-compat.md` (R-FA) + `tools/wav-compat.mjs` (pure) + `tools/wav-compat-io.mjs` (I/O warn / `--fcp-normalize-audio` re-encode), wired into `sync-multicam`/`export-multicam-fcpxml` (VS-40/53) |

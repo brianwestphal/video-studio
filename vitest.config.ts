@@ -29,6 +29,7 @@ export default defineConfig({
         "tools/transitions-render.mjs",
         "tools/visual-saliency.mjs",
         "tools/multicam-autocut.mjs",
+        "tools/requirement-coverage.mjs",
       ],
       thresholds: {
         lines: 100,
