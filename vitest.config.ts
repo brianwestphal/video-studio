@@ -28,6 +28,7 @@ export default defineConfig({
         "tools/wav-compat.mjs",
         "tools/transitions-render.mjs",
         "tools/visual-saliency.mjs",
+        "tools/multicam-autocut.mjs",
       ],
       thresholds: {
         lines: 100,
