@@ -119,6 +119,37 @@ describe("autoCut — selection", () => {
     expect(r.switches[1].atSeconds).toBe(4); // no boundaries → unsnapped window start
     expect(r.rationale[0].why).toMatch(/only angle with footage|highest saliency/);
   });
+
+  it("falls back to the first angle for opening windows no angle covers", () => {
+    // Both angles' footage starts at 4s, so the first two windows have no available
+    // angle → the held angle falls back to the first video angle until footage rolls.
+    const g = group([{ id: "a", offsetSeconds: 4 }, { id: "b", offsetSeconds: 4 }]);
+    const r = autoCut({ group: g, params: { maxShotSeconds: 4 } });
+    expect(r.switches[0]).toEqual({ atSeconds: 0, memberId: "a" });
+  });
+
+  it("synthesizes the degraded grid from the longest angle when the master id is unresolved", () => {
+    // No saliency and masterAudioId points at no member → fall back to the longest
+    // video angle for the grid length (and treat a member with no duration as 0).
+    const g = {
+      id: "g",
+      masterAudioId: "missing",
+      members: [
+        { id: "a", kind: "video", offsetSeconds: 0, durationSeconds: 6 },
+        { id: "b", kind: "video", offsetSeconds: 0 },
+      ],
+    };
+    const r = autoCut({ group: g, params: { maxShotSeconds: 4 } });
+    expect(r.switches[0]).toEqual({ atSeconds: 0, memberId: "a" });
+    expect(r.switches.at(-1)!.atSeconds).toBeLessThanOrEqual(6);
+  });
+
+  it("holds the sole angle when variety cannot be satisfied", () => {
+    // One video angle + a small maxShot: the force-variety step has no other angle
+    // to switch to, so it holds — a single continuous shot.
+    const r = autoCut({ group: group([{ id: "a" }]), params: { maxShotSeconds: 4 } });
+    expect(r.switches).toEqual([{ atSeconds: 0, memberId: "a" }]);
+  });
 });
 
 describe("evaluate", () => {
@@ -135,6 +166,15 @@ describe("evaluate", () => {
       maxShot: 6,
     });
   });
+  it("scores windows where an angle has no saliency entry", () => {
+    // a has footage only for windows 0,1; b for all. `top()` must treat a's missing
+    // windows as -Infinity rather than crash on the absent entry.
+    const sal = saliency([aInst, aInst], [bVocal, bVocal, bVocal, bVocal, bVocal]);
+    const r = autoCut({ group: group(), audioEvents: instrumentalThenVocal, saliency: sal });
+    const m = evaluate({ group: group(), audioEvents: instrumentalThenVocal, saliency: sal, switches: r.switches });
+    expect(m.vocalOnSingingAngle).toBe(1);
+  });
+
   it("returns null ratios when there are no instrumental/vocal windows", () => {
     const sal = saliency([aInst, aInst, aInst, aInst, aInst], [bVocal, bVocal, bVocal, bVocal, bVocal]);
     const quiet = { events: [{ kind: "quiet", startSeconds: 0, endSeconds: 10 }] };
