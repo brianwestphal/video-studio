@@ -98,13 +98,15 @@ The pipeline isn't limited to a single file or a flat render:
   **multicam clip**. Add your own transitions and grade in FCP.
 
 <!-- TODO(prep-major-release): capture docs/media/editor-handoff-fcp.png — the exported .fcpxml imported into Final Cut Pro, showing segments on the primary storyline with alpha overlays as connected clips. PNG, ≤1280px wide, ≤~600KB. (VS-38) -->
-<!-- TODO(prep-major-release): capture docs/media/multicam-fcp.png — a video-studio multicam .fcpxml in FCP's angle viewer (several synced angles, master audio), mid angle-switch. PNG, ≤1280px wide, ≤~600KB. (VS-38) -->
-<!--
+<p align="center">
+  <img src="docs/media/multicam-fcp-timeline.png" alt="A video-studio multicam cut on the Final Cut Pro timeline, switching camera angles over the shared master audio" width="760">
+  <br><em>An audio-synced multicam cut handed off to Final Cut Pro — angle switches laid over the shared master audio.</em>
+</p>
+
 <p align="center">
   <img src="docs/media/multicam-fcp.png" alt="A video-studio multicam clip open in Final Cut Pro's angle viewer" width="760">
-  <br><em>An audio-synced multicam clip, re-cuttable in Final Cut Pro's angle viewer.</em>
+  <br><em>The same clip stays a live, re-cuttable multicam in Final Cut Pro's angle viewer.</em>
 </p>
--->
 
 ## How the AI reads the video
 
