@@ -195,14 +195,15 @@ export const REQUIREMENT_COVERAGE = {
   "R-AC8": { status: "unit", tests: ["multicam-autocut.test.ts"], note: "shot-length policy (max 8/min 0.5) + instrumental long-take exception (VS-62)" },
   "R-AC9": { status: "unit", tests: ["multicam-autocut.test.ts"], note: "per-switch review signal: runnerUp/confidence/flagged (VS-63)" },
 
-  // Multi-cam review UI — docs/multicam-review-ui.md. The flag signal (R-AC9) is shipped;
-  // the web UI itself (R-RUI1-6, VS-65) and downstream re-evaluation (R-RUI7, VS-66) are design-only.
-  "R-RUI1": { status: "deferred", note: "review-switches CLI + local server — design only (VS-65)" },
-  "R-RUI2": { status: "deferred", note: "surface flagged switches — design only (VS-65)" },
-  "R-RUI3": { status: "deferred", note: "±2s pre-extracted context previews — design only (VS-65)" },
-  "R-RUI4": { status: "deferred", note: "per-segment angle choice — design only (VS-65)" },
-  "R-RUI5": { status: "deferred", note: "in-place write-back + choice/edit history with notes — design only (VS-65)" },
-  "R-RUI6": { status: "deferred", note: "print export handoff line — design only (VS-65)" },
+  // Multi-cam review UI — docs/multicam-review-ui.md. Flag signal R-AC9 + the pure
+  // review-model core are unit-tested; the server/browser/ffmpeg shell is manual (VS-65).
+  // Downstream re-evaluation (R-RUI7, VS-66) is still design-only.
+  "R-RUI1": { status: "manual", note: "review-switches CLI + localhost server launch (VS-65)" },
+  "R-RUI2": { status: "unit", tests: ["review-model.test.ts"], note: "reviewSegments flag filtering (--all vs flagged-only)" },
+  "R-RUI3": { status: "unit", tests: ["review-model.test.ts"], note: "candidateAngles + ±context preview windows; ffmpeg extraction itself manual" },
+  "R-RUI4": { status: "unit", tests: ["review-model.test.ts"], note: "applyReview applies per-segment picks" },
+  "R-RUI5": { status: "unit", tests: ["review-model.test.ts"], note: "applyReview change history; in-place write-back + .bak manual" },
+  "R-RUI6": { status: "manual", note: "print export handoff line after save (VS-65)" },
   "R-RUI7": { status: "deferred", note: "downstream re-evaluation after a locked choice + shot-type variety — design only (VS-66)" },
 };
 

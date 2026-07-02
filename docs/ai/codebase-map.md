@@ -50,6 +50,8 @@ and [`requirements-summary.md`](requirements-summary.md) for status.
 │   ├── analyze-visual-saliency.mjs # per-angle saliency.json: ffmpeg motion pass gates Ollama vision over multicam angles (I/O over visual-saliency.mjs)
 │   ├── multicam-autocut.mjs    # pure: auto angle-switch selection (audio-events + saliency → switches + rationale) + evaluate() metrics + shot-length policy w/ instrumental long-take exception + per-switch review signal (unit-tested, VS-46/62/63)
 │   ├── propose-switches.mjs    # thin CLI: read multicam.json + audio-events.json + saliency.json → switches.json (+ prints rationale); feeds the exporters via --switches (I/O over multicam-autocut.mjs, VS-46/47)
+│   ├── review-model.mjs        # pure: review-UI core — flagged-segment derivation + candidate angles + preview windows + apply-choice/history (unit-tested, VS-65)
+│   ├── review-switches.mjs     # I/O: local server + page + ffmpeg ±2s previews to review flagged cuts, write picks back to switches.json + history (over review-model.mjs, VS-65)
 │   ├── requirement-coverage.mjs # pure: requirement-index extraction + the feature-coverage manifest + audit (unit-tested, VS-58)
 │   └── check-features.mjs      # feature/requirement coverage report + gate (I/O over requirement-coverage.mjs); `npm run check:features`
 ├── skills/
@@ -71,6 +73,7 @@ and [`requirements-summary.md`](requirements-summary.md) for status.
 │   ├── transitions-render.test.ts # unit tests for tools/transitions-render.mjs
 │   ├── visual-saliency.test.ts # unit tests for tools/visual-saliency.mjs
 │   ├── multicam-autocut.test.ts # unit tests for tools/multicam-autocut.mjs
+│   ├── review-model.test.ts    # unit tests for tools/review-model.mjs
 │   ├── requirement-coverage.test.ts # unit tests for tools/requirement-coverage.mjs
 │   ├── conventions.test.ts     # feature-coverage audit gate + dependency/coverage-include invariants (VS-58)
 │   └── packaging.test.ts       # guards machine-path leaks + the promo-assets packaging
@@ -87,7 +90,7 @@ and [`requirements-summary.md`](requirements-summary.md) for status.
 │   ├── audio-events.md         # DESIGN: non-speech/musical audio events spec (R-AE, VS-41 → build VS-44)
 │   ├── visual-saliency.md      # per-angle "what's worth showing" — shipped (R-VS, VS-42 design → VS-45 build)
 │   ├── multicam-auto-cut.md    # DESIGN: audio+visual → angle-selection model emitting switches (R-AC, VS-43 → build VS-46/47/62/63)
-│   ├── multicam-review-ui.md   # DESIGN: review low-confidence auto-cuts in a local web UI (R-RUI; flag signal R-AC9 shipped VS-63, UI VS-65/66)
+│   ├── multicam-review-ui.md   # review low-confidence auto-cuts in a local web UI (R-RUI; flag signal R-AC9 + UI R-RUI1-6 shipped VS-63/65, downstream re-eval R-RUI7 VS-66)
 │   ├── releasing.md            # release + npm trusted-publisher setup
 │   ├── manual-test-plan.md     # manual checklist for the external-tool pipeline
 │   ├── media/                  # README demo media (docs-only; gitignored binaries) — from Tears of Steel (CC BY 3.0)
@@ -203,7 +206,8 @@ consciously classified — line coverage is a floor, not a ceiling.
 | render transitions into video without FCP (VS-54/55) | `docs/render-transitions.md` (R-RT) + `tools/transitions-render.mjs` (pure: recipe maps + full-chain/windowed plans + `windowedClipFilter`) + `tools/render-transitions.mjs` (ffmpeg I/O: windowed default, `--full-chain`) |
 | multi-cam design + audio sync spec | `docs/multicam.md` (design) + `docs/multicam-sync.md` (sync tool, shipped) |
 | auto multi-cam cutting / "edit awareness" | `docs/audio-events.md` (R-AE, shipped) + `docs/visual-saliency.md` (R-VS, shipped) + `docs/multicam-auto-cut.md` (R-AC, shipped VS-46 model + VS-47 integration + VS-62 shot-length policy/long-take exception; BYAM demo run) |
-| auto angle-switch selection → switches.json → exporters | `tools/propose-switches.mjs` (I/O CLI, prints rationale) + `tools/multicam-autocut.mjs` (pure: weighted scoring + constraint smoothing + shot-length policy w/ instrumental long-take exception + `evaluate()` metrics, VS-46/62); fed to `export-multicam-fcpxml`/`render-multicam-preview` via `--switches` (glue: `switchesFromDoc` in `multicam.mjs`, VS-47) |
+| auto angle-switch selection → switches.json → exporters | `tools/propose-switches.mjs` (I/O CLI, prints rationale) + `tools/multicam-autocut.mjs` (pure: weighted scoring + constraint smoothing + shot-length policy w/ instrumental long-take exception + per-switch review signal + `evaluate()` metrics, VS-46/62/63); fed to `export-multicam-fcpxml`/`render-multicam-preview` via `--switches` (glue: `switchesFromDoc` in `multicam.mjs`, VS-47) |
+| review low-confidence auto-cuts in a browser | `tools/review-switches.mjs` (local server + page + ffmpeg ±2s previews, I/O) over `tools/review-model.mjs` (pure: flagged segments, candidate angles, apply-choice + history, VS-65); writes picks back to `switches.json` + `switches.history.json` (`docs/multicam-review-ui.md`, R-RUI) |
 | is every documented requirement tested? (feature coverage) | `docs/feature-coverage.md` (R7.5/R-EC) + `tools/requirement-coverage.mjs` (pure: index + manifest + audit) + `tools/check-features.mjs` (report/gate) + `tests/conventions.test.ts` |
 | non-speech audio-events pass → audio-events.json | `tools/analyze-audio-events.mjs` (ffmpeg I/O) + `tools/audio-events.mjs` (pure: envelope/onsets/sectioning + spectral descriptors/structural novelty, VS-44/49) |
 | per-angle visual saliency → saliency.json | `tools/analyze-visual-saliency.mjs` (ffmpeg motion pass + gated Ollama vision, I/O) + `tools/visual-saliency.mjs` (pure: windowing, group-clock map, motion norm, vision-reply parse, gating, schema, VS-45) |

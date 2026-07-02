@@ -91,7 +91,10 @@ preview extraction — is out of automated scope and lives in
 
 - **R-AC9 — the review signal — is shipped (VS-63).** `autoCut` flags near-tie /
   low-vision-confidence switches with a `runnerUp` + `confidence`.
-- **R-RUI1–R-RUI6 (the web UI itself) — design only.** Build tracked in **VS-65**.
+- **R-RUI1–R-RUI6 (the web UI) — shipped (VS-65).** `tools/review-switches.mjs` +
+  the pure `tools/review-model.mjs` (100% unit-tested: flag filtering, candidate angles,
+  preview windows, apply-choice + history). The HTTP server, page, and ffmpeg preview
+  extraction are manual ([`manual-test-plan.md`](manual-test-plan.md) §13).
 - **R-RUI7 (downstream re-evaluation) — design only.** Needs a per-window shot-type
   signal (wide / medium / close) to penalize consecutive similar shots; tracked in
   **VS-66** (also revisits the `wRepeat` variety idea from `multicam-auto-cut.md` §3).

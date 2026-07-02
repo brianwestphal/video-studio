@@ -217,6 +217,24 @@ run. See [`multicam-auto-cut.md`](multicam-auto-cut.md) (R-AC) + [`multicam.md`]
 | 12.5 | **Override** — hand-edit `switches.json` (move/remove a cut), re-run 12.3/12.4 | The exporters honor the edited file verbatim; passing an explicit `--switch` flag alongside `--switches` makes the flags win (the file is ignored). |
 | 12.6 | **Degraded paths** — run 12.1 with `--saliency` omitted, then with `--audio-events` omitted | No saliency → a footage-based round-robin (a `Note:` is logged); no audio-events → the riff/vocal priors + onset snapping are dropped (a `Note:` is logged). Neither crashes; both still produce a valid `switches.json`. |
 
+## 13. Multi-cam review UI (`tools/review-switches.mjs`, VS-65)
+
+The pure core (`tools/review-model.mjs` — which cuts to surface, candidate angles,
+preview windows, apply-choice + history) is unit-tested to 100%. These rows exercise
+the I/O shell: the local HTTP server, the browser page, ffmpeg preview extraction, and
+the in-place write-back. See [`multicam-review-ui.md`](multicam-review-ui.md) (R-RUI).
+Needs a synced group + a `switches.json` from §12 (whose `rationale` carries the R-AC9
+`flagged` signal), plus ffmpeg and a browser.
+
+| # | Action | Expected |
+|---|--------|----------|
+| 13.1 | `node tools/review-switches.mjs external/multi-cam/multicam.json --switches <…>/switches.json` | Logs how many **flagged** cuts it will review, extracts previews, starts `http://127.0.0.1:8777/`, and opens the browser. If no cuts are flagged: prints "No flagged cuts to review" and exits 0 (no server). |
+| 13.2 | In the page | One card per flagged cut: the auto-picked angle + its confidence/why, and a row of **candidate angle previews** (short looping clips covering the cut **±2 s**), the auto pick tagged. Clicking a preview selects that angle; an optional note field per cut. |
+| 13.3 | Pick a different angle for one cut, add a note, click **Save** | The page shows the change count + the ready `export-multicam-fcpxml … --switches …` line. On disk: `switches.json` is rewritten in place with the new `memberId`, `switches.json.bak` holds the prior version, and `switches.history.json` gains an entry `{ atSeconds, from, to, at (ISO), note }`. |
+| 13.4 | Re-run 13.1, click Save **without** changing anything | 0 changes; no `.bak` rewrite, no new history entry (only actual angle changes are recorded). |
+| 13.5 | `--all` | Every cut is shown (not just flagged); `--port <n>` moves the server; `--context <s>` changes the preview lead/tail. |
+| 13.6 | Feed the saved `switches.json` to §12.3 / §12.4 | The exporters honor the reviewed picks verbatim (it's the same hand-editable file). |
+
 ## Automated Coverage Summary
 
 Covered by unit tests (do **not** re-test by hand):
@@ -256,9 +274,14 @@ Covered by unit tests (do **not** re-test by hand):
   The ffmpeg mono extraction + real-audio sync in `sync-multicam.mjs` is §7 above;
   the multicam export is §7.8; the `--switches` file wiring in the exporters is §12.
 - **`tools/multicam-autocut.mjs`** — the auto angle selector: `audioContextAt`,
-  `cutBoundaries`, `snapToBoundary`, `autoCut`, `evaluate`
+  `cutBoundaries`, `snapToBoundary`, `autoCut` (incl. the R-AC9 review signal), `evaluate`
   (`tests/multicam-autocut.test.ts`). 100% coverage — so §12's selection model +
   metrics are unit-covered; §12 rows exercise the CLI + the BYAM demonstration.
+- **`tools/review-model.mjs`** — the review-UI core: `reviewSegments` (flag filtering +
+  preview windows), `candidateAngles`, `applyReview` (picks + change history)
+  (`tests/review-model.test.ts`). 100% coverage — so §13's which-cuts / candidate /
+  write-back *logic* is unit-covered; §13 rows exercise the server, page, and ffmpeg
+  preview extraction.
 - **`tools/audio-events.mjs`** — `rmsEnvelope`, `detectOnsets`, `vocalSpans`,
   `sectionize`, `spectralFeatures`, `aggregateSpectral`, `structureBoundaries`,
   `buildAudioEvents`, `wordsFromWhisper` (`tests/audio-events.test.ts`).
