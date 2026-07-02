@@ -125,7 +125,7 @@ describe("transitionRecipe / TRANSITION_RECIPES (VS-55 native tiers)", () => {
     expect(transitionRecipe("Static")).toEqual({ tier: "B", expr: STATIC_EXPR });
     expect(transitionRecipe("Circle Inset")).toEqual({ tier: "C", recipe: "inset-circle" });
     expect(transitionRecipe("Rectangle Inset")).toEqual({ tier: "C", recipe: "inset-rect" });
-    expect(transitionRecipe("Shapes Inset")).toEqual({ tier: "C", recipe: "inset-circle" });
+    expect(transitionRecipe("Shapes Inset")).toEqual({ tier: "C", recipe: "inset-shapes" });
     expect(transitionRecipe("Side-by-Side Split")).toEqual({ tier: "C", recipe: "split-h" });
     expect(transitionRecipe("Top & Bottom Split")).toEqual({ tier: "C", recipe: "split-v" });
   });
@@ -233,15 +233,21 @@ describe("windowedClipFilter", () => {
     const fc = windowedClipFilter(transitionRecipe("Chevron"), { durationSeconds: D });
     expect(fc.filter).toContain(`xfade=transition=custom:expr='${CHEVRON_EXPR}':duration=0.4:offset=0`);
   });
-  it("Tier C inset-circle → a growing circular alpha mask overlaid on the outgoing", () => {
+  it("Tier C inset-circle → a growing, feathered circular alpha mask overlaid on the outgoing", () => {
     const fc = windowedClipFilter({ tier: "C", recipe: "inset-circle" }, { durationSeconds: D });
     expect(fc.filter).toContain("[b]format=rgba,geq=");
     expect(fc.filter).toContain("hypot(X-W/2");
+    expect(fc.filter).toContain("clip(255*(0.5+"); // feathered edge, not a hard step
     expect(fc.filter).toContain("[a][ov]overlay=0:0,format=yuv422p10le[vout]");
   });
-  it("Tier C inset-rect → a growing rectangular alpha mask", () => {
+  it("Tier C inset-rect → a growing, feathered rectangular alpha mask", () => {
     const fc = windowedClipFilter({ tier: "C", recipe: "inset-rect" }, { durationSeconds: D });
-    expect(fc.filter).toContain("255*lt(abs(X-W/2)");
+    expect(fc.filter).toContain("abs(X-W/2)");
+    expect(fc.filter).toContain("clip(0.5+"); // soft per-axis ramp
+  });
+  it("Tier C inset-shapes → a feathered diamond (L1) mask, distinct from the circle", () => {
+    const fc = windowedClipFilter({ tier: "C", recipe: "inset-shapes" }, { durationSeconds: D });
+    expect(fc.filter).toContain("abs(X-W/2)/(W/2)+abs(Y-H/2)/(H/2)");
   });
   it("Tier C split-h → crop halves sliding apart horizontally", () => {
     const fc = windowedClipFilter({ tier: "C", recipe: "split-h" }, { durationSeconds: D });

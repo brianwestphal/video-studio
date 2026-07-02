@@ -57,11 +57,14 @@ degrades Tier B/C to the nearest Tier-A look.
   whose reveal edge leads at the vertical centre (`CHEVRON_EXPR`); Static → a
   noise-modulated dissolve where each pixel flips at a stable pseudo-random
   threshold (`STATIC_EXPR`).
-- **R-RT5 — Tier C (overlay + animated mask / crop-and-slide).** Circle/Shapes
-  Inset → the incoming clip revealed through a growing circular alpha mask
-  (`geq`+`overlay`); Rectangle Inset → a growing rectangular mask; Side-by-Side
-  Split → the outgoing clip's two vertical halves slide apart (`crop`+`overlay`)
-  to reveal the incoming; Top & Bottom Split → the same horizontally.
+- **R-RT5 — Tier C (overlay + animated mask / crop-and-slide).** Circle Inset → the
+  incoming clip revealed through a growing circular alpha mask (`geq`+`overlay`);
+  Rectangle Inset → a growing rectangular mask; **Shapes Inset → a growing diamond
+  (L1-distance) mask, distinct from the circle (VS-57)**; Side-by-Side Split → the
+  outgoing clip's two vertical halves slide apart (`crop`+`overlay`) to reveal the
+  incoming; Top & Bottom Split → the same horizontally. The inset masks have a
+  **feathered edge** (a soft alpha ramp of ~`FEATHER` of the shape's reach, VS-57)
+  rather than a hard step, matching FCP's soft inset edges.
 
 The name→recipe map (`TRANSITION_RECIPES`) and per-clip filtergraph assembly
 (`windowedClipFilter`) are pure and 100% unit-tested; the ffmpeg renders are
@@ -113,8 +116,9 @@ manual/pipeline (see [`manual-test-plan.md`](manual-test-plan.md) §10).
 
 - Wired into the skill as the "finish without FCP" path in `skills/video-studio/SKILL.md`
   Step 7, alongside `rebuild.sh` (plain cut) and the `.fcpxml` (FCP import). *(VS-56, done.)*
-- Tier-C inset fidelity (border/feathering, offset insets) and additional
-  `xfade=custom` looks remain open if closer FCP parity is wanted *(VS-57)*.
+- Tier-C inset fidelity: **feathered mask edges + a distinct `Shapes Inset` diamond
+  shipped (VS-57)**; an optional border and offset/scaled (shrunken) insets, plus
+  additional `xfade=custom` looks, remain open if closer FCP parity is wanted.
 - Wall-clock: on a synthetic 24 s / 720p cut with two 0.5 s transitions the
   windowed renderer was ~4× faster than `--full-chain` (~0.9 s vs ~3.4 s) and used
   ~6× less CPU — it re-encodes ~1 s of overlap vs the full 24 s. The advantage

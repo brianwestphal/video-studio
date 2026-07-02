@@ -76,7 +76,7 @@ export const TRANSITION_RECIPES = {
   // Tier C — overlay + animated alpha mask / crop-and-slide
   "Circle Inset": { tier: "C", recipe: "inset-circle" },
   "Rectangle Inset": { tier: "C", recipe: "inset-rect" },
-  "Shapes Inset": { tier: "C", recipe: "inset-circle" },
+  "Shapes Inset": { tier: "C", recipe: "inset-shapes" },
   "Side-by-Side Split": { tier: "C", recipe: "split-h" },
   "Top & Bottom Split": { tier: "C", recipe: "split-v" },
 };
@@ -261,9 +261,16 @@ export function buildWindowedRenderPlan(segments, transitions = [], { audioTrack
 // Geq alpha-mask expressions for the Tier-C inset transitions (the incoming clip
 // reveals through a shape that grows from the centre over the clip). `T` is the
 // frame time, `d` the clip duration; `W`/`H`/`X`/`Y` are geq's frame coordinates.
+// The edge is *feathered* (VS-57): alpha ramps 0→255 over a band ~`FEATHER` of the
+// shape's reach instead of a hard step, matching FCP's soft inset edges.
+const FEATHER = 0.06;
 const insetAlpha = {
-  circle: (d) => `if(lte(hypot(X-W/2\\,Y-H/2)\\,(T/${d})*hypot(W/2\\,H/2))\\,255\\,0)`,
-  rect: (d) => `255*lt(abs(X-W/2)\\,(T/${d})*W/2)*lt(abs(Y-H/2)\\,(T/${d})*H/2)`,
+  // circle: soft ring where the growing radius crosses the pixel's distance.
+  circle: (d) => `clip(255*(0.5+((T/${d})*hypot(W/2\\,H/2)-hypot(X-W/2\\,Y-H/2))/(${FEATHER}*hypot(W/2\\,H/2)))\\,0\\,255)`,
+  // rectangle: independent soft ramps on each axis, multiplied.
+  rect: (d) => `255*clip(0.5+((T/${d})*W/2-abs(X-W/2))/(${FEATHER}*W/2)\\,0\\,1)*clip(0.5+((T/${d})*H/2-abs(Y-H/2))/(${FEATHER}*H/2)\\,0\\,1)`,
+  // shapes: a feathered diamond (L1 distance), distinct from the circle inset.
+  shapes: (d) => `clip(255*(0.5+((T/${d})*2-(abs(X-W/2)/(W/2)+abs(Y-H/2)/(H/2)))/${(FEATHER * 2).toFixed(2)})\\,0\\,255)`,
 };
 
 // Build the `-filter_complex` for ONE windowed transition clip. The clip's two
@@ -279,8 +286,8 @@ export function windowedClipFilter(recipe, { durationSeconds: d, audio = "crossf
     parts.push(`[a][b]xfade=transition=${recipe.xfade}:duration=${d}:offset=0,format=yuv422p10le[vout]`);
   } else if (recipe.tier === "B") {
     parts.push(`[a][b]xfade=transition=custom:expr='${recipe.expr}':duration=${d}:offset=0,format=yuv422p10le[vout]`);
-  } else if (recipe.recipe === "inset-circle" || recipe.recipe === "inset-rect") {
-    const alpha = recipe.recipe === "inset-circle" ? insetAlpha.circle(d) : insetAlpha.rect(d);
+  } else if (recipe.recipe.startsWith("inset-")) {
+    const alpha = insetAlpha[recipe.recipe.slice("inset-".length)](d);
     parts.push(`[b]format=rgba,geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='${alpha}'[ov]`);
     parts.push(`[a][ov]overlay=0:0,format=yuv422p10le[vout]`);
   } else {
