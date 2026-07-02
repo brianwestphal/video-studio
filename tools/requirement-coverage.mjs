@@ -207,6 +207,7 @@ export const REQUIREMENT_COVERAGE = {
   "R-RUI7": { status: "unit", tests: ["multicam-autocut.test.ts"], note: "autoCut locks + shot-type variety penalty (VS-66); wiring the UI save to re-propose is VS-67" },
   "R-RUI8": { status: "manual", note: "per-segment synchronized transport, single audio-focus, fullscreen; clips retain audio (VS-71); scrubber section-of-interest band + tick (VS-72) — manual-test-plan §13.9-13.13" },
   "R-RUI9": { status: "manual", note: "whole-video assembled timeline preview — client-side multi-cam player over HTTP-Range /source, /assembled edit, angle-colored bar, live pick updates (VS-73) — manual-test-plan §13.14-13.17" },
+  "R-RUI10": { status: "unit", tests: ["review-model.test.ts"], note: "force-add via reviewSegments forceKeys + splitSwitch are unit-tested; the /add-review, /split, and docked-timeline-drawer UI are I/O (manual-test-plan §13.18-13.21) (VS-74)" },
 };
 
 // Audit the manifest against the ids actually defined in the docs. Pure: caller

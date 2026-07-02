@@ -3,6 +3,7 @@ import {
   applyReview,
   candidateAngles,
   reviewSegments,
+  splitSwitch,
   // @ts-expect-error — JS module, no types
 } from "../tools/review-model.mjs";
 
@@ -36,6 +37,57 @@ describe("reviewSegments", () => {
     const segs = reviewSegments({ switches, rationale: [], timelineEnd: 12, includeAll: true });
     expect(segs.map((s: { index: number }) => s.index)).toEqual([0, 1, 2]);
     expect(segs[1]).toMatchObject({ chosen: "b", runnerUp: null, confidence: null, why: null, flagged: false });
+  });
+
+  it("force-includes an unflagged cut by atSeconds (VS-74), tagged forced", () => {
+    const segs = reviewSegments({ switches, rationale, timelineEnd: 12, forceKeys: [4] });
+    expect(segs.map((s: { index: number }) => s.index)).toEqual([0, 1, 2]); // 1 now pulled in
+    expect(segs[1]).toMatchObject({ index: 1, chosen: "b", flagged: false, forced: true });
+    // a flagged cut named by forceKeys stays flagged (not marked forced)
+    expect(segs[0]).toMatchObject({ index: 0, flagged: true, forced: false });
+  });
+
+  it("treats forceKeys as no-op when null/absent", () => {
+    const segs = reviewSegments({ switches, rationale, timelineEnd: 12, forceKeys: null as unknown as number[] });
+    expect(segs.map((s: { index: number }) => s.index)).toEqual([0, 2]);
+    expect(segs[0].forced).toBe(false);
+  });
+});
+
+describe("splitSwitch", () => {
+  it("inserts a same-angle, flagged+manual cut into the region covering the time", () => {
+    const r = splitSwitch({ switches, rationale, atSeconds: 6 });
+    if (!r) throw new Error("expected a split");
+    expect(r.index).toBe(2);
+    expect(r).toMatchObject({ atSeconds: 6, memberId: "b" }); // region [4,9) is angle b
+    expect(r.switches.map((s: { atSeconds: number }) => s.atSeconds)).toEqual([0, 4, 6, 9]);
+    expect(r.switches[2]).toEqual({ atSeconds: 6, memberId: "b" });
+    expect(r.rationale[2]).toMatchObject({ atSeconds: 6, memberId: "b", flagged: true, manual: true, why: "manual split" });
+    // rationale stays aligned to the switch list
+    expect(r.rationale.length).toBe(4);
+    // original arrays untouched
+    expect(switches.length).toBe(3);
+  });
+
+  it("carries the prior rationale across the insertion point", () => {
+    const r = splitSwitch({ switches, rationale, atSeconds: 2 }); // splits region [0,4) → angle a
+    if (!r) throw new Error("expected a split");
+    expect(r.index).toBe(1);
+    expect(r.switches[1]).toEqual({ atSeconds: 2, memberId: "a" });
+    expect(r.rationale[0]).toMatchObject({ flagged: true }); // switch 0's rationale preserved before insert
+    expect(r.rationale[2]).toMatchObject({ flagged: false }); // old switch-1 rationale shifted down
+  });
+
+  it("rounds the split time", () => {
+    expect(splitSwitch({ switches, rationale, atSeconds: 6.00049 })?.atSeconds).toBe(6);
+  });
+
+  it("rejects invalid splits", () => {
+    expect(splitSwitch({ switches: undefined as unknown as [], atSeconds: 6 })).toBeNull();
+    expect(splitSwitch({ switches: [], atSeconds: 6 })).toBeNull();
+    expect(splitSwitch({ switches, atSeconds: 0 })).toBeNull(); // non-positive
+    expect(splitSwitch({ switches, atSeconds: 4.02 })).toBeNull(); // within epsilon of a cut
+    expect(splitSwitch({ switches: [{ atSeconds: 5, memberId: "a" }], atSeconds: 3 })).toBeNull(); // before first cut
   });
 });
 

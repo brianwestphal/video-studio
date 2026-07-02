@@ -97,6 +97,20 @@ prints the ready `export-multicam-fcpxml … --switches switches.json` line
   per-segment players are mutually exclusive (single audio). Rough by design — angle swaps
   cause a brief seek stall, and tiny rate corrections are ignored (the ±context per-segment
   previews remain the accurate close-inspection tool). (I/O — manual-test-plan §13.)
+- **R-RUI10 — Manual review editing + docked timeline.** The user can shape the review
+  set and cuts by hand (VS-74): **(a) force-add** any cut — even an unflagged one — into the
+  review list (`reviewSegments` `forceKeys`, keyed by `atSeconds` so it survives index
+  shifts; server `/add-review`); **(b) split** the shot at the playhead into two
+  independently-choosable regions (`splitSwitch` inserts a same-angle, `flagged`+`manual`
+  cut into the covering region, rejecting a non-positive time, before-first-cut, or a cut
+  already within epsilon; server `/split`, logged to history on save); and **(c)** the
+  whole-video timeline (R-RUI9) is **docked as a collapsible drawer that expands from the
+  fixed nav bar** (a "Timeline" toggle, lazy-loaded), reachable without scrolling to the
+  top. Clicking a bar block scrubs so the playhead lands in it; Split/Add operate on the
+  cut under the playhead. `forceKeys` + `splitSwitch` are pure + unit-tested; the drawer,
+  buttons, and endpoints are I/O (manual). Manual splits are **not** preserved by a
+  re-propose (that regenerates the auto cuts from locks and is meant to run *before* manual
+  editing). (manual-test-plan §13.)
 - **R-RUI7 — Downstream re-evaluation.** A confirmed user choice **re-influences the
   subsequent auto picks**: `autoCut` accepts `locks` (user-confirmed
   `{ atSeconds, memberId }`) that are pinned and let the selection re-flow around them,
@@ -136,6 +150,11 @@ preview extraction — is out of automated scope and lives in
   the current switches with in-progress picks applied) and a bar of angle-colored blocks
   with flagged sections marked + scrubbing; pick changes recolor + re-angle live. `/source`
   (Range) + `/assembled` endpoints. Manual ([`manual-test-plan.md`](manual-test-plan.md) §13).
+- **R-RUI10 (manual review editing + docked timeline) — shipped (VS-74).** Force-add any
+  cut to review (`reviewSegments` `forceKeys`, `/add-review`), split a shot at the playhead
+  (`splitSwitch`, `/split`), and the timeline is a collapsible drawer off the nav bar. Pure
+  `forceKeys`/`splitSwitch` unit-tested (`review-model.test.ts`); drawer/buttons/endpoints
+  manual ([`manual-test-plan.md`](manual-test-plan.md) §13.18-13.21).
 - **R-RUI7 (downstream re-evaluation) — shipped (VS-66 model + VS-67 UI).** `autoCut`
   honors `locks` and applies a shot-type variety penalty (`shotTypeRepeatPenalty`); shot
   size from `shotTypeOf` (explicit vision `shotType` or a label hint). Unit-tested. The

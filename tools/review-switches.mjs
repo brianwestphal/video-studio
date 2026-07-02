@@ -29,7 +29,7 @@ import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { basename, isAbsolute, join, resolve } from "node:path";
 import { autoCut } from "./multicam-autocut.mjs";
-import { applyReview, candidateAngles, reviewSegments } from "./review-model.mjs";
+import { applyReview, candidateAngles, reviewSegments, splitSwitch } from "./review-model.mjs";
 import { sourceTime } from "./visual-saliency.mjs";
 
 function parseArgs(argv) {
@@ -101,11 +101,18 @@ function page(groupId, count, canRepropose) {
 <style>
   :root { color-scheme: dark; }
   body { margin: 0; font: 15px/1.5 -apple-system, system-ui, sans-serif; background: #12141a; color: #e7e9ee; }
-  header { position: sticky; top: 0; background: #1a1d26; padding: 14px 20px; border-bottom: 1px solid #2c3040; display: flex; justify-content: space-between; align-items: center; z-index: 2; }
+  #top { position: sticky; top: 0; z-index: 3; }
+  header { background: #1a1d26; padding: 14px 20px; border-bottom: 1px solid #2c3040; display: flex; justify-content: space-between; align-items: center; }
+  #tldrawer { background: #151822; border-bottom: 1px solid #2c3040; max-height: 0; overflow: hidden; transition: max-height .18s ease; }
+  #tldrawer.open { max-height: 74vh; overflow: auto; }
+  #tlbody { padding: 12px 20px; max-width: 1100px; margin: 0 auto; }
+  #tltoggle { background: #2c3040; color: #e7e9ee; }
+  #tltoggle.on { background: #6ea8fe; color: #0a0c12; }
   h1 { font-size: 16px; margin: 0; font-weight: 600; }
   main { padding: 20px; max-width: 1100px; margin: 0 auto; }
   .seg { background: #1a1d26; border: 1px solid #2c3040; border-radius: 10px; padding: 16px; margin-bottom: 18px; }
   .seg h2 { font-size: 14px; margin: 0 0 4px; font-weight: 600; }
+  .seg h2 em { color: #8fbf8f; font-style: normal; font-size: 12px; }
   .why { color: #9aa0ad; font-size: 13px; margin: 0 0 12px; }
   .why code { color: #c8a; }
   .seg.active { border-color: #3a4258; box-shadow: 0 0 0 1px #6ea8fe33; }
@@ -124,9 +131,7 @@ function page(groupId, count, canRepropose) {
   .seekwrap .seek::-moz-range-track { background: transparent; }
   .seekwrap .seek::-moz-range-thumb { width: 13px; height: 13px; border-radius: 50%; background: #e7e9ee; border: 1px solid #12141a; cursor: pointer; }
   .transport .time { font: 12px/1 ui-monospace, monospace; color: #9aa0ad; min-width: 92px; text-align: right; }
-  /* Whole-video assembled timeline preview (VS-73). */
-  #tl { max-width: 1100px; margin: 14px auto 0; padding: 0 20px; }
-  #tl > .tlload { margin-bottom: 4px; }
+  /* Whole-video assembled timeline preview (VS-73), docked in the nav drawer (VS-74). */
   .player { position: relative; width: 560px; max-width: 100%; aspect-ratio: 16/9; background: #000; border-radius: 8px; overflow: hidden; margin-bottom: 8px; }
   .player video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #000; }
   .tltransport { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
@@ -156,8 +161,10 @@ function page(groupId, count, canRepropose) {
   #status { color: #9aa0ad; font-size: 13px; }
   pre { background: #0c0e14; border: 1px solid #2c3040; border-radius: 8px; padding: 12px; overflow: auto; font-size: 12px; white-space: pre-wrap; }
 </style></head><body>
-<header><div><h1>Review <span id="count">${count}</span> cut(s) — ${groupId}</h1><div class="legend">On the scrubber, the <span class="swatch"></span> band is the shot this cut introduces; the clip ends are ±context lead-in/out.</div></div><div><span id="status"></span> &nbsp; ${reBtn}<button id="save">Save picks</button></div></header>
-<section id="tl"><button class="tlload" id="tlload">Load full-video preview</button><div id="tlbody"></div></section>
+<div id="top">
+<header><div><h1>Review <span id="count">${count}</span> cut(s) — ${groupId}</h1><div class="legend">On the scrubber, the <span class="swatch"></span> band is the shot this cut introduces; the clip ends are ±context lead-in/out.</div></div><div><button id="tltoggle">▸ Timeline</button> &nbsp; <span id="status"></span> &nbsp; ${reBtn}<button id="save">Save picks</button></div></header>
+<div id="tldrawer"><div id="tlbody"></div></div>
+</div>
 <main id="root">Loading…</main>
 <script>
 const fmt = (s) => Math.floor(s/60)+":"+String(Math.floor(s%60)).padStart(2,"0");
@@ -168,7 +175,7 @@ let SEGS = [];
 let controllers = [];
 let TL = null; // whole-video assembled timeline preview (VS-73), lazily loaded
 function activate(i){ for (let k=0;k<controllers.length;k++) if (k!==i) controllers[k].pause(); if (TL) TL.pause(); }
-function setSegs(segs){ controllers = []; SEGS = segs.map(s => ({...s, pick: s.chosen, note: ""})); document.getElementById("count").textContent = SEGS.length; render(); if (TL) loadTimeline(); }
+function setSegs(segs){ controllers = []; SEGS = segs.map(s => ({...s, pick: s.chosen, note: ""})); document.getElementById("count").textContent = SEGS.length; render(); }
 fetch("data").then(r=>r.json()).then(d=>setSegs(d.segments));
 function render(){
   const root = document.getElementById("root");
@@ -180,7 +187,7 @@ function render(){
 // unmuted (audio focus, defaults to the pick); any clip can go fullscreen (VS-71).
 function buildSeg(seg, i){
   const el = document.createElement("section"); el.className = "seg";
-  el.innerHTML = "<h2>Cut at "+fmt(seg.atSeconds)+" — auto picked <code>"+seg.chosen+"</code></h2>"+
+  el.innerHTML = "<h2>Cut at "+fmt(seg.atSeconds)+" — auto picked <code>"+seg.chosen+"</code>"+(seg.forced?" <em>(added for review)</em>":"")+"</h2>"+
     "<p class='why'>"+(seg.why||"")+" · confidence <code>"+(seg.confidence==null?"?":seg.confidence)+"</code>"+
     " · section <code>"+fmt1(seg.atSeconds)+"–"+fmt1(seg.endSeconds)+"</code></p>";
 
@@ -262,6 +269,7 @@ if (rebtn) rebtn.onclick = async () => {
   const res = await fetch("repropose", { method:"POST", headers:{"content-type":"application/json"}, body: JSON.stringify({ locks: locksOf() }) });
   const out = await res.json();
   setSegs(out.segments);
+  if (TL) TL.setData(await fetch("assembled").then(r=>r.json())); // re-color the bar for the new edit
   document.getElementById("status").textContent = "re-proposed — "+out.segments.length+" cut(s) still flagged";
   rebtn.disabled = false;
 };
@@ -270,20 +278,38 @@ if (rebtn) rebtn.onclick = async () => {
 // active angle swaps per the assembled switch list with the user's in-progress picks
 // applied. A timeline bar colors every switch span by angle, marks flagged sections, and
 // scrubs on click. Rough by design (angle swaps cause a brief seek stall).
-const tlBtn = document.getElementById("tlload");
-tlBtn.onclick = () => loadTimeline();
+// The timeline is docked in a collapsible drawer that expands from the fixed nav bar
+// (VS-74), so it's reachable without scrolling to the top. Lazily loaded on first open.
+const drawer = document.getElementById("tldrawer");
+const toggle = document.getElementById("tltoggle");
+let tlLoading = false;
+toggle.onclick = async () => {
+  const open = drawer.classList.toggle("open");
+  toggle.classList.toggle("on", open);
+  toggle.textContent = (open?"▾":"▸")+" Timeline";
+  if (open && !TL && !tlLoading) await loadTimeline();
+};
 async function loadTimeline(){
   const body = document.getElementById("tlbody");
-  body.textContent = "Loading full-video preview…";
-  tlBtn.disabled = true;
-  try {
-    const data = await fetch("assembled").then(r=>r.json());
-    TL = buildTimeline(data, body);
-    tlBtn.textContent = "Reload full-video preview";
-  } catch (e) {
-    body.textContent = "Failed to load preview: " + e;
-  }
-  tlBtn.disabled = false;
+  body.textContent = "Loading full-video preview…"; tlLoading = true;
+  try { const data = await fetch("assembled").then(r=>r.json()); TL = buildTimeline(data, body); }
+  catch (e) { body.textContent = "Failed to load preview: " + e; }
+  tlLoading = false;
+}
+const stat = (msg) => { document.getElementById("status").textContent = msg; };
+// Split the shot at the playhead into two independently-choosable regions (VS-74).
+async function doSplit(atSeconds){
+  const r = await fetch("split", { method:"POST", headers:{"content-type":"application/json"}, body: JSON.stringify({ atSeconds }) }).then(r=>r.json());
+  if (!r.split){ stat("can't split there — a cut already exists at that spot"); return; }
+  setSegs(r.segments);
+  if (TL) TL.setData(await fetch("assembled").then(r=>r.json()));
+  stat("split added at "+atSeconds.toFixed(1)+"s — choose the second region's angle below");
+}
+// Force any cut (even an unflagged one) into the review list (VS-74).
+async function doAddReview(atSeconds){
+  const r = await fetch("add-review", { method:"POST", headers:{"content-type":"application/json"}, body: JSON.stringify({ atSeconds }) }).then(r=>r.json());
+  setSegs(r.segments);
+  stat("added cut at "+atSeconds.toFixed(1)+"s to review");
 }
 function buildTimeline(data, body){
   body.innerHTML = "";
@@ -300,9 +326,11 @@ function buildTimeline(data, body){
   }
   const tp = document.createElement("div"); tp.className = "tltransport";
   const pp = document.createElement("button"); pp.className = "pp"; pp.textContent = "Play";
+  const splitBtn = document.createElement("button"); splitBtn.textContent = "Split here";
+  const addBtn = document.createElement("button"); addBtn.textContent = "Add cut to review";
   const time = document.createElement("span"); time.className = "time"; time.textContent = "0:00 / "+fmt(timelineEnd);
   const activeLbl = document.createElement("span"); activeLbl.className = "active";
-  tp.append(pp, time, activeLbl);
+  tp.append(pp, splitBtn, addBtn, time, activeLbl);
   const bar = document.createElement("div"); bar.className = "tlbar";
   const head = document.createElement("div"); head.className = "head";
   const legend = document.createElement("div"); legend.className = "tllegend";
@@ -315,8 +343,9 @@ function buildTimeline(data, body){
   const pickByIndex = () => { const m = new Map(); for (const s of SEGS) m.set(s.index, s.pick); return m; };
   const assembled = () => { const p = pickByIndex(); return data.switches.map((s,i)=>({ at: s.atSeconds, id: p.has(i)?p.get(i):s.memberId })); };
   const angleAt = (g) => { const sw = assembled(); let id = sw.length?sw[0].id:(angles[0]&&angles[0].id); for (const s of sw){ if (s.at <= g+1e-6) id = s.id; else break; } return id; };
+  const curCut = () => { const sw = assembled(); let c = sw.length?sw[0]:{ at: 0, id: activeId }; for (const s of sw){ if (s.at <= gt+1e-6) c = s; else break; } return c; };
   const show = (id) => { for (const [k,a] of vid){ a.el.style.display = k===id?"block":"none"; if (k===id) a.el.preload = "auto"; } activeId = id; activeLbl.textContent = id?("● "+id):""; };
-  const drawHead = () => { head.style.left = (Math.min(1, timelineEnd?gt/timelineEnd:0)*100)+"%"; time.textContent = fmt1(gt)+" / "+fmt(timelineEnd); };
+  const drawHead = () => { head.style.left = (Math.min(1, timelineEnd?gt/timelineEnd:0)*100)+"%"; time.textContent = fmt1(gt)+" / "+fmt(timelineEnd); addBtn.textContent = "Add cut @ "+fmt1(curCut().at)+" to review"; };
   const drawBar = () => {
     bar.innerHTML = ""; const sw = assembled();
     for (let i=0;i<sw.length;i++){
@@ -335,12 +364,16 @@ function buildTimeline(data, body){
   function seek(g){ gt = Math.max(0, Math.min(timelineEnd, g)); const id = angleAt(gt); const a = vid.get(id); show(id); if (a) a.el.currentTime = srcTime(gt,a); if (playing && a) a.el.play().catch(()=>{}); drawHead(); }
   function tick(){ const a = vid.get(activeId); if (!a) return; gt = a.offset + a.el.currentTime * a.rate; if (playing){ const w = angleAt(gt); if (w !== activeId) swap(w); if (gt >= timelineEnd - 0.05) pause(); } drawHead(); }
   pp.onclick = () => (playing ? pause() : play());
+  splitBtn.onclick = () => doSplit(gt);
+  addBtn.onclick = () => doAddReview(curCut().at);
   for (const [,a] of vid) a.el.addEventListener("timeupdate", tick);
   bar.onclick = (e) => { const r = bar.getBoundingClientRect(); seek((e.clientX - r.left)/r.width*timelineEnd); };
   player.ondblclick = () => { const a = vid.get(activeId); if (a) (a.el.requestFullscreen||a.el.webkitRequestFullscreen||(()=>{})).call(a.el); };
   drawBar(); seek(0);
   return {
     pause: () => { if (playing) pause(); },
+    gt: () => gt,
+    setData: (nd) => { data.switches = nd.switches; data.rationale = nd.rationale; drawBar(); }, // recolor after split / re-propose
     onPick: () => { drawBar(); if (playing){ const w = angleAt(gt); if (w !== activeId) swap(w); } else { const id = angleAt(gt); if (id !== activeId){ const a = vid.get(id); show(id); if (a) a.el.currentTime = srcTime(gt,a); } } },
   };
 }
@@ -380,12 +413,13 @@ function main() {
   let baseline = JSON.stringify(switchDoc.switches);
   let curSwitches = switchDoc.switches;
   let curRationale = switchDoc.rationale || [];
-  const reproposeLog = []; // in-memory re-propose events, persisted to history on save
+  const reproposeLog = []; // in-memory re-propose / manual-edit events, persisted to history on save
+  const forced = new Set(); // atSeconds of cuts the user force-added to review (VS-74)
 
   // Compute the reviewable segments from the current switch list, attaching candidate
   // angles + their (cached) preview clips.
   const buildSegments = () => {
-    const segs = reviewSegments({ switches: curSwitches, rationale: curRationale, timelineEnd, contextSeconds: opts.contextSeconds, includeAll: opts.all });
+    const segs = reviewSegments({ switches: curSwitches, rationale: curRationale, timelineEnd, contextSeconds: opts.contextSeconds, includeAll: opts.all, forceKeys: [...forced] });
     for (const seg of segs) {
       seg.candidates = candidateAngles(group, seg).filter((id) => membersById.has(id)).map((id) => {
         const file = clipName(seg.atSeconds, id);
@@ -433,6 +467,29 @@ function main() {
       }));
       res.setHeader("content-type", "application/json");
       res.end(JSON.stringify({ timelineEnd, angles, switches: curSwitches, rationale: curRationale }));
+      return;
+    }
+    if (url === "/add-review" && req.method === "POST") { // force any cut into review (VS-74)
+      const at = Number(JSON.parse((await readBody(req)) || "{}").atSeconds);
+      if (Number.isFinite(at)) forced.add(Math.round(at * 1000) / 1000);
+      segments = buildSegments();
+      res.setHeader("content-type", "application/json");
+      res.end(JSON.stringify({ segments }));
+      return;
+    }
+    if (url === "/split" && req.method === "POST") { // split the shot at the playhead (VS-74)
+      const at = Number(JSON.parse((await readBody(req)) || "{}").atSeconds);
+      const r = splitSwitch({ switches: curSwitches, rationale: curRationale, atSeconds: at });
+      if (r) {
+        curSwitches = r.switches;
+        curRationale = r.rationale;
+        forced.add(r.atSeconds);
+        reproposeLog.push({ at: new Date().toISOString(), split: r.atSeconds });
+        segments = buildSegments();
+        console.log(`Split at ${r.atSeconds}s → ${curSwitches.length} switch(es), ${segments.length} for review.`);
+      }
+      res.setHeader("content-type", "application/json");
+      res.end(JSON.stringify({ split: Boolean(r), segments }));
       return;
     }
     if (url === "/repropose" && req.method === "POST") {
