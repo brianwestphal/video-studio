@@ -74,6 +74,14 @@ prints the ready `export-multicam-fcpxml … --switches switches.json` line
   exporters read.
 - **R-RUI6 — Handoff.** After save the CLI prints the ready
   `export-multicam-fcpxml … --switches …` / `render-multicam-preview … --switches …` line.
+- **R-RUI8 — Interactive playback.** The candidate clips do **not** auto-play the whole
+  page. Each flagged segment has its own transport (play/pause + seek + time) that drives
+  all of that segment's angle clips **in lockstep** off a leader clock (drift-corrected),
+  and loops the segment. Only **one segment plays at a time** — starting one pauses any
+  other — and within the playing segment exactly **one clip is unmuted** (audio focus,
+  defaults to the current pick; a per-clip Audio toggle moves it), so audio is always
+  single-source. Any clip can be viewed **fullscreen** for close inspection. Pick, audio
+  focus, and fullscreen are distinct per-clip controls. (I/O — manual-test-plan §13.)
 - **R-RUI7 — Downstream re-evaluation.** A confirmed user choice **re-influences the
   subsequent auto picks**: `autoCut` accepts `locks` (user-confirmed
   `{ atSeconds, memberId }`) that are pinned and let the selection re-flow around them,
@@ -100,6 +108,11 @@ preview extraction — is out of automated scope and lives in
   the pure `tools/review-model.mjs` (100% unit-tested: flag filtering, candidate angles,
   preview windows, apply-choice + history). The HTTP server, page, and ffmpeg preview
   extraction are manual ([`manual-test-plan.md`](manual-test-plan.md) §13).
+- **R-RUI8 (interactive playback) — shipped (VS-71).** The page gives each flagged cut a
+  synchronized per-segment transport (play/pause/seek, drift-corrected, segment-looping),
+  plays only one segment at a time with a single unmuted audio-focus clip, and lets any
+  clip go fullscreen. Preview clips now retain audio (`extractClip` dropped `-an`, keeps
+  a downscaled video + mono audio). Manual ([`manual-test-plan.md`](manual-test-plan.md) §13).
 - **R-RUI7 (downstream re-evaluation) — shipped (VS-66 model + VS-67 UI).** `autoCut`
   honors `locks` and applies a shot-type variety penalty (`shotTypeRepeatPenalty`); shot
   size from `shotTypeOf` (explicit vision `shotType` or a label hint). Unit-tested. The

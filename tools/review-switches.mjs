@@ -55,12 +55,13 @@ function parseArgs(argv) {
 const readJson = (p) => (p && existsSync(p) ? JSON.parse(readFileSync(p, "utf8")) : null);
 
 // Decode a short preview of one angle covering [previewStart, previewEnd] on the group
-// clock into `dest` (silent, downscaled). Returns false if ffmpeg fails (missing angle).
+// clock into `dest` (downscaled, audio kept so the reviewer can audition one at a time —
+// VS-71). Returns false if ffmpeg fails (missing angle).
 function extractClip(member, previewStart, previewEnd, dest) {
   const ss = Math.max(0, sourceTime(previewStart, member));
   const dur = Math.max(0.1, previewEnd - previewStart);
   try {
-    execFileSync("ffmpeg", ["-y", "-loglevel", "error", "-ss", String(ss), "-i", member.path, "-t", String(dur), "-an", "-vf", "scale=480:-2", "-movflags", "+faststart", dest]);
+    execFileSync("ffmpeg", ["-y", "-loglevel", "error", "-ss", String(ss), "-i", member.path, "-t", String(dur), "-vf", "scale=480:-2", "-ac", "1", "-movflags", "+faststart", dest]);
     return true;
   } catch {
     return false;
@@ -84,14 +85,23 @@ function page(groupId, count, canRepropose) {
   .seg h2 { font-size: 14px; margin: 0 0 4px; font-weight: 600; }
   .why { color: #9aa0ad; font-size: 13px; margin: 0 0 12px; }
   .why code { color: #c8a; }
+  .seg.active { border-color: #3a4258; box-shadow: 0 0 0 1px #6ea8fe33; }
+  .transport { display: flex; align-items: center; gap: 10px; margin: 4px 0 12px; }
+  .transport .seek { flex: 1; accent-color: #6ea8fe; }
+  .transport .time { font: 12px/1 ui-monospace, monospace; color: #9aa0ad; min-width: 92px; text-align: right; }
   .cands { display: flex; flex-wrap: wrap; gap: 12px; }
-  .cand { border: 2px solid #2c3040; border-radius: 8px; padding: 8px; cursor: pointer; background: #12141a; transition: border-color .1s; }
+  .cand { border: 2px solid #2c3040; border-radius: 8px; padding: 8px; background: #12141a; transition: border-color .1s; }
   .cand.sel { border-color: #6ea8fe; }
+  .cand.aud { box-shadow: inset 0 0 0 1px #8fbf8f; }
   .cand.auto .tag { color: #8fbf8f; }
   .cand video { display: block; width: 260px; border-radius: 4px; background: #000; }
   .cand .tag { font: 12px/1.4 ui-monospace, monospace; margin-top: 6px; display: flex; justify-content: space-between; }
+  .cand .ctl { display: flex; gap: 6px; margin-top: 6px; }
+  .cand .ctl button { padding: 4px 9px; font: 600 12px system-ui; background: #2c3040; color: #e7e9ee; }
+  .cand .ctl button.on { background: #6ea8fe; color: #0a0c12; }
   .note { width: 100%; margin-top: 10px; background: #12141a; color: #e7e9ee; border: 1px solid #2c3040; border-radius: 6px; padding: 6px 8px; font: inherit; box-sizing: border-box; }
   button { font: 600 14px system-ui; background: #6ea8fe; color: #0a0c12; border: 0; border-radius: 7px; padding: 9px 16px; cursor: pointer; }
+  button.pp { min-width: 68px; }
   button#repropose { background: #2c3040; color: #e7e9ee; }
   button:disabled { opacity: .5; cursor: default; }
   #status { color: #9aa0ad; font-size: 13px; }
@@ -102,30 +112,81 @@ function page(groupId, count, canRepropose) {
 <script>
 const fmt = (s) => Math.floor(s/60)+":"+String(Math.floor(s%60)).padStart(2,"0");
 let SEGS = [];
-function setSegs(segs){ SEGS = segs.map(s => ({...s, pick: s.chosen, note: ""})); document.getElementById("count").textContent = SEGS.length; render(); }
+// Runtime playback controllers, one per rendered segment. Only ONE segment plays at a
+// time (VS-71): starting a segment pauses every other, so audio is single-source.
+let controllers = [];
+function activate(i){ for (let k=0;k<controllers.length;k++) if (k!==i) controllers[k].pause(); }
+function setSegs(segs){ controllers = []; SEGS = segs.map(s => ({...s, pick: s.chosen, note: ""})); document.getElementById("count").textContent = SEGS.length; render(); }
 fetch("data").then(r=>r.json()).then(d=>setSegs(d.segments));
 function render(){
   const root = document.getElementById("root");
-  root.innerHTML = "";
-  for (const seg of SEGS){
-    const el = document.createElement("section"); el.className="seg";
-    el.innerHTML = "<h2>Cut at "+fmt(seg.atSeconds)+" — auto picked <code>"+seg.chosen+"</code></h2>"+
-      "<p class='why'>"+(seg.why||"")+" · confidence <code>"+(seg.confidence==null?"?":seg.confidence)+"</code></p>";
-    const cands = document.createElement("div"); cands.className="cands";
-    for (const c of seg.candidates){
-      const card = document.createElement("label");
-      card.className = "cand"+(c.id===seg.pick?" sel":"")+(c.auto?" auto":"");
-      card.innerHTML = "<video src='"+c.url+"' muted loop autoplay playsinline></video>"+
-        "<div class='tag'><span>"+c.id+"</span><span>"+(c.auto?"auto":"")+"</span></div>";
-      card.onclick = () => { seg.pick = c.id; render(); };
-      cands.appendChild(card);
-    }
-    el.appendChild(cands);
-    const note = document.createElement("input"); note.className="note"; note.placeholder="note (optional) — why this angle?"; note.value = seg.note||"";
-    note.oninput = () => { seg.note = note.value; };
-    el.appendChild(note);
-    root.appendChild(el);
+  root.innerHTML = ""; controllers = [];
+  SEGS.forEach((seg, i) => root.appendChild(buildSeg(seg, i)));
+}
+// Build one flagged-cut segment: its candidate angle clips share a single transport
+// (play/pause + seek) and play in lockstep off a leader clock; exactly one clip is
+// unmuted (audio focus, defaults to the pick); any clip can go fullscreen (VS-71).
+function buildSeg(seg, i){
+  const el = document.createElement("section"); el.className = "seg";
+  el.innerHTML = "<h2>Cut at "+fmt(seg.atSeconds)+" — auto picked <code>"+seg.chosen+"</code></h2>"+
+    "<p class='why'>"+(seg.why||"")+" · confidence <code>"+(seg.confidence==null?"?":seg.confidence)+"</code></p>";
+
+  const bar = document.createElement("div"); bar.className = "transport";
+  const pp = document.createElement("button"); pp.className = "pp"; pp.textContent = "Play";
+  const seek = document.createElement("input"); seek.type = "range"; seek.className = "seek"; seek.min = "0"; seek.max = "1000"; seek.value = "0"; seek.step = "1";
+  const time = document.createElement("span"); time.className = "time"; time.textContent = "0:00 / 0:00";
+  bar.append(pp, seek, time); el.appendChild(bar);
+
+  const cands = document.createElement("div"); cands.className = "cands";
+  const vids = []; // { id, video, card, audBtn }
+  let audioId = seg.pick;   // which clip is audible when this segment plays
+  let playing = false;
+  for (const c of seg.candidates){
+    const card = document.createElement("div");
+    card.className = "cand"+(c.id===seg.pick?" sel":"")+(c.auto?" auto":"");
+    const video = document.createElement("video"); video.src = c.url; video.muted = true; video.playsInline = true; video.preload = "auto";
+    const tag = document.createElement("div"); tag.className = "tag";
+    tag.innerHTML = "<span>"+c.id+"</span><span>"+(c.auto?"auto":"")+"</span>";
+    const ctl = document.createElement("div"); ctl.className = "ctl";
+    const pickBtn = document.createElement("button"); pickBtn.textContent = c.id===seg.pick?"Picked":"Pick"; if (c.id===seg.pick) pickBtn.classList.add("on");
+    const audBtn = document.createElement("button"); audBtn.textContent = "Audio"; if (c.id===audioId) audBtn.classList.add("on");
+    const fsBtn = document.createElement("button"); fsBtn.textContent = "Full";
+    ctl.append(pickBtn, audBtn, fsBtn); card.append(video, tag, ctl); cands.appendChild(card);
+    const entry = { id: c.id, video, card, audBtn }; vids.push(entry);
+    pickBtn.onclick = () => setPick(c.id);
+    audBtn.onclick = () => setAudio(c.id);
+    fsBtn.onclick = () => { setAudio(c.id); if (!playing) play(); (video.requestFullscreen||video.webkitRequestFullscreen||(()=>{})).call(video); };
   }
+  el.appendChild(cands);
+
+  const note = document.createElement("input"); note.className = "note"; note.placeholder = "note (optional) — why this angle?"; note.value = seg.note||"";
+  note.oninput = () => { seg.note = note.value; };
+  el.appendChild(note);
+
+  const leader = () => vids[0].video;
+  const applyMute = () => { for (const v of vids) v.video.muted = !(playing && v.id === audioId); };
+  function setAudio(id){ audioId = id; for (const v of vids) v.audBtn.classList.toggle("on", v.id === id); applyMute(); }
+  function setPick(id){
+    seg.pick = id;
+    for (const v of vids){ const b = v.card.querySelector(".ctl button"); v.card.classList.toggle("sel", v.id===id); b.textContent = v.id===id?"Picked":"Pick"; b.classList.toggle("on", v.id===id); }
+  }
+  function play(){
+    activate(i); el.classList.add("active"); playing = true; pp.textContent = "Pause";
+    const t = leader().currentTime; for (const v of vids){ v.video.currentTime = t; v.video.play().catch(()=>{}); }
+    applyMute();
+  }
+  function pause(){ playing = false; pp.textContent = "Play"; el.classList.remove("active"); for (const v of vids) v.video.pause(); applyMute(); }
+  pp.onclick = () => (playing ? pause() : play());
+  seek.oninput = () => { const d = leader().duration||0; const t = d*seek.value/1000; for (const v of vids) v.video.currentTime = t; };
+  leader().addEventListener("timeupdate", () => {
+    const d = leader().duration||0, t = leader().currentTime;
+    seek.value = d ? String(Math.round(t/d*1000)) : "0";
+    time.textContent = fmt(t)+" / "+fmt(d);
+    for (const v of vids) if (v.video!==leader() && Math.abs(v.video.currentTime - t) > 0.2) v.video.currentTime = t; // keep angles synced
+  });
+  leader().addEventListener("ended", () => { for (const v of vids){ v.video.currentTime = 0; if (playing) v.video.play().catch(()=>{}); } }); // loop the segment
+  controllers[i] = { pause: () => { if (playing) pause(); } };
+  return el;
 }
 const locksOf = () => SEGS.filter(s => s.pick !== s.chosen).map(s => ({ atSeconds: s.atSeconds, memberId: s.pick }));
 const choicesOf = () => SEGS.filter(s => s.pick !== s.chosen).map(s => ({ index: s.index, memberId: s.pick, note: s.note||null }));
