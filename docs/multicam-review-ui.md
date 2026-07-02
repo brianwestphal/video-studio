@@ -42,6 +42,7 @@ review-switches multicam.json --switches switches.json [--audio-events … --sal
         │  starts a local HTTP server, opens the browser
         ▼
 browser: for each flagged segment — candidate angle previews (±2s context), pick one
+        │  (optional) Re-propose downstream → autoCut(locks=picks) re-flows the rest
         │  POST the choice back
         ▼
 switches.json rewritten in place (switches.json.bak kept) + a choice/edit history log
@@ -53,8 +54,9 @@ prints the ready `export-multicam-fcpxml … --switches switches.json` line
 ## 4. Requirements
 
 - **R-RUI1 — Launch.** A thin CLI `tools/review-switches.mjs <multicam.json> --switches
-  <switches.json> [--audio-events <p>] [--saliency <p>] [--port <n>]` starts a local
-  HTTP server and opens the browser to the review page. No network egress; localhost only.
+  <switches.json> [--audio-events <p>] [--saliency <p>] [--port <n>] [--all]` starts a
+  local HTTP server and opens the browser to the review page. No network egress;
+  localhost only. `--audio-events` + `--saliency` enable the re-propose button (R-RUI7).
 - **R-RUI2 — Flag source.** The UI surfaces exactly the switches with `flagged: true`
   (R-AC9); a `--all` flag can show every switch. Nothing is auto-changed without a user
   choice.
@@ -98,9 +100,10 @@ preview extraction — is out of automated scope and lives in
   the pure `tools/review-model.mjs` (100% unit-tested: flag filtering, candidate angles,
   preview windows, apply-choice + history). The HTTP server, page, and ffmpeg preview
   extraction are manual ([`manual-test-plan.md`](manual-test-plan.md) §13).
-- **R-RUI7 (downstream re-evaluation) — model shipped (VS-66).** `autoCut` honors
-  `locks` and applies a shot-type variety penalty (`shotTypeRepeatPenalty`); shot size
-  from `shotTypeOf` (explicit vision `shotType` or a label hint). Unit-tested. Wiring
-  the review UI's **save** to re-propose the downstream cuts (call `autoCut` with the
-  user's picks as locks) is a follow-up — **VS-67** (a UX call: re-propose on save vs. a
-  "re-propose" button).
+- **R-RUI7 (downstream re-evaluation) — shipped (VS-66 model + VS-67 UI).** `autoCut`
+  honors `locks` and applies a shot-type variety penalty (`shotTypeRepeatPenalty`); shot
+  size from `shotTypeOf` (explicit vision `shotType` or a label hint). Unit-tested. The
+  review UI wires it via an opt-in **Re-propose downstream** button (shown when
+  `--audio-events` + `--saliency` are supplied): it re-runs `autoCut` with the user's
+  confirmed picks as locks so the still-auto cuts re-flow, previewing in the page;
+  nothing is written until Save (manual-test-plan §13.7–13.8).

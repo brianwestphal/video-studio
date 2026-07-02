@@ -51,7 +51,7 @@ and [`requirements-summary.md`](requirements-summary.md) for status.
 │   ├── multicam-autocut.mjs    # pure: auto angle-switch selection (audio-events + saliency → switches + rationale) + evaluate() metrics + shot-length policy w/ instrumental long-take exception + per-switch review signal + locks/shot-type variety (unit-tested, VS-46/62/63/66)
 │   ├── propose-switches.mjs    # thin CLI: read multicam.json + audio-events.json + saliency.json → switches.json (+ prints rationale); feeds the exporters via --switches (I/O over multicam-autocut.mjs, VS-46/47)
 │   ├── review-model.mjs        # pure: review-UI core — flagged-segment derivation + candidate angles + preview windows + apply-choice/history (unit-tested, VS-65)
-│   ├── review-switches.mjs     # I/O: local server + page + ffmpeg ±2s previews to review flagged cuts, write picks back to switches.json + history (over review-model.mjs, VS-65)
+│   ├── review-switches.mjs     # I/O: local server + page + ffmpeg ±2s previews to review flagged cuts, write picks back to switches.json + history; opt-in re-propose (autoCut locks) with --audio-events/--saliency (over review-model.mjs + multicam-autocut.mjs, VS-65/67)
 │   ├── requirement-coverage.mjs # pure: requirement-index extraction + the feature-coverage manifest + audit (unit-tested, VS-58)
 │   └── check-features.mjs      # feature/requirement coverage report + gate (I/O over requirement-coverage.mjs); `npm run check:features`
 ├── skills/
@@ -90,7 +90,7 @@ and [`requirements-summary.md`](requirements-summary.md) for status.
 │   ├── audio-events.md         # DESIGN: non-speech/musical audio events spec (R-AE, VS-41 → build VS-44)
 │   ├── visual-saliency.md      # per-angle "what's worth showing" — shipped (R-VS, VS-42 design → VS-45 build)
 │   ├── multicam-auto-cut.md    # DESIGN: audio+visual → angle-selection model emitting switches (R-AC, VS-43 → build VS-46/47/62/63)
-│   ├── multicam-review-ui.md   # review low-confidence auto-cuts in a local web UI (R-RUI; flag signal R-AC9 + UI R-RUI1-6 shipped VS-63/65, locks/variety model R-RUI7 shipped VS-66, UI re-propose wiring VS-67)
+│   ├── multicam-review-ui.md   # review low-confidence auto-cuts in a local web UI (R-RUI shipped; flag signal R-AC9 VS-63, UI R-RUI1-6 VS-65, locks/variety + re-propose R-RUI7 VS-66/67)
 │   ├── releasing.md            # release + npm trusted-publisher setup
 │   ├── manual-test-plan.md     # manual checklist for the external-tool pipeline
 │   ├── media/                  # README demo media (docs-only; gitignored binaries) — from Tears of Steel (CC BY 3.0)

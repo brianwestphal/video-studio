@@ -221,8 +221,10 @@ run. See [`multicam-auto-cut.md`](multicam-auto-cut.md) (R-AC) + [`multicam.md`]
 
 The pure core (`tools/review-model.mjs` — which cuts to surface, candidate angles,
 preview windows, apply-choice + history) is unit-tested to 100%. These rows exercise
-the I/O shell: the local HTTP server, the browser page, ffmpeg preview extraction, and
-the in-place write-back. See [`multicam-review-ui.md`](multicam-review-ui.md) (R-RUI).
+the I/O shell: the local HTTP server, the browser page, ffmpeg preview extraction, the
+in-place write-back, and the optional **re-propose** (re-run `autoCut` with the user's
+picks as locks — the pure locks/variety model is unit-tested, VS-66). See
+[`multicam-review-ui.md`](multicam-review-ui.md) (R-RUI).
 Needs a synced group + a `switches.json` from §12 (whose `rationale` carries the R-AC9
 `flagged` signal), plus ffmpeg and a browser.
 
@@ -234,6 +236,8 @@ Needs a synced group + a `switches.json` from §12 (whose `rationale` carries th
 | 13.4 | Re-run 13.1, click Save **without** changing anything | 0 changes; no `.bak` rewrite, no new history entry (only actual angle changes are recorded). |
 | 13.5 | `--all` | Every cut is shown (not just flagged); `--port <n>` moves the server; `--context <s>` changes the preview lead/tail. |
 | 13.6 | Feed the saved `switches.json` to §12.3 / §12.4 | The exporters honor the reviewed picks verbatim (it's the same hand-editable file). |
+| 13.7 | **Re-propose (VS-67)** — run with `--audio-events <…> --saliency <…>` | A **Re-propose downstream** button appears (hidden without both inputs). Pick an angle for one cut, click it: the still-auto cuts re-flow around your pick (variety-aware, via `autoCut` locks), the page re-renders with the new flagged set, and your pick is preserved. Nothing is written yet. |
+| 13.8 | After 13.7, click **Save** | Persists the re-proposed switches (`.bak` keeps the *original*, even across repeated saves) + a history entry `{ reproposedWithLocks: n }`. A second Save with no further change is a no-op. |
 
 ## Automated Coverage Summary
 

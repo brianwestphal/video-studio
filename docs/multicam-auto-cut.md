@@ -186,4 +186,5 @@ identical `switches`.
 - **VS-66** — `autoCut` `locks` (downstream re-evaluation) + shot-type variety penalty
   (R-RUI7); `shotType` added to the saliency vision schema. *(Shipped.)*
 - **VS-64** — vision saliency mis-scores a non-singing musician as a performer. *(Open, low.)*
-- **VS-67** — wire the review UI's save to re-propose downstream via `autoCut` locks. *(Planned.)*
+- **VS-67** — review UI "Re-propose downstream" button re-flows the still-auto cuts
+  around confirmed picks via `autoCut` locks. *(Shipped.)*
