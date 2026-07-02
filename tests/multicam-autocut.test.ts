@@ -36,6 +36,8 @@ const instrumentalThenVocal = {
   ],
 };
 
+const allInstrumental = { events: [{ kind: "instrumental", startSeconds: 0, endSeconds: 10 }] };
+
 const aInst = { instrument: 0.9, performer: 0.1, motion: 0, framing: 0.2 };
 const bVocal = { instrument: 0.1, performer: 0.9, motion: 0, framing: 0.2 };
 
@@ -148,6 +150,50 @@ describe("autoCut — selection", () => {
     // One video angle + a small maxShot: the force-variety step has no other angle
     // to switch to, so it holds — a single continuous shot.
     const r = autoCut({ group: group([{ id: "a" }]), params: { maxShotSeconds: 4 } });
+    expect(r.switches).toEqual([{ atSeconds: 0, memberId: "a" }]);
+  });
+
+  it("allows a long take past maxShot in a sustained instrumental stretch (R-AC8)", () => {
+    // a dominates every window during an all-instrumental section. maxShot=4 (2 windows)
+    // would normally force a cut, but the long-take exception holds the dominant angle
+    // up to the longTake ceiling (8s = 4 windows), then forces variety for the last one.
+    const strongA = { instrument: 0.9, performer: 0.9, motion: 0.9, framing: 0.9 };
+    const weakB = { instrument: 0.1, performer: 0.1, motion: 0.1, framing: 0.1 };
+    const r = autoCut({
+      group: group(),
+      audioEvents: allInstrumental,
+      saliency: saliency([strongA, strongA, strongA, strongA, strongA], [weakB, weakB, weakB, weakB, weakB]),
+      params: { maxShotSeconds: 4, longTakeMaxSeconds: 8 },
+    });
+    expect(r.switches).toEqual([
+      { atSeconds: 0, memberId: "a" },
+      { atSeconds: 8, memberId: "b" },
+    ]);
+  });
+
+  it("does not extend a long take when the lead is within longTakeMargin (R-AC8)", () => {
+    // Instrumental, but a leads b by only inst·(0.5−0.4)=0.12 < longTakeMargin (0.15) →
+    // not a clear solo, so maxShot forces variety at 4s as usual (a, b, back to a).
+    const aLead = { instrument: 0.5, performer: 0, motion: 0, framing: 0.2 };
+    const bClose = { instrument: 0.4, performer: 0, motion: 0, framing: 0.2 };
+    const r = autoCut({
+      group: group(),
+      audioEvents: allInstrumental,
+      saliency: saliency([aLead, aLead, aLead, aLead, aLead], [bClose, bClose, bClose, bClose, bClose]),
+      params: { maxShotSeconds: 4, longTakeMaxSeconds: 8 },
+    });
+    expect(r.switches.map((s: { memberId: string }) => s.memberId)).toEqual(["a", "b", "a"]);
+  });
+
+  it("holds a sole angle through an instrumental long take (no runner-up to cut to)", () => {
+    // Instrumental + only one angle: the exception's dominance check has no runner-up
+    // (null), so it holds; a single continuous shot, same as without footage to vary to.
+    const r = autoCut({
+      group: group([{ id: "a" }]),
+      audioEvents: allInstrumental,
+      saliency: saliency([aInst, aInst, aInst, aInst, aInst], []),
+      params: { maxShotSeconds: 4, longTakeMaxSeconds: 8 },
+    });
     expect(r.switches).toEqual([{ atSeconds: 0, memberId: "a" }]);
   });
 });

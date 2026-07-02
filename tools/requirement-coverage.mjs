@@ -192,6 +192,7 @@ export const REQUIREMENT_COVERAGE = {
   "R-AC5": { status: "unit", tests: ["multicam-autocut.test.ts"] },
   "R-AC6": { status: "manual", note: "propose-switches CLI I/O" },
   "R-AC7": { status: "unit", tests: ["multicam.test.ts"], note: "switchesFromDoc glue for --switches; CLI wiring + skill step manual (VS-47)" },
+  "R-AC8": { status: "unit", tests: ["multicam-autocut.test.ts"], note: "shot-length policy (max 8/min 0.5) + instrumental long-take exception (VS-62)" },
 };
 
 // Audit the manifest against the ids actually defined in the docs. Pure: caller

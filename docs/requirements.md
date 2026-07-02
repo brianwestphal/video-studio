@@ -133,7 +133,7 @@ Larger features have their own source-of-truth docs (kept in sync the same way):
 - **FCP-incompatible source audio detection** — [`fcp-audio-compat.md`](fcp-audio-compat.md) *(shipped, VS-40; warn-only, R-FA)*
 - **FCP transition suggestions** — [`transitions.md`](transitions.md) *(shipped: FCPXML `<transition>`s VS-28/50)*
 - **Render transitions into the video (no FCP)** — [`render-transitions.md`](render-transitions.md) *(shipped, R-RT1–R-RT9; VS-54 Tier A, VS-55 windowed re-encode + native Tier B/C)*
-- **Edit awareness / auto multi-cam cutting** *(specs VS-41/42/43; audio-events Tier 1+2 shipped VS-44/49; per-angle visual saliency shipped VS-45; selector/integration building in VS-46/47)*:
+- **Edit awareness / auto multi-cam cutting** *(specs VS-41/42/43; audio-events Tier 1+2 shipped VS-44/49; per-angle visual saliency shipped VS-45; selector shipped VS-46; integration shipped VS-47; shot-length policy + long-take exception shipped VS-62)*:
   [`audio-events.md`](audio-events.md) (non-speech/musical audio events, R-AE1–R-AE8),
   [`visual-saliency.md`](visual-saliency.md) (per-angle "what's worth showing", R-VS1–R-VS5, **shipped**),
   and [`multicam-auto-cut.md`](multicam-auto-cut.md) (audio+visual → `switches`, R-AC).

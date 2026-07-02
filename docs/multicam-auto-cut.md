@@ -61,6 +61,12 @@ editorial constraints:
   for ≥ `minShotSeconds` (hysteresis), killing flicker;
 - **maximum shot length / variety** — force a cut (to the next-best valid angle)
   after `maxShotSeconds` of the same angle;
+- **long-take exception** — during a sustained *instrumental* stretch, a clearly
+  dominant angle (leading the runner-up by ≥ `longTakeMargin`) may hold past
+  `maxShotSeconds`, up to `longTakeMaxSeconds`, instead of being force-cut — so
+  guitar solos / intentional "oner" shots aren't chopped. Vocal holds are never
+  extended (they still cut at `maxShotSeconds`), and the maintainer can always
+  hand-edit `switches.json` for a longer take;
 - **cut-on-onset snapping** — when a switch is due, snap its time to the nearest
   `onset`/`section` boundary (VS-41) within `snapToleranceSeconds`.
 
@@ -73,8 +79,10 @@ group start (or a `--start` trim, consistent with the export).
 
 | Param | Default | Effect |
 |-------|---------|--------|
-| `minShotSeconds` | 2.0 | floor on shot length (anti-flicker) |
-| `maxShotSeconds` | 12 | force variety |
+| `minShotSeconds` | 0.5 | nominal floor on shot length; effective granularity is the saliency window (~1–2s) |
+| `maxShotSeconds` | 8 | force variety after this (unless the long-take exception applies) |
+| `longTakeMaxSeconds` | 16 | ceiling a dominant angle may hold to during a sustained instrumental stretch (R-AC8) |
+| `longTakeMargin` | 0.15 | the held angle must beat the runner-up by at least this to qualify as a long take |
 | `wPerf / wVocal / wInst / wMotion / wFraming / wRepeat` | tuned on BYAM | score weights |
 | `snapToleranceSeconds` | 0.4 | cut-on-onset snap window |
 | `windowSeconds` | from VS-42 | analysis granularity |
@@ -131,10 +139,22 @@ identical `switches`.
   can hand-edit to override); the per-switch `rationale` is surfaced on stdout by
   `propose-switches` and travels inside `switches.json`. Explicit `--switch` flags
   still win when both are supplied.
+- **R-AC8** *(VS-62)* Shot-length policy: default `maxShotSeconds` **8** and
+  `minShotSeconds` **0.5**. A **long-take exception** lets a clearly dominant angle
+  (leading the runner-up by ≥ `longTakeMargin`) hold past `maxShotSeconds` up to
+  `longTakeMaxSeconds` **only during instrumental context** (solos / oners); vocal
+  holds always cut at `maxShotSeconds`. All four knobs are parameters with the
+  documented defaults; the manual `switches.json` override still lets the maintainer
+  force any longer take.
 
 ## 8. Follow-ups
 
 - **VS-46** — implement R-AC1–R-AC6 (pure selector + CLI + tests + this schema). *(Shipped.)*
 - **VS-47** — wire it into the skill/CLI end to end with manual override + surfaced
-  rationale (R-AC7 / R-MC7). *(Shipped; the BYAM demonstration in §6 is a manual
-  run pending the external media.)*
+  rationale (R-AC7 / R-MC7). *(Shipped; BYAM demonstration run — favors guitar on
+  riffs / singer on vocals.)*
+- **VS-62** — shot-length policy: `maxShotSeconds` 12→8, `minShotSeconds` 2.0→0.5,
+  and the instrumental long-take exception (R-AC8). *(Shipped.)*
+- **VS-63** — web UI to review low-confidence segments (±2s context) and actively
+  pick the angle. *(Planned.)*
+- **VS-64** — vision saliency mis-scores a non-singing musician as a performer. *(Open, low.)*

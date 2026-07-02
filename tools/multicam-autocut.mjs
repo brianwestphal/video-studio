@@ -11,8 +11,10 @@ import { angleCoversWindow } from "./visual-saliency.mjs";
 export const AUTOCUT_VERSION = 1;
 
 export const DEFAULT_PARAMS = {
-  minShotSeconds: 2.0,
-  maxShotSeconds: 12,
+  minShotSeconds: 0.5, // nominal floor; effective granularity is the saliency window (~1–2s)
+  maxShotSeconds: 8, // force variety after this, unless a long-take exception applies
+  longTakeMaxSeconds: 16, // a dominant angle may hold this long past maxShot in a sustained instrumental stretch (R-AC8)
+  longTakeMargin: 0.15, // …but only while it beats the runner-up by at least this (a clear solo, not a near-tie)
   snapToleranceSeconds: 0.4,
   switchMargin: 0.05, // a challenger must beat the held angle by this to cut early
   windowSeconds: 2.0, // only used in the degraded (no-saliency) fallback grid
@@ -141,6 +143,7 @@ export function autoCut({ group, audioEvents = null, saliency = null, params = {
   const ws = round3(windows[0].endSeconds - windows[0].startSeconds);
   const minW = Math.max(1, Math.ceil(p.minShotSeconds / ws));
   const maxW = Math.max(minW, Math.floor(p.maxShotSeconds / ws));
+  const longTakeW = Math.max(maxW, Math.floor(p.longTakeMaxSeconds / ws)); // hard ceiling for the exception
 
   // Precompute per-window context + per-angle score.
   const ctxOf = windows.map((w) => audioContextAt(audioEvents, (w.startSeconds + w.endSeconds) / 2));
@@ -179,8 +182,18 @@ export function autoCut({ group, audioEvents = null, saliency = null, params = {
       cur = bestAt(wi, null) ?? cur;
       shotLen = 0;
     } else if (shotLen >= maxW) {
-      cur = bestAt(wi, cur) ?? cur; // force variety: next-best valid angle
-      shotLen = 0;
+      // Long-take exception (R-AC8): in a sustained instrumental stretch, let a
+      // clearly dominant angle hold past maxShot (up to longTakeW) for solos / oner
+      // shots, instead of forcing variety. Otherwise cut to the next-best valid angle.
+      const runnerUp = bestAt(wi, cur);
+      const dominant = cur === bestAt(wi, null)
+        && (runnerUp == null || scoreOf[wi][cur] - scoreOf[wi][runnerUp] >= p.longTakeMargin);
+      if (ctxOf[wi].isInstrumental && shotLen < longTakeW && dominant) {
+        // hold: leave `cur`, keep counting shotLen toward the longTakeW ceiling
+      } else {
+        cur = runnerUp ?? cur; // force variety: next-best valid angle
+        shotLen = 0;
+      }
     } else {
       const best = bestAt(wi, null);
       if (best && best !== cur && shotLen >= minW && scoreOf[wi][best] - scoreOf[wi][cur] > p.switchMargin) {
