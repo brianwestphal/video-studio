@@ -24,7 +24,7 @@
  * browser launch (out of automated scope — docs/manual-test-plan.md §13).
  */
 import { execFileSync, spawn } from "node:child_process";
-import { copyFileSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, createReadStream, existsSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { basename, isAbsolute, join, resolve } from "node:path";
@@ -72,6 +72,29 @@ function extractClip(member, previewStart, previewEnd, dest) {
 // previews it already extracted for unchanged cuts.
 const clipName = (atSeconds, id) => `${Math.round(atSeconds * 1000)}-${id.replace(/[^\w.-]/g, "_")}.mp4`;
 
+// Stream a file with HTTP Range support so a browser <video> can seek the full source
+// (used by the whole-video timeline preview, VS-73). Falls back to a full send.
+function serveRange(req, res, path) {
+  let stat;
+  try { stat = statSync(path); } catch { res.statusCode = 404; res.end("no source"); return; }
+  const range = req.headers.range;
+  res.setHeader("Accept-Ranges", "bytes");
+  res.setHeader("Content-Type", "video/mp4");
+  const m = range && /bytes=(\d*)-(\d*)/.exec(range);
+  if (m) {
+    const start = m[1] ? parseInt(m[1], 10) : 0;
+    const end = m[2] ? parseInt(m[2], 10) : stat.size - 1;
+    if (start > end || start >= stat.size) { res.statusCode = 416; res.setHeader("Content-Range", `bytes */${stat.size}`); res.end(); return; }
+    res.statusCode = 206;
+    res.setHeader("Content-Range", `bytes ${start}-${end}/${stat.size}`);
+    res.setHeader("Content-Length", end - start + 1);
+    createReadStream(path, { start, end }).pipe(res);
+  } else {
+    res.setHeader("Content-Length", stat.size);
+    createReadStream(path).pipe(res);
+  }
+}
+
 function page(groupId, count, canRepropose) {
   const reBtn = canRepropose ? '<button id="repropose" title="Re-flow the un-locked cuts around your picks">Re-propose downstream</button> &nbsp;' : "";
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Review cuts — ${groupId}</title>
@@ -101,6 +124,20 @@ function page(groupId, count, canRepropose) {
   .seekwrap .seek::-moz-range-track { background: transparent; }
   .seekwrap .seek::-moz-range-thumb { width: 13px; height: 13px; border-radius: 50%; background: #e7e9ee; border: 1px solid #12141a; cursor: pointer; }
   .transport .time { font: 12px/1 ui-monospace, monospace; color: #9aa0ad; min-width: 92px; text-align: right; }
+  /* Whole-video assembled timeline preview (VS-73). */
+  #tl { max-width: 1100px; margin: 14px auto 0; padding: 0 20px; }
+  #tl > .tlload { margin-bottom: 4px; }
+  .player { position: relative; width: 560px; max-width: 100%; aspect-ratio: 16/9; background: #000; border-radius: 8px; overflow: hidden; margin-bottom: 8px; }
+  .player video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #000; }
+  .tltransport { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+  .tltransport .active { font: 12px/1 ui-monospace, monospace; color: #9aa0ad; }
+  .tlbar { position: relative; height: 28px; background: #0c0e14; border: 1px solid #2c3040; border-radius: 6px; overflow: hidden; cursor: pointer; }
+  .tlbar .blk { position: absolute; top: 0; bottom: 0; border-right: 1px solid #12141a; box-sizing: border-box; }
+  .tlbar .blk.flag { border-top: 3px solid #f2c14e; }
+  .tlbar .head { position: absolute; top: 0; bottom: 0; width: 2px; background: #fff; pointer-events: none; }
+  .tllegend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: #9aa0ad; margin-top: 6px; }
+  .tllegend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: middle; margin-right: 4px; }
+  .tllegend .flagkey { border-top: 3px solid #f2c14e; padding-top: 1px; }
   .cands { display: flex; flex-wrap: wrap; gap: 12px; }
   .cand { border: 2px solid #2c3040; border-radius: 8px; padding: 8px; background: #12141a; transition: border-color .1s; }
   .cand.sel { border-color: #6ea8fe; }
@@ -120,6 +157,7 @@ function page(groupId, count, canRepropose) {
   pre { background: #0c0e14; border: 1px solid #2c3040; border-radius: 8px; padding: 12px; overflow: auto; font-size: 12px; white-space: pre-wrap; }
 </style></head><body>
 <header><div><h1>Review <span id="count">${count}</span> cut(s) — ${groupId}</h1><div class="legend">On the scrubber, the <span class="swatch"></span> band is the shot this cut introduces; the clip ends are ±context lead-in/out.</div></div><div><span id="status"></span> &nbsp; ${reBtn}<button id="save">Save picks</button></div></header>
+<section id="tl"><button class="tlload" id="tlload">Load full-video preview</button><div id="tlbody"></div></section>
 <main id="root">Loading…</main>
 <script>
 const fmt = (s) => Math.floor(s/60)+":"+String(Math.floor(s%60)).padStart(2,"0");
@@ -128,8 +166,9 @@ let SEGS = [];
 // Runtime playback controllers, one per rendered segment. Only ONE segment plays at a
 // time (VS-71): starting a segment pauses every other, so audio is single-source.
 let controllers = [];
-function activate(i){ for (let k=0;k<controllers.length;k++) if (k!==i) controllers[k].pause(); }
-function setSegs(segs){ controllers = []; SEGS = segs.map(s => ({...s, pick: s.chosen, note: ""})); document.getElementById("count").textContent = SEGS.length; render(); }
+let TL = null; // whole-video assembled timeline preview (VS-73), lazily loaded
+function activate(i){ for (let k=0;k<controllers.length;k++) if (k!==i) controllers[k].pause(); if (TL) TL.pause(); }
+function setSegs(segs){ controllers = []; SEGS = segs.map(s => ({...s, pick: s.chosen, note: ""})); document.getElementById("count").textContent = SEGS.length; render(); if (TL) loadTimeline(); }
 fetch("data").then(r=>r.json()).then(d=>setSegs(d.segments));
 function render(){
   const root = document.getElementById("root");
@@ -195,6 +234,7 @@ function buildSeg(seg, i){
   function setPick(id){
     seg.pick = id;
     for (const v of vids){ const b = v.card.querySelector(".ctl button"); v.card.classList.toggle("sel", v.id===id); b.textContent = v.id===id?"Picked":"Pick"; b.classList.toggle("on", v.id===id); }
+    if (TL) TL.onPick(); // recolor the timeline + swap the playing angle if this span changed
   }
   function play(){
     activate(i); el.classList.add("active"); playing = true; pp.textContent = "Pause";
@@ -225,6 +265,85 @@ if (rebtn) rebtn.onclick = async () => {
   document.getElementById("status").textContent = "re-proposed — "+out.segments.length+" cut(s) still flagged";
   rebtn.disabled = false;
 };
+// Whole-video assembled preview (VS-73). Client-side multi-cam player: one <video> per
+// angle (source served with HTTP Range), only the active angle decodes; at each cut the
+// active angle swaps per the assembled switch list with the user's in-progress picks
+// applied. A timeline bar colors every switch span by angle, marks flagged sections, and
+// scrubs on click. Rough by design (angle swaps cause a brief seek stall).
+const tlBtn = document.getElementById("tlload");
+tlBtn.onclick = () => loadTimeline();
+async function loadTimeline(){
+  const body = document.getElementById("tlbody");
+  body.textContent = "Loading full-video preview…";
+  tlBtn.disabled = true;
+  try {
+    const data = await fetch("assembled").then(r=>r.json());
+    TL = buildTimeline(data, body);
+    tlBtn.textContent = "Reload full-video preview";
+  } catch (e) {
+    body.textContent = "Failed to load preview: " + e;
+  }
+  tlBtn.disabled = false;
+}
+function buildTimeline(data, body){
+  body.innerHTML = "";
+  const timelineEnd = data.timelineEnd;
+  const angles = data.angles;
+  const palette = ["#6ea8fe","#8fbf8f","#e0a458","#c58fd8","#5fc9c9","#d98f8f"];
+  const colorOf = {}; angles.forEach((a,i)=>{ colorOf[a.id] = palette[i%palette.length]; });
+
+  const player = document.createElement("div"); player.className = "player";
+  const vid = new Map();
+  for (const a of angles){
+    const v = document.createElement("video"); v.src = a.url; v.preload = "metadata"; v.muted = true; v.playsInline = true; v.style.display = "none";
+    player.appendChild(v); vid.set(a.id, { el: v, offset: a.offset||0, rate: a.rate||1 });
+  }
+  const tp = document.createElement("div"); tp.className = "tltransport";
+  const pp = document.createElement("button"); pp.className = "pp"; pp.textContent = "Play";
+  const time = document.createElement("span"); time.className = "time"; time.textContent = "0:00 / "+fmt(timelineEnd);
+  const activeLbl = document.createElement("span"); activeLbl.className = "active";
+  tp.append(pp, time, activeLbl);
+  const bar = document.createElement("div"); bar.className = "tlbar";
+  const head = document.createElement("div"); head.className = "head";
+  const legend = document.createElement("div"); legend.className = "tllegend";
+  for (const a of angles){ const s = document.createElement("span"); s.innerHTML = "<i style='background:"+colorOf[a.id]+"'></i>"+a.id; legend.appendChild(s); }
+  const fk = document.createElement("span"); fk.className = "flagkey"; fk.textContent = "flagged (needs review)"; legend.appendChild(fk);
+  body.append(player, tp, bar, legend);
+
+  let gt = 0, playing = false, activeId = null;
+  const srcTime = (g,a) => Math.max(0, (g - a.offset) / a.rate);
+  const pickByIndex = () => { const m = new Map(); for (const s of SEGS) m.set(s.index, s.pick); return m; };
+  const assembled = () => { const p = pickByIndex(); return data.switches.map((s,i)=>({ at: s.atSeconds, id: p.has(i)?p.get(i):s.memberId })); };
+  const angleAt = (g) => { const sw = assembled(); let id = sw.length?sw[0].id:(angles[0]&&angles[0].id); for (const s of sw){ if (s.at <= g+1e-6) id = s.id; else break; } return id; };
+  const show = (id) => { for (const [k,a] of vid){ a.el.style.display = k===id?"block":"none"; if (k===id) a.el.preload = "auto"; } activeId = id; activeLbl.textContent = id?("● "+id):""; };
+  const drawHead = () => { head.style.left = (Math.min(1, timelineEnd?gt/timelineEnd:0)*100)+"%"; time.textContent = fmt1(gt)+" / "+fmt(timelineEnd); };
+  const drawBar = () => {
+    bar.innerHTML = ""; const sw = assembled();
+    for (let i=0;i<sw.length;i++){
+      const a = sw[i].at, b = i+1<sw.length?sw[i+1].at:timelineEnd;
+      const blk = document.createElement("div");
+      blk.className = "blk"+((data.rationale[i]&&data.rationale[i].flagged)?" flag":"");
+      blk.style.left = (a/timelineEnd*100)+"%"; blk.style.width = (Math.max(0,b-a)/timelineEnd*100)+"%";
+      blk.style.background = colorOf[sw[i].id] || "#555"; blk.title = fmt1(a)+" → "+sw[i].id;
+      bar.appendChild(blk);
+    }
+    bar.appendChild(head);
+  };
+  function swap(id){ const cur = activeId && vid.get(activeId), a = vid.get(id); if (cur){ cur.el.pause(); cur.el.muted = true; } if (a){ a.el.currentTime = srcTime(gt,a); a.el.muted = false; show(id); if (playing) a.el.play().catch(()=>{}); } }
+  function play(){ for (const c of controllers) if (c) c.pause(); playing = true; pp.textContent = "Pause"; const id = angleAt(gt); const a = vid.get(id); show(id); if (a){ a.el.currentTime = srcTime(gt,a); a.el.muted = false; a.el.play().catch(()=>{}); } }
+  function pause(){ playing = false; pp.textContent = "Play"; for (const [,a] of vid){ a.el.pause(); a.el.muted = true; } }
+  function seek(g){ gt = Math.max(0, Math.min(timelineEnd, g)); const id = angleAt(gt); const a = vid.get(id); show(id); if (a) a.el.currentTime = srcTime(gt,a); if (playing && a) a.el.play().catch(()=>{}); drawHead(); }
+  function tick(){ const a = vid.get(activeId); if (!a) return; gt = a.offset + a.el.currentTime * a.rate; if (playing){ const w = angleAt(gt); if (w !== activeId) swap(w); if (gt >= timelineEnd - 0.05) pause(); } drawHead(); }
+  pp.onclick = () => (playing ? pause() : play());
+  for (const [,a] of vid) a.el.addEventListener("timeupdate", tick);
+  bar.onclick = (e) => { const r = bar.getBoundingClientRect(); seek((e.clientX - r.left)/r.width*timelineEnd); };
+  player.ondblclick = () => { const a = vid.get(activeId); if (a) (a.el.requestFullscreen||a.el.webkitRequestFullscreen||(()=>{})).call(a.el); };
+  drawBar(); seek(0);
+  return {
+    pause: () => { if (playing) pause(); },
+    onPick: () => { drawBar(); if (playing){ const w = angleAt(gt); if (w !== activeId) swap(w); } else { const id = angleAt(gt); if (id !== activeId){ const a = vid.get(id); show(id); if (a) a.el.currentTime = srcTime(gt,a); } } },
+  };
+}
 document.getElementById("save").onclick = async () => {
   document.getElementById("save").disabled = true;
   const res = await fetch("save", { method:"POST", headers:{"content-type":"application/json"}, body: JSON.stringify({ choices: choicesOf() }) });
@@ -296,6 +415,24 @@ function main() {
     if (url.startsWith("/clip/")) {
       const clip = join(tmp, basename(decodeURIComponent(url.slice("/clip/".length))));
       if (existsSync(clip)) { res.setHeader("content-type", "video/mp4"); res.end(readFileSync(clip)); } else { res.statusCode = 404; res.end("no clip"); }
+      return;
+    }
+    if (url.startsWith("/source/")) { // full-source stream for the timeline preview (VS-73)
+      const member = membersById.get(decodeURIComponent(url.slice("/source/".length)));
+      if (member && member.kind === "video" && member.path) serveRange(req, res, member.path);
+      else { res.statusCode = 404; res.end("no source"); }
+      return;
+    }
+    if (url === "/assembled") { // full assembled edit for the timeline preview (VS-73)
+      const angles = videos.map((m) => ({
+        id: m.id,
+        url: `source/${encodeURIComponent(m.id)}`,
+        offset: m.correctedOffsetSeconds ?? m.offsetSeconds ?? 0,
+        rate: m.rateCorrection ?? 1,
+        duration: m.durationSeconds ?? null,
+      }));
+      res.setHeader("content-type", "application/json");
+      res.end(JSON.stringify({ timelineEnd, angles, switches: curSwitches, rationale: curRationale }));
       return;
     }
     if (url === "/repropose" && req.method === "POST") {

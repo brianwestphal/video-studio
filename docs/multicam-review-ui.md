@@ -86,6 +86,17 @@ prints the ready `export-multicam-fcpxml … --switches switches.json` line
   `[atSeconds, endSeconds]` (the shot this cut introduces) with a tick at the exact cut —
   so overlapping neighbouring previews are still distinguishable; the section time range
   is shown in the segment header. (I/O — manual-test-plan §13.)
+- **R-RUI9 — Whole-video assembled preview.** A lazily-loaded ("Load full-video preview")
+  timeline plays the **entire** assembled multi-cam edit and shows the full `[0, timelineEnd]`
+  as a bar of **per-switch blocks colored by angle**, with **flagged** sections marked and
+  a scrubbable playhead. Playback is a **client-side multi-cam player**: each angle's source
+  is served with HTTP **Range** (`/source/<id>`), the angles are stacked, and only the
+  **active** angle decodes — at each cut the active angle **swaps** per the assembled switch
+  list (`/assembled`) with the user's in-progress picks applied by switch index. Changing a
+  pick **recolors the bar and swaps the playing angle live**; timeline playback and the
+  per-segment players are mutually exclusive (single audio). Rough by design — angle swaps
+  cause a brief seek stall, and tiny rate corrections are ignored (the ±context per-segment
+  previews remain the accurate close-inspection tool). (I/O — manual-test-plan §13.)
 - **R-RUI7 — Downstream re-evaluation.** A confirmed user choice **re-influences the
   subsequent auto picks**: `autoCut` accepts `locks` (user-confirmed
   `{ atSeconds, memberId }`) that are pinned and let the selection re-flow around them,
@@ -119,6 +130,12 @@ preview extraction — is out of automated scope and lives in
   a downscaled video + mono audio). The scrubber highlights the section-of-interest band
   (the shot the cut introduces) so overlapping previews stay distinguishable (VS-72).
   Manual ([`manual-test-plan.md`](manual-test-plan.md) §13).
+- **R-RUI9 (whole-video assembled preview) — shipped (VS-73).** A "Load full-video preview"
+  timeline plays the whole assembled edit via a client-side multi-cam player (per-angle
+  sources served with HTTP Range, only the active angle decodes, swapping at each cut per
+  the current switches with in-progress picks applied) and a bar of angle-colored blocks
+  with flagged sections marked + scrubbing; pick changes recolor + re-angle live. `/source`
+  (Range) + `/assembled` endpoints. Manual ([`manual-test-plan.md`](manual-test-plan.md) §13).
 - **R-RUI7 (downstream re-evaluation) — shipped (VS-66 model + VS-67 UI).** `autoCut`
   honors `locks` and applies a shot-type variety penalty (`shotTypeRepeatPenalty`); shot
   size from `shotTypeOf` (explicit vision `shotType` or a label hint). Unit-tested. The
