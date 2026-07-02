@@ -222,6 +222,16 @@ export function autoCut({ group, audioEvents = null, saliency = null, params = {
     rationale.push({ atSeconds: at, memberId: id, why: rationaleFor(id, entryOf[wi][id], ctxOf[wi]) });
   }
 
+  // Drop a runt trailing shot (VS-61): if the final switch lands within the model's
+  // own minimum gap (`ws/2`, the same floor the inter-switch clamp above enforces) of
+  // the timeline end, snapping produced a sub-frame trailing span — merge it back into
+  // the previous shot rather than emit it.
+  const timelineEnd = windows[windows.length - 1].endSeconds;
+  while (switches.length > 1 && timelineEnd - switches[switches.length - 1].atSeconds < ws / 2) {
+    switches.pop();
+    rationale.pop();
+  }
+
   return { version: AUTOCUT_VERSION, groupId: group.id, switches, rationale };
 }
 

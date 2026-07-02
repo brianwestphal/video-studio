@@ -185,6 +185,26 @@ describe("autoCut — selection", () => {
     expect(r.switches.map((s: { memberId: string }) => s.memberId)).toEqual(["a", "b", "a"]);
   });
 
+  it("drops a runt trailing shot at the timeline end (VS-61)", () => {
+    // 3 windows; the last is a 0.05s sliver. a wins the first two, b the sliver, so the
+    // trailing b-shot would be 0.05s — shorter than the model's own min gap (ws/2=1s) —
+    // and is merged back into a instead of emitted as a sub-frame span.
+    const runt = { instrument: 0.1, performer: 0.1, motion: 0, framing: 0.1 };
+    const strong = { instrument: 0.9, performer: 0.9, motion: 0.9, framing: 0.9 };
+    const win = (s: number, e: number, scores: object) => ({ startSeconds: s, endSeconds: e, scores, saliency: 0.5, confidence: 0.7, source: "vision" });
+    const sal = {
+      version: 1,
+      groupId: "g",
+      windowSeconds: 2,
+      angles: {
+        a: [win(0, 2, aInst), win(2, 4, aInst), win(4, 4.05, runt)],
+        b: [win(0, 2, runt), win(2, 4, runt), win(4, 4.05, strong)],
+      },
+    };
+    const r = autoCut({ group: group([{ id: "a" }, { id: "b" }], 4.05), audioEvents: allInstrumental, saliency: sal });
+    expect(r.switches).toEqual([{ atSeconds: 0, memberId: "a" }]);
+  });
+
   it("holds a sole angle through an instrumental long take (no runner-up to cut to)", () => {
     // Instrumental + only one angle: the exception's dominance check has no runner-up
     // (null), so it holds; a single continuous shot, same as without footage to vary to.

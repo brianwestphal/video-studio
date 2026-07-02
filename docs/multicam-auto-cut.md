@@ -73,7 +73,10 @@ editorial constraints:
 **Step C — emit.** Collapse consecutive same-angle windows; emit one
 `{ atSeconds, memberId }` per shot boundary + a `rationale` string (the dominant
 term, e.g. "instrumental riff → guitar angle (inst 0.81)"). First switch at the
-group start (or a `--start` trim, consistent with the export).
+group start (or a `--start` trim, consistent with the export). A **runt trailing
+shot** — a final switch landing within the model's min gap (`ws/2`) of the timeline
+end, an artifact of onset snapping — is merged back into the previous shot rather
+than emitted (VS-61).
 
 ## 4. Parameters (all CLI-tunable, sane defaults)
 
