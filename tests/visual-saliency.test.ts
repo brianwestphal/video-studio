@@ -190,6 +190,7 @@ describe("assembleWindowScore / buildSaliency / visionPrompt", () => {
   it("exposes the structured vision prompt", () => {
     expect(visionPrompt()).toContain('"performer"');
     expect(visionPrompt()).toContain("JSON");
+    expect(visionPrompt()).toContain("playing is NOT singing"); // VS-64: performer = active singer, not instrumentalist
   });
 });
 

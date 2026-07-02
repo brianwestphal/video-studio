@@ -208,7 +208,7 @@ export function visionPrompt() {
   return [
     "You are scoring one frame from one camera angle of a live music multi-cam shoot.",
     "Reply with ONLY a compact JSON object, no prose, with these keys (numbers 0.0–1.0):",
-    '  "performer": is a person actively performing (singing/talking/playing) vs idle,',
+    '  "performer": is THIS person actively SINGING or SPEAKING into a microphone right now — mouth open / vocalizing. Score LOW if their mouth is closed, head is down, or they are only playing an instrument (playing is NOT singing) — that keeps instrumentalists from reading as the active singer (VS-64),',
     '  "instrument": is a musical instrument visible AND being played,',
     '  "motion": visible motion/energy in the frame,',
     '  "framing": shot quality — well-framed close/medium subject (1.0) vs empty/wide/cutaway (0.0),',

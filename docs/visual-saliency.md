@@ -19,8 +19,11 @@ can rank angles window by window.
 
 ## 2. What to score, per angle per window
 
-- **Performer activity** — is a person singing / talking / playing vs idle
-  (mouth moving, hands on the instrument).
+- **Performer activity** — is a person **actively singing / speaking into a mic**
+  (mouth open, vocalizing). Deliberately **not** "playing an instrument" — that keeps
+  an instrumentalist (head down over a guitar) from reading as the active singer, which
+  matters because the selector uses `performer` to pick the singer during vocals (VS-64).
+  Instrument playing is captured separately by the `instrument` score.
 - **Instrument in frame & in use** — e.g. the guitar being strummed (pairs with
   the `instrumental` audio events from VS-41).
 - **Motion / visual energy** — cheap frame-difference magnitude.
@@ -157,3 +160,7 @@ node tools/analyze-visual-saliency.mjs <multicam.json> [--group id] [--window se
   selector consumes this and owns the final weighting, R-VS5).
 - A frame-difference motion metric is coarse; an optional flow/feature signal could
   sharpen it later if the selector needs it.
+- **`performer` = active singer, not instrumentalist (VS-64, shipped).** The prompt was
+  refined + validated against real BYAM frames on the live model: a head-down guitarist
+  and a hands-on-guitar close-up dropped from `perf ~0.9` to `~0.2`, while frames of
+  someone actually singing stayed high (`~0.8–0.9`). Realized on the next saliency run.
