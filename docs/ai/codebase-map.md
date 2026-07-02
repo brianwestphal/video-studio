@@ -46,9 +46,9 @@ and [`requirements-summary.md`](requirements-summary.md) for status.
 │   ├── wav-compat-io.mjs       # thin I/O: read a file's RIFF header, warn (or with --fcp-normalize-audio re-encode + repoint) FCP-incompatible WAVs (over wav-compat.mjs)
 │   ├── transitions-render.mjs  # pure: transition→recipe maps (Tier A xfade / B custom-expr / C overlay-mask) + full-chain & windowed render plans + filter_complex (unit-tested, VS-54/55)
 │   ├── render-transitions.mjs  # bake transitions into a finished video via ffmpeg — no FCP; windowed re-encode (default) or --full-chain (I/O over transitions-render.mjs)
-│   ├── visual-saliency.mjs     # pure: per-angle saliency windowing + group-clock map + motion norm + vision-reply parse + gating + schema (unit-tested, VS-45)
+│   ├── visual-saliency.mjs     # pure: per-angle saliency windowing + group-clock map + motion norm + vision-reply parse + gating + schema + shotType/shot-size normalizer (unit-tested, VS-45/66)
 │   ├── analyze-visual-saliency.mjs # per-angle saliency.json: ffmpeg motion pass gates Ollama vision over multicam angles (I/O over visual-saliency.mjs)
-│   ├── multicam-autocut.mjs    # pure: auto angle-switch selection (audio-events + saliency → switches + rationale) + evaluate() metrics + shot-length policy w/ instrumental long-take exception + per-switch review signal (unit-tested, VS-46/62/63)
+│   ├── multicam-autocut.mjs    # pure: auto angle-switch selection (audio-events + saliency → switches + rationale) + evaluate() metrics + shot-length policy w/ instrumental long-take exception + per-switch review signal + locks/shot-type variety (unit-tested, VS-46/62/63/66)
 │   ├── propose-switches.mjs    # thin CLI: read multicam.json + audio-events.json + saliency.json → switches.json (+ prints rationale); feeds the exporters via --switches (I/O over multicam-autocut.mjs, VS-46/47)
 │   ├── review-model.mjs        # pure: review-UI core — flagged-segment derivation + candidate angles + preview windows + apply-choice/history (unit-tested, VS-65)
 │   ├── review-switches.mjs     # I/O: local server + page + ffmpeg ±2s previews to review flagged cuts, write picks back to switches.json + history (over review-model.mjs, VS-65)
@@ -90,7 +90,7 @@ and [`requirements-summary.md`](requirements-summary.md) for status.
 │   ├── audio-events.md         # DESIGN: non-speech/musical audio events spec (R-AE, VS-41 → build VS-44)
 │   ├── visual-saliency.md      # per-angle "what's worth showing" — shipped (R-VS, VS-42 design → VS-45 build)
 │   ├── multicam-auto-cut.md    # DESIGN: audio+visual → angle-selection model emitting switches (R-AC, VS-43 → build VS-46/47/62/63)
-│   ├── multicam-review-ui.md   # review low-confidence auto-cuts in a local web UI (R-RUI; flag signal R-AC9 + UI R-RUI1-6 shipped VS-63/65, downstream re-eval R-RUI7 VS-66)
+│   ├── multicam-review-ui.md   # review low-confidence auto-cuts in a local web UI (R-RUI; flag signal R-AC9 + UI R-RUI1-6 shipped VS-63/65, locks/variety model R-RUI7 shipped VS-66, UI re-propose wiring VS-67)
 │   ├── releasing.md            # release + npm trusted-publisher setup
 │   ├── manual-test-plan.md     # manual checklist for the external-tool pipeline
 │   ├── media/                  # README demo media (docs-only; gitignored binaries) — from Tears of Steel (CC BY 3.0)

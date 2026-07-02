@@ -73,10 +73,13 @@ prints the ready `export-multicam-fcpxml … --switches switches.json` line
 - **R-RUI6 — Handoff.** After save the CLI prints the ready
   `export-multicam-fcpxml … --switches …` / `render-multicam-preview … --switches …` line.
 - **R-RUI7 — Downstream re-evaluation.** A confirmed user choice **re-influences the
-  subsequent auto picks**: after locking a segment to an angle, later still-auto cuts are
-  re-evaluated so the edit doesn't, e.g., hold a similar-looking shot too long across the
-  user's pick (a shot-*type* variety penalty, not just same-angle). Depends on a
-  shot-type signal per window — see follow-ups.
+  subsequent auto picks**: `autoCut` accepts `locks` (user-confirmed
+  `{ atSeconds, memberId }`) that are pinned and let the selection re-flow around them,
+  and a soft **shot-type variety** penalty (`shotTypeRepeatPenalty`) keeps the edit off
+  two similar-sized shots in a row. Shot size comes from `shotTypeOf` — an explicit
+  vision `shotType` (wide / medium / close) or a label hint — best-effort, no penalty
+  when unknown. *(Model shipped VS-66; wiring the review UI's save to re-propose
+  downstream is a follow-up, VS-67.)*
 
 ## 5. Testing
 
@@ -95,6 +98,9 @@ preview extraction — is out of automated scope and lives in
   the pure `tools/review-model.mjs` (100% unit-tested: flag filtering, candidate angles,
   preview windows, apply-choice + history). The HTTP server, page, and ffmpeg preview
   extraction are manual ([`manual-test-plan.md`](manual-test-plan.md) §13).
-- **R-RUI7 (downstream re-evaluation) — design only.** Needs a per-window shot-type
-  signal (wide / medium / close) to penalize consecutive similar shots; tracked in
-  **VS-66** (also revisits the `wRepeat` variety idea from `multicam-auto-cut.md` §3).
+- **R-RUI7 (downstream re-evaluation) — model shipped (VS-66).** `autoCut` honors
+  `locks` and applies a shot-type variety penalty (`shotTypeRepeatPenalty`); shot size
+  from `shotTypeOf` (explicit vision `shotType` or a label hint). Unit-tested. Wiring
+  the review UI's **save** to re-propose the downstream cuts (call `autoCut` with the
+  user's picks as locks) is a follow-up — **VS-67** (a UX call: re-propose on save vs. a
+  "re-propose" button).

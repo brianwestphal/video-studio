@@ -47,7 +47,7 @@ Work on the aligned window grid from VS-42 (`windowSeconds`, group clock).
 score(a,w) = wPerf·perf(a,w) + wInst·inst(a,w)·isInstrumental(w)
            + wVocal·perf(a,w)·isVocal(w)      // "active singer" during vocals
            + wMotion·motion(a,w) + wFraming·framing(a,w)
-           − wRepeat·recentlyShown(a,w)        // encourage variety
+           − shotTypeRepeatPenalty·[shotType(a,w) == outgoing shot type]  // variety (VS-66)
 ```
 - `isInstrumental(w)`/`isVocal(w)` come from the `audio-events` kinds covering *w*
   → this is what makes riffs favor the **instrument** angle and vocals favor the
@@ -67,6 +67,14 @@ editorial constraints:
   guitar solos / intentional "oner" shots aren't chopped. Vocal holds are never
   extended (they still cut at `maxShotSeconds`), and the maintainer can always
   hand-edit `switches.json` for a longer take;
+- **shot-type variety** (VS-66) — when picking a *fresh* angle (a forced or normal
+  cut), a soft `shotTypeRepeatPenalty` discourages a candidate whose shot size
+  (wide / medium / close, from `shotTypeOf` — an explicit `shotType` or a label hint)
+  matches the outgoing shot, so the edit doesn't sit on two similar shots in a row.
+  Best-effort: no penalty where the shot type is unknown;
+- **locks** (VS-66) — `autoCut({ …, locks: [{ atSeconds, memberId }] })` pins a
+  user-confirmed pick at its window and lets the selection re-flow around it (the
+  review UI's downstream re-evaluation, R-RUI7);
 - **cut-on-onset snapping** — when a switch is due, snap its time to the nearest
   `onset`/`section` boundary (VS-41) within `snapToleranceSeconds`.
 
@@ -86,7 +94,8 @@ than emitted (VS-61).
 | `maxShotSeconds` | 8 | force variety after this (unless the long-take exception applies) |
 | `longTakeMaxSeconds` | 16 | ceiling a dominant angle may hold to during a sustained instrumental stretch (R-AC8) |
 | `longTakeMargin` | 0.15 | the held angle must beat the runner-up by at least this to qualify as a long take |
-| `wPerf / wVocal / wInst / wMotion / wFraming / wRepeat` | tuned on BYAM | score weights |
+| `shotTypeRepeatPenalty` | 0.1 | soft penalty on a fresh pick whose shot size matches the outgoing shot (variety, VS-66) |
+| `wPerf / wVocal / wInst / wMotion / wFraming` | tuned on BYAM | score weights |
 | `snapToleranceSeconds` | 0.4 | cut-on-onset snap window |
 | `windowSeconds` | from VS-42 | analysis granularity |
 | `seed`/tie-break | input order | deterministic output |
@@ -172,6 +181,9 @@ identical `switches`.
   riffs / singer on vocals.)*
 - **VS-62** — shot-length policy: `maxShotSeconds` 12→8, `minShotSeconds` 2.0→0.5,
   and the instrumental long-take exception (R-AC8). *(Shipped.)*
-- **VS-63** — web UI to review low-confidence segments (±2s context) and actively
-  pick the angle. *(Planned.)*
+- **VS-63/65** — review UI: per-switch flag signal (R-AC9) + `review-switches` to resolve
+  flagged cuts by hand. *(Shipped.)*
+- **VS-66** — `autoCut` `locks` (downstream re-evaluation) + shot-type variety penalty
+  (R-RUI7); `shotType` added to the saliency vision schema. *(Shipped.)*
 - **VS-64** — vision saliency mis-scores a non-singing musician as a performer. *(Open, low.)*
+- **VS-67** — wire the review UI's save to re-propose downstream via `autoCut` locks. *(Planned.)*

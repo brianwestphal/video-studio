@@ -218,6 +218,58 @@ describe("autoCut — selection", () => {
   });
 });
 
+describe("autoCut — locks + shot-type variety (VS-66)", () => {
+  // 3 angles, no audio context: a always scores highest; b ties b-ish but is the same
+  // shot type as a (wide); c scores slightly below b but is a different type (close).
+  const shotSal = (perfA: number, perfB: number, perfC: number) => {
+    const mk = (perf: number, shot: string) =>
+      [0, 1, 2, 3, 4].map((i) => ({ startSeconds: i * 2, endSeconds: i * 2 + 2, scores: { performer: perf, instrument: 0, motion: 0, framing: 0 }, saliency: 0.5, confidence: 0.9, shotType: shot, source: "vision" }));
+    return { version: 1, groupId: "g", windowSeconds: 2, angles: { a: mk(perfA, "wide"), b: mk(perfB, "wide"), c: mk(perfC, "close") } };
+  };
+  const threeAngles = group([{ id: "a" }, { id: "b" }, { id: "c" }]);
+
+  it("nudges a forced cut toward a different shot type", () => {
+    const r = autoCut({ group: threeAngles, saliency: shotSal(0.9, 0.5, 0.46), params: { maxShotSeconds: 4 } });
+    // a holds to maxShot, then must vary: c (close) beats b (wide, same type as a) via
+    // the 0.1 penalty even though b has the higher raw score.
+    expect(r.switches.map((s: { memberId: string }) => s.memberId)).toContain("c");
+    expect(r.switches.map((s: { memberId: string }) => s.memberId)).not.toContain("b");
+  });
+
+  it("without the penalty the forced cut takes the higher-scoring same-type angle", () => {
+    const r = autoCut({ group: threeAngles, saliency: shotSal(0.9, 0.5, 0.46), params: { maxShotSeconds: 4, shotTypeRepeatPenalty: 0 } });
+    expect(r.switches.map((s: { memberId: string }) => s.memberId)).toContain("b");
+  });
+
+  it("honors a locked pick and re-flows around it", () => {
+    const strongA = { instrument: 0.9, performer: 0.9, motion: 0.9, framing: 0.9 };
+    const weakB = { instrument: 0.1, performer: 0.1, motion: 0.1, framing: 0.1 };
+    const sal = saliency([strongA, strongA, strongA, strongA, strongA], [weakB, weakB, weakB, weakB, weakB]);
+    // a wins every window, but the user locked b at ~2s → b is pinned there, then the
+    // selection re-flows back to the dominant a.
+    const r = autoCut({ group: group(), audioEvents: instrumentalThenVocal, saliency: sal, locks: [{ atSeconds: 2, memberId: "b" }] });
+    const bSwitch = r.switches.find((s: { memberId: string }) => s.memberId === "b");
+    expect(bSwitch.atSeconds).toBe(2);
+  });
+
+  it("clamps out-of-range locks and ignores invalid ones", () => {
+    const sal = saliency([aInst, aInst, aInst, aInst, aInst], [bVocal, bVocal, bVocal, bVocal, bVocal]);
+    const r = autoCut({
+      group: group(),
+      audioEvents: instrumentalThenVocal,
+      saliency: sal,
+      locks: [
+        null, // ignored
+        { atSeconds: 100, memberId: "a" }, // past the end → clamp to the last window
+        { atSeconds: -5, memberId: "b" }, // before the start → clamp to window 0
+        { atSeconds: 4, memberId: "nope" }, // unknown angle → ignored
+        { atSeconds: Number.NaN, memberId: "a" }, // non-finite → ignored
+      ],
+    });
+    expect(r.switches[0].memberId).toBe("b"); // window 0 pinned to b by the clamped lock
+  });
+});
+
 describe("autoCut — review signal (VS-63)", () => {
   const salWithConf = (aScores: object, bScores: object, confidence: number) => {
     const mk = (scores: object) => [0, 1, 2, 3, 4].map((i) => ({ startSeconds: i * 2, endSeconds: i * 2 + 2, scores, saliency: 0.5, confidence, source: "vision" }));

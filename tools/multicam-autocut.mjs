@@ -6,7 +6,7 @@
 // riff→instrument angle, vocal→active-singer angle — live inside the weights) +
 // constraint smoothing (min/max shot length, cut-on-onset snapping). Deterministic;
 // no I/O — the file reading + writing is in multicam-autocut-cli.mjs. 100% covered.
-import { angleCoversWindow } from "./visual-saliency.mjs";
+import { angleCoversWindow, shotTypeOf } from "./visual-saliency.mjs";
 
 export const AUTOCUT_VERSION = 1;
 
@@ -17,6 +17,7 @@ export const DEFAULT_PARAMS = {
   longTakeMargin: 0.15, // …but only while it beats the runner-up by at least this (a clear solo, not a near-tie)
   snapToleranceSeconds: 0.4,
   switchMargin: 0.05, // a challenger must beat the held angle by this to cut early
+  shotTypeRepeatPenalty: 0.1, // soft nudge away from a new angle whose shot size matches the outgoing one (VS-66)
   windowSeconds: 2.0, // only used in the degraded (no-saliency) fallback grid
   startSeconds: 0,
   weights: { perf: 1.0, inst: 1.2, vocal: 1.0, motion: 0.4, framing: 0.5 },
@@ -147,7 +148,7 @@ function rationaleFor(angleId, entry, ctx) {
 
 // Main entry: produce { version, groupId, switches, rationale } from the synced
 // group + audio events + saliency. `switches` is the existing exporter shape.
-export function autoCut({ group, audioEvents = null, saliency = null, params = {} } = {}) {
+export function autoCut({ group, audioEvents = null, saliency = null, params = {}, locks = [] } = {}) {
   if (!group || !Array.isArray(group.members)) throw new Error("multicam-autocut: a group with members is required");
   const p = { ...DEFAULT_PARAMS, ...params, weights: { ...DEFAULT_PARAMS.weights, ...(params.weights || {}) } };
   const angles = videoAngles(group);
@@ -174,13 +175,19 @@ export function autoCut({ group, audioEvents = null, saliency = null, params = {
     return m;
   });
 
-  // Best available angle at a window (input order breaks ties), optionally excluding one.
-  const bestAt = (wi, exclude) => {
+  const shotTypeAt = (wi, id) => shotTypeOf(entryOf[wi][id]);
+
+  // Best available angle at a window (input order breaks ties), optionally excluding
+  // one. `avoidType` applies a soft variety penalty (VS-66) to any candidate whose shot
+  // size matches the outgoing shot — nudging away from two similar shots in a row.
+  const bestAt = (wi, exclude, avoidType = null) => {
     let best = null;
     let bestScore = -Infinity;
     for (const a of angles) {
       if (a.id === exclude) continue;
-      const sc = scoreOf[wi][a.id];
+      let sc = scoreOf[wi][a.id];
+      if (sc === -Infinity) continue;
+      if (avoidType && shotTypeAt(wi, a.id) === avoidType) sc -= p.shotTypeRepeatPenalty;
       if (sc > bestScore) {
         bestScore = sc;
         best = a.id;
@@ -189,22 +196,37 @@ export function autoCut({ group, audioEvents = null, saliency = null, params = {
     return best;
   };
 
+  // A user-confirmed pick (VS-66): the angle is pinned at its window and the selection
+  // re-flows around it. Later locks / normal rules still apply downstream.
+  const angleIds = new Set(angles.map((a) => a.id));
+  const lockAt = new Map();
+  for (const lk of locks) {
+    if (!lk || !angleIds.has(lk.memberId) || !Number.isFinite(lk.atSeconds)) continue;
+    let wi = windows.findIndex((w) => lk.atSeconds >= w.startSeconds && lk.atSeconds < w.endSeconds);
+    if (wi < 0) wi = lk.atSeconds < windows[0].startSeconds ? 0 : windows.length - 1;
+    lockAt.set(wi, lk.memberId);
+  }
+
   // Single pass: hold the current angle, switching only when allowed (min-shot
   // hysteresis + challenger margin), forced to vary after max-shot, forced off a
-  // dead angle (no footage). Produces a per-window choice.
+  // dead angle (no footage), or pinned by a user lock. Shot-type variety (VS-66)
+  // nudges each fresh pick away from the outgoing shot size. Per-window choice.
   const chosen = new Array(windows.length);
   let cur = bestAt(0, null) ?? angles[0].id;
   let shotLen = 0;
   for (let wi = 0; wi < windows.length; wi++) {
-    const curOk = availOf[wi].includes(cur);
-    if (!curOk) {
-      cur = bestAt(wi, null) ?? cur;
+    const avoid = shotTypeAt(wi, cur); // outgoing shot size to vary away from
+    if (lockAt.has(wi)) {
+      cur = lockAt.get(wi);
+      shotLen = 0;
+    } else if (!availOf[wi].includes(cur)) {
+      cur = bestAt(wi, null, avoid) ?? cur;
       shotLen = 0;
     } else if (shotLen >= maxW) {
       // Long-take exception (R-AC8): in a sustained instrumental stretch, let a
       // clearly dominant angle hold past maxShot (up to longTakeW) for solos / oner
       // shots, instead of forcing variety. Otherwise cut to the next-best valid angle.
-      const runnerUp = bestAt(wi, cur);
+      const runnerUp = bestAt(wi, cur, avoid);
       const dominant = cur === bestAt(wi, null)
         && (runnerUp == null || scoreOf[wi][cur] - scoreOf[wi][runnerUp] >= p.longTakeMargin);
       if (ctxOf[wi].isInstrumental && shotLen < longTakeW && dominant) {
@@ -214,9 +236,11 @@ export function autoCut({ group, audioEvents = null, saliency = null, params = {
         shotLen = 0;
       }
     } else {
-      const best = bestAt(wi, null);
-      if (best && best !== cur && shotLen >= minW && scoreOf[wi][best] - scoreOf[wi][cur] > p.switchMargin) {
-        cur = best;
+      // Best challenger other than the held angle (variety-nudged); switch only if it
+      // beats the held angle on raw score by the margin, after the min-shot floor.
+      const chal = bestAt(wi, cur, avoid);
+      if (chal && shotLen >= minW && scoreOf[wi][chal] - scoreOf[wi][cur] > p.switchMargin) {
+        cur = chal;
         shotLen = 0;
       }
     }

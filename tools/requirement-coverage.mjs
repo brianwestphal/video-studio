@@ -204,7 +204,7 @@ export const REQUIREMENT_COVERAGE = {
   "R-RUI4": { status: "unit", tests: ["review-model.test.ts"], note: "applyReview applies per-segment picks" },
   "R-RUI5": { status: "unit", tests: ["review-model.test.ts"], note: "applyReview change history; in-place write-back + .bak manual" },
   "R-RUI6": { status: "manual", note: "print export handoff line after save (VS-65)" },
-  "R-RUI7": { status: "deferred", note: "downstream re-evaluation after a locked choice + shot-type variety — design only (VS-66)" },
+  "R-RUI7": { status: "unit", tests: ["multicam-autocut.test.ts"], note: "autoCut locks + shot-type variety penalty (VS-66); wiring the UI save to re-propose is VS-67" },
 };
 
 // Audit the manifest against the ids actually defined in the docs. Pure: caller

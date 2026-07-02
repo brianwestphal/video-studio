@@ -175,7 +175,7 @@ async function main() {
           const frame = extractFrame(member.path, sourceTime(center, member), tmp, i);
           const reply = await ollama.chat({ model: opts.model, messages: [{ role: "user", content: visionPrompt(), images: [readFileSync(frame).toString("base64")] }] });
           const parsed = parseVisionReply(reply.message.content);
-          entries.push(assembleWindowScore({ window: w, scores: { ...parsed.scores, motion: motion[i] }, labels: parsed.labels, confidence: parsed.confidence, source: "vision" }));
+          entries.push(assembleWindowScore({ window: w, scores: { ...parsed.scores, motion: motion[i] }, labels: parsed.labels, confidence: parsed.confidence, shotType: parsed.shotType, source: "vision" }));
           totalVision++;
           reportProgress(++visionDone);
         } else {

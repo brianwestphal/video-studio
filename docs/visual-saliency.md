@@ -79,6 +79,7 @@ with `multicam.json` offsets and `audio-events.json`):
         "labels": ["singing", "medium-shot", "two-people"],
         "saliency": 0.82,           // combined score the selector can use directly
         "confidence": 0.7,
+        "shotType": "medium",       // coarse shot size wide|medium|close|null (VS-66)
         "source": "vision"          // or "motion" when the model was gated out
       }
     ],
@@ -87,6 +88,9 @@ with `multicam.json` offsets and `audio-events.json`):
 }
 ```
 
+- `shotType` is a coarse shot size (`wide`/`medium`/`close`, else null) the vision
+  model reports, used by the selector's shot-type variety penalty (VS-66); `shotTypeOf`
+  falls back to a `labels` hint when it's absent.
 - `scores` are independent 0–1 dimensions; `saliency` is a combined convenience
   score (weights documented + tunable); `labels` are free-text tags from the model;
   `source` records whether the window was model-scored or motion-only.

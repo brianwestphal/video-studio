@@ -85,9 +85,37 @@ export function normalizeMotion(value, scale = DEFAULT_MOTION_SCALE) {
   return round3(clamp01(value / scale));
 }
 
-// Parse a vision model's reply into { scores, labels, confidence }. Accepts either
-// flat keys (`{"performer":0.9,…}`) or a nested `{"scores":{…}}`; missing/invalid
-// numbers default to 0 (confidence 0.5); labels must be strings.
+// Coarse shot size for edit-variety (VS-66). Maps a free-text label or an explicit
+// shot-type string to one of these, else null (unknown → no variety signal).
+export const SHOT_TYPES = ["wide", "medium", "close"];
+
+// Normalize any label / shot-type phrase to a coarse shot size. `close` is checked
+// first so "medium-close-up" reads as close; separators/case are ignored.
+export function normalizeShotType(value) {
+  if (typeof value !== "string") return null;
+  const s = value.toLowerCase();
+  if (s.includes("close")) return "close";
+  if (s.includes("wide") || s.includes("full") || s.includes("establish") || s.includes("long")) return "wide";
+  if (s.includes("medium") || s.includes("mid")) return "medium";
+  return null;
+}
+
+// The coarse shot size for a saliency window entry: an explicit `shotType` if present
+// and valid, else the first shot-size hint found among its free-text `labels`, else
+// null. Best-effort — the selector treats null as "no signal" (VS-66).
+export function shotTypeOf(entry) {
+  const direct = normalizeShotType(entry?.shotType);
+  if (direct) return direct;
+  for (const l of entry?.labels ?? []) {
+    const t = normalizeShotType(l);
+    if (t) return t;
+  }
+  return null;
+}
+
+// Parse a vision model's reply into { scores, labels, confidence, shotType }. Accepts
+// either flat keys (`{"performer":0.9,…}`) or a nested `{"scores":{…}}`; missing/invalid
+// numbers default to 0 (confidence 0.5); labels must be strings; shotType normalized.
 export function parseVisionReply(text) {
   const obj = extractJson(text) ?? {};
   const src = obj.scores && typeof obj.scores === "object" ? obj.scores : obj;
@@ -95,7 +123,7 @@ export function parseVisionReply(text) {
   for (const k of SCORE_KEYS) scores[k] = round3(clamp01(toNumber(src[k])));
   const labels = Array.isArray(obj.labels) ? obj.labels.filter((x) => typeof x === "string") : [];
   const confidence = round3(clamp01(toNumber(obj.confidence, 0.5)));
-  return { scores, labels, confidence };
+  return { scores, labels, confidence, shotType: normalizeShotType(obj.shotType) };
 }
 
 // Weighted, normalized combination of the per-dimension scores → one 0..1 saliency.
@@ -153,7 +181,7 @@ export function sectionBoundaries(audioEvents) {
 
 // One window's score entry for the schema. `scores` carries whatever was measured
 // (motion always; the rest from vision when run); `source` records which.
-export function assembleWindowScore({ window, scores = {}, labels = [], confidence = 0.5, source = "motion", weights = DEFAULT_WEIGHTS }) {
+export function assembleWindowScore({ window, scores = {}, labels = [], confidence = 0.5, source = "motion", shotType = null, weights = DEFAULT_WEIGHTS }) {
   const norm = {};
   for (const k of SCORE_KEYS) norm[k] = round3(clamp01(toNumber(scores[k])));
   return {
@@ -163,6 +191,7 @@ export function assembleWindowScore({ window, scores = {}, labels = [], confiden
     labels: labels.filter((x) => typeof x === "string"),
     saliency: combineSaliency(norm, weights),
     confidence: round3(clamp01(toNumber(confidence, 0.5))),
+    shotType: normalizeShotType(shotType),
     source,
   };
 }
@@ -185,7 +214,8 @@ export function visionPrompt() {
     '  "framing": shot quality — well-framed close/medium subject (1.0) vs empty/wide/cutaway (0.0),',
     '  "presence": a person/face is present and prominent,',
     '  "confidence": your confidence 0.0–1.0,',
+    '  "shotType": the shot size — one of "wide", "medium", "close",',
     '  "labels": a short array of free-text tags (e.g. ["singing","close-up"]).',
-    'Example: {"performer":0.9,"instrument":0.2,"motion":0.4,"framing":0.8,"presence":1.0,"confidence":0.7,"labels":["singing","medium-shot"]}',
+    'Example: {"performer":0.9,"instrument":0.2,"motion":0.4,"framing":0.8,"presence":1.0,"confidence":0.7,"shotType":"medium","labels":["singing"]}',
   ].join("\n");
 }

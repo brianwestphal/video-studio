@@ -7,10 +7,12 @@ import {
   combineSaliency,
   DEFAULT_WEIGHTS,
   normalizeMotion,
+  normalizeShotType,
   parseVisionReply,
   SALIENCY_VERSION,
   sectionBoundaries,
   selectVisionWindows,
+  shotTypeOf,
   sourceTime,
   visionPrompt,
   // @ts-expect-error — JS module, no types
@@ -80,6 +82,34 @@ describe("parseVisionReply", () => {
     expect(parseVisionReply("{ unbalanced").scores.motion).toBe(0);
     expect(parseVisionReply("{bad json}").scores.motion).toBe(0);
   });
+  it("normalizes shotType (and defaults to null)", () => {
+    expect(parseVisionReply('{"performer":0.5,"shotType":"close-up"}').shotType).toBe("close");
+    expect(parseVisionReply("{}").shotType).toBeNull();
+  });
+});
+
+describe("normalizeShotType / shotTypeOf (VS-66)", () => {
+  it("maps phrases to a coarse shot size, close first", () => {
+    expect(normalizeShotType("close-up")).toBe("close");
+    expect(normalizeShotType("medium close-up")).toBe("close"); // close wins over medium
+    expect(normalizeShotType("wide angle")).toBe("wide");
+    expect(normalizeShotType("full body shot")).toBe("wide");
+    expect(normalizeShotType("establishing shot")).toBe("wide");
+    expect(normalizeShotType("long shot")).toBe("wide");
+    expect(normalizeShotType("medium shot")).toBe("medium");
+    expect(normalizeShotType("mid shot")).toBe("medium");
+    expect(normalizeShotType("singing")).toBeNull();
+    expect(normalizeShotType(42 as unknown as string)).toBeNull();
+  });
+  it("prefers an explicit shotType, else derives from labels, else null", () => {
+    expect(shotTypeOf({ shotType: "wide" })).toBe("wide");
+    expect(shotTypeOf({ shotType: "medium", labels: ["wide"] })).toBe("medium"); // explicit wins
+    expect(shotTypeOf({ shotType: "banana", labels: ["close-up"] })).toBe("close"); // invalid → labels
+    expect(shotTypeOf({ labels: ["singing", "medium shot"] })).toBe("medium"); // skips non-size label
+    expect(shotTypeOf({ labels: ["singing"] })).toBeNull();
+    expect(shotTypeOf({})).toBeNull();
+    expect(shotTypeOf(null)).toBeNull();
+  });
 });
 
 describe("combineSaliency", () => {
@@ -147,6 +177,11 @@ describe("assembleWindowScore / buildSaliency / visionPrompt", () => {
     const entry = assembleWindowScore({ window: { startSeconds: 0, endSeconds: 2 } });
     expect(entry.source).toBe("motion");
     expect(entry.confidence).toBe(0.5);
+    expect(entry.shotType).toBeNull();
+  });
+  it("carries a normalized shotType when given", () => {
+    const entry = assembleWindowScore({ window: { startSeconds: 0, endSeconds: 2 }, shotType: "close-up" });
+    expect(entry.shotType).toBe("close");
   });
   it("wraps angles into a versioned document", () => {
     const doc = buildSaliency({ groupId: "byam", angles: { "byam-cam-1": [] } });
