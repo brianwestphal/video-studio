@@ -81,7 +81,11 @@ prints the ready `export-multicam-fcpxml … --switches switches.json` line
   other — and within the playing segment exactly **one clip is unmuted** (audio focus,
   defaults to the current pick; a per-clip Audio toggle moves it), so audio is always
   single-source. Any clip can be viewed **fullscreen** for close inspection. Pick, audio
-  focus, and fullscreen are distinct per-clip controls. (I/O — manual-test-plan §13.)
+  focus, and fullscreen are distinct per-clip controls. Because previews carry ±context
+  on both sides, the scrubber marks the **section of interest** — a highlighted band over
+  `[atSeconds, endSeconds]` (the shot this cut introduces) with a tick at the exact cut —
+  so overlapping neighbouring previews are still distinguishable; the section time range
+  is shown in the segment header. (I/O — manual-test-plan §13.)
 - **R-RUI7 — Downstream re-evaluation.** A confirmed user choice **re-influences the
   subsequent auto picks**: `autoCut` accepts `locks` (user-confirmed
   `{ atSeconds, memberId }`) that are pinned and let the selection re-flow around them,
@@ -112,7 +116,9 @@ preview extraction — is out of automated scope and lives in
   synchronized per-segment transport (play/pause/seek, drift-corrected, segment-looping),
   plays only one segment at a time with a single unmuted audio-focus clip, and lets any
   clip go fullscreen. Preview clips now retain audio (`extractClip` dropped `-an`, keeps
-  a downscaled video + mono audio). Manual ([`manual-test-plan.md`](manual-test-plan.md) §13).
+  a downscaled video + mono audio). The scrubber highlights the section-of-interest band
+  (the shot the cut introduces) so overlapping previews stay distinguishable (VS-72).
+  Manual ([`manual-test-plan.md`](manual-test-plan.md) §13).
 - **R-RUI7 (downstream re-evaluation) — shipped (VS-66 model + VS-67 UI).** `autoCut`
   honors `locks` and applies a shot-type variety penalty (`shotTypeRepeatPenalty`); shot
   size from `shotTypeOf` (explicit vision `shotType` or a label hint). Unit-tested. The

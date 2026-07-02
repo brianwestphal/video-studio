@@ -86,8 +86,20 @@ function page(groupId, count, canRepropose) {
   .why { color: #9aa0ad; font-size: 13px; margin: 0 0 12px; }
   .why code { color: #c8a; }
   .seg.active { border-color: #3a4258; box-shadow: 0 0 0 1px #6ea8fe33; }
+  .legend { color: #9aa0ad; font-size: 12px; margin-top: 3px; }
+  .legend .swatch { display: inline-block; width: 22px; height: 8px; border-radius: 3px; background: #6ea8fe66; vertical-align: middle; }
   .transport { display: flex; align-items: center; gap: 10px; margin: 4px 0 12px; }
-  .transport .seek { flex: 1; accent-color: #6ea8fe; }
+  /* Scrubber: a custom track so the "section of interest" (the shot this cut introduces)
+     shows as a band, with a tick at the exact cut time; the clip ends are ±context. */
+  .seekwrap { position: relative; flex: 1; height: 20px; display: flex; align-items: center; }
+  .seekwrap .track { position: absolute; left: 0; right: 0; height: 6px; background: #2c3040; border-radius: 3px; }
+  .seekwrap .band { position: absolute; height: 6px; background: #6ea8fe66; border-radius: 3px; }
+  .seekwrap .cut { position: absolute; width: 2px; height: 16px; background: #6ea8fe; transform: translateX(-1px); }
+  .seekwrap .seek { position: absolute; left: 0; right: 0; width: 100%; margin: 0; background: transparent; -webkit-appearance: none; appearance: none; }
+  .seekwrap .seek::-webkit-slider-runnable-track { background: transparent; height: 16px; }
+  .seekwrap .seek::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 13px; height: 13px; border-radius: 50%; background: #e7e9ee; border: 1px solid #12141a; cursor: pointer; margin-top: 1px; }
+  .seekwrap .seek::-moz-range-track { background: transparent; }
+  .seekwrap .seek::-moz-range-thumb { width: 13px; height: 13px; border-radius: 50%; background: #e7e9ee; border: 1px solid #12141a; cursor: pointer; }
   .transport .time { font: 12px/1 ui-monospace, monospace; color: #9aa0ad; min-width: 92px; text-align: right; }
   .cands { display: flex; flex-wrap: wrap; gap: 12px; }
   .cand { border: 2px solid #2c3040; border-radius: 8px; padding: 8px; background: #12141a; transition: border-color .1s; }
@@ -107,10 +119,11 @@ function page(groupId, count, canRepropose) {
   #status { color: #9aa0ad; font-size: 13px; }
   pre { background: #0c0e14; border: 1px solid #2c3040; border-radius: 8px; padding: 12px; overflow: auto; font-size: 12px; white-space: pre-wrap; }
 </style></head><body>
-<header><h1>Review <span id="count">${count}</span> cut(s) — ${groupId}</h1><div><span id="status"></span> &nbsp; ${reBtn}<button id="save">Save picks</button></div></header>
+<header><div><h1>Review <span id="count">${count}</span> cut(s) — ${groupId}</h1><div class="legend">On the scrubber, the <span class="swatch"></span> band is the shot this cut introduces; the clip ends are ±context lead-in/out.</div></div><div><span id="status"></span> &nbsp; ${reBtn}<button id="save">Save picks</button></div></header>
 <main id="root">Loading…</main>
 <script>
 const fmt = (s) => Math.floor(s/60)+":"+String(Math.floor(s%60)).padStart(2,"0");
+const fmt1 = (s) => Math.floor(s/60)+":"+(s%60).toFixed(1).padStart(4,"0"); // m:ss.d
 let SEGS = [];
 // Runtime playback controllers, one per rendered segment. Only ONE segment plays at a
 // time (VS-71): starting a segment pauses every other, so audio is single-source.
@@ -129,13 +142,26 @@ function render(){
 function buildSeg(seg, i){
   const el = document.createElement("section"); el.className = "seg";
   el.innerHTML = "<h2>Cut at "+fmt(seg.atSeconds)+" — auto picked <code>"+seg.chosen+"</code></h2>"+
-    "<p class='why'>"+(seg.why||"")+" · confidence <code>"+(seg.confidence==null?"?":seg.confidence)+"</code></p>";
+    "<p class='why'>"+(seg.why||"")+" · confidence <code>"+(seg.confidence==null?"?":seg.confidence)+"</code>"+
+    " · section <code>"+fmt1(seg.atSeconds)+"–"+fmt1(seg.endSeconds)+"</code></p>";
 
   const bar = document.createElement("div"); bar.className = "transport";
   const pp = document.createElement("button"); pp.className = "pp"; pp.textContent = "Play";
+  // Scrubber with the section-of-interest band. Positions are fractions of the preview
+  // window [previewStart, previewEnd] (the clip's span), so they match the bar regardless
+  // of the decoded clip's exact duration.
+  const seekwrap = document.createElement("div"); seekwrap.className = "seekwrap";
+  const track = document.createElement("div"); track.className = "track";
+  const band = document.createElement("div"); band.className = "band";
+  const cut = document.createElement("div"); cut.className = "cut";
+  const winDur = seg.previewEnd - seg.previewStart;
+  const pct = (t) => Math.max(0, Math.min(100, winDur > 0 ? (t - seg.previewStart)/winDur*100 : 0));
+  const inA = pct(seg.atSeconds), inB = pct(seg.endSeconds);
+  band.style.left = inA+"%"; band.style.width = (inB-inA)+"%"; cut.style.left = inA+"%";
   const seek = document.createElement("input"); seek.type = "range"; seek.className = "seek"; seek.min = "0"; seek.max = "1000"; seek.value = "0"; seek.step = "1";
+  seekwrap.append(track, band, cut, seek);
   const time = document.createElement("span"); time.className = "time"; time.textContent = "0:00 / 0:00";
-  bar.append(pp, seek, time); el.appendChild(bar);
+  bar.append(pp, seekwrap, time); el.appendChild(bar);
 
   const cands = document.createElement("div"); cands.className = "cands";
   const vids = []; // { id, video, card, audBtn }
