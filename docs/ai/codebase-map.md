@@ -48,7 +48,7 @@ and [`requirements-summary.md`](requirements-summary.md) for status.
 │   ├── render-transitions.mjs  # bake transitions into a finished video via ffmpeg — no FCP; windowed re-encode (default) or --full-chain (I/O over transitions-render.mjs)
 │   ├── visual-saliency.mjs     # pure: per-angle saliency windowing + group-clock map + motion norm + vision-reply parse + gating + schema (unit-tested, VS-45)
 │   ├── analyze-visual-saliency.mjs # per-angle saliency.json: ffmpeg motion pass gates Ollama vision over multicam angles (I/O over visual-saliency.mjs)
-│   ├── multicam-autocut.mjs    # pure: auto angle-switch selection (audio-events + saliency → switches + rationale) + evaluate() metrics + shot-length policy w/ instrumental long-take exception (unit-tested, VS-46/62)
+│   ├── multicam-autocut.mjs    # pure: auto angle-switch selection (audio-events + saliency → switches + rationale) + evaluate() metrics + shot-length policy w/ instrumental long-take exception + per-switch review signal (unit-tested, VS-46/62/63)
 │   ├── propose-switches.mjs    # thin CLI: read multicam.json + audio-events.json + saliency.json → switches.json (+ prints rationale); feeds the exporters via --switches (I/O over multicam-autocut.mjs, VS-46/47)
 │   ├── requirement-coverage.mjs # pure: requirement-index extraction + the feature-coverage manifest + audit (unit-tested, VS-58)
 │   └── check-features.mjs      # feature/requirement coverage report + gate (I/O over requirement-coverage.mjs); `npm run check:features`
@@ -86,7 +86,8 @@ and [`requirements-summary.md`](requirements-summary.md) for status.
 │   ├── multicam-sync.md        # audio sync tool requirements + research findings (VS-27, shipped)
 │   ├── audio-events.md         # DESIGN: non-speech/musical audio events spec (R-AE, VS-41 → build VS-44)
 │   ├── visual-saliency.md      # per-angle "what's worth showing" — shipped (R-VS, VS-42 design → VS-45 build)
-│   ├── multicam-auto-cut.md    # DESIGN: audio+visual → angle-selection model emitting switches (R-AC, VS-43 → build VS-46/47)
+│   ├── multicam-auto-cut.md    # DESIGN: audio+visual → angle-selection model emitting switches (R-AC, VS-43 → build VS-46/47/62/63)
+│   ├── multicam-review-ui.md   # DESIGN: review low-confidence auto-cuts in a local web UI (R-RUI; flag signal R-AC9 shipped VS-63, UI VS-65/66)
 │   ├── releasing.md            # release + npm trusted-publisher setup
 │   ├── manual-test-plan.md     # manual checklist for the external-tool pipeline
 │   ├── media/                  # README demo media (docs-only; gitignored binaries) — from Tears of Steel (CC BY 3.0)

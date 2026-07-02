@@ -218,6 +218,44 @@ describe("autoCut — selection", () => {
   });
 });
 
+describe("autoCut — review signal (VS-63)", () => {
+  const salWithConf = (aScores: object, bScores: object, confidence: number) => {
+    const mk = (scores: object) => [0, 1, 2, 3, 4].map((i) => ({ startSeconds: i * 2, endSeconds: i * 2 + 2, scores, saliency: 0.5, confidence, source: "vision" }));
+    return { version: 1, groupId: "g", windowSeconds: 2, angles: { a: mk(aScores), b: mk(bScores) } };
+  };
+
+  const weakB = { instrument: 0.1, performer: 0.1, motion: 0, framing: 0.1 };
+
+  it("flags a near-tie switch (low margin) and names the runner-up", () => {
+    const aNear = { instrument: 0.5, performer: 0, motion: 0, framing: 0.2 };
+    const bNear = { instrument: 0.48, performer: 0, motion: 0, framing: 0.2 };
+    const r = autoCut({ group: group(), audioEvents: allInstrumental, saliency: salWithConf(aNear, bNear, 0.7) });
+    expect(r.rationale[0].flagged).toBe(true); // margin ~0.03 < 0.15
+    expect(r.rationale[0].runnerUp).toBe("b");
+    expect(r.rationale[0].confidence).toBeLessThan(0.15);
+  });
+
+  it("flags a low-vision-confidence switch even when the pick is decisive", () => {
+    const r = autoCut({ group: group(), audioEvents: allInstrumental, saliency: salWithConf(aInst, weakB, 0.4) });
+    expect(r.rationale[0].flagged).toBe(true); // wide margin, but saliency confidence 0.4 < 0.6
+    expect(r.rationale[0].confidence).toBeCloseTo(0.4, 3); // min(wide margin, 0.4)
+  });
+
+  it("does not flag a decisive, confident switch", () => {
+    const r = autoCut({ group: group(), audioEvents: allInstrumental, saliency: salWithConf(aInst, weakB, 0.7) });
+    expect(r.rationale[0].flagged).toBe(false); // wide margin + confidence 0.7 > 0.6
+    expect(r.rationale[0].runnerUp).toBe("b");
+    expect(r.rationale[0].confidence).toBeGreaterThan(0.6);
+  });
+
+  it("treats a sole angle with no saliency as fully confident (no runner-up)", () => {
+    const r = autoCut({ group: group([{ id: "a" }]) });
+    expect(r.rationale[0].runnerUp).toBeNull(); // no contender → margin 1
+    expect(r.rationale[0].flagged).toBe(false);
+    expect(r.rationale[0].confidence).toBe(1); // no saliency entry → confidence defaults to 1
+  });
+});
+
 describe("evaluate", () => {
   it("scores instrumental/vocal placement + shot lengths", () => {
     const sal = saliency([aInst, aInst, aInst, aInst, aInst], [bVocal, bVocal, bVocal, bVocal, bVocal]);

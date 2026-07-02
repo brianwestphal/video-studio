@@ -20,9 +20,28 @@ export const DEFAULT_PARAMS = {
   windowSeconds: 2.0, // only used in the degraded (no-saliency) fallback grid
   startSeconds: 0,
   weights: { perf: 1.0, inst: 1.2, vocal: 1.0, motion: 0.4, framing: 0.5 },
+  // Review flagging (VS-63): a switch is flagged for human review when the pick was a
+  // near-tie (normalized score margin over the runner-up < reviewMarginThreshold) OR the
+  // vision model was unsure (saliency confidence < reviewConfidenceThreshold). Generous
+  // by design — better to over-ask than miss a bad auto-pick.
+  reviewMarginThreshold: 0.15,
+  reviewConfidenceThreshold: 0.6,
 };
 
 const round3 = (n) => Math.round(n * 1000) / 1000;
+
+// Per-switch review signal: how close the call was (`margin`, 0..1 normalized gap over
+// the runner-up; 1 = no contender) and how sure the vision model was (`salConf`). The
+// combined `confidence` is the weaker of the two, and `flagged` trips when either falls
+// below its threshold. All the UI (VS-63) needs to decide which cuts to surface.
+function switchConfidence(scoreChosen, scoreRunnerUp, salConf, p) {
+  // `bestAt` returns null (not a -Infinity angle) when there is no valid contender.
+  const margin = scoreRunnerUp == null
+    ? 1
+    : Math.max(0, Math.min(1, (scoreChosen - scoreRunnerUp) / (Math.abs(scoreChosen) + 1e-6)));
+  const flagged = margin < p.reviewMarginThreshold || salConf < p.reviewConfidenceThreshold;
+  return { margin: round3(margin), salConf: round3(salConf), confidence: round3(Math.min(margin, salConf)), flagged };
+}
 
 // Audio context covering a group-clock time: which sectioning kinds (vocal /
 // instrumental / quiet) contain it. Drives the riff/vocal priors.
@@ -218,8 +237,10 @@ export function autoCut({ group, audioEvents = null, saliency = null, params = {
       // Keep cuts strictly increasing and not before the trim start.
       at = round3(Math.max(p.startSeconds, snapped, switches[switches.length - 1].atSeconds + ws / 2));
     }
+    const runnerUp = bestAt(wi, id);
+    const conf = switchConfidence(scoreOf[wi][id], runnerUp == null ? null : scoreOf[wi][runnerUp], entryOf[wi][id]?.confidence ?? 1, p);
     switches.push({ atSeconds: at, memberId: id });
-    rationale.push({ atSeconds: at, memberId: id, why: rationaleFor(id, entryOf[wi][id], ctxOf[wi]) });
+    rationale.push({ atSeconds: at, memberId: id, why: rationaleFor(id, entryOf[wi][id], ctxOf[wi]), runnerUp, confidence: conf.confidence, flagged: conf.flagged });
   }
 
   // Drop a runt trailing shot (VS-61): if the final switch lands within the model's

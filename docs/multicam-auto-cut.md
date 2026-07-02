@@ -101,11 +101,18 @@ identical `switches`.
   "version": 1,
   "groupId": "byam",
   "switches": [ { "atSeconds": 0.0, "memberId": "byam-cam-1" }, … ],   // feeds the exporters AS-IS
-  "rationale": [ { "atSeconds": 0.0, "memberId": "byam-cam-1", "why": "intro: only angle with footage / highest framing" }, … ]
+  "rationale": [ {
+    "atSeconds": 0.0, "memberId": "byam-cam-1",
+    "why": "intro: only angle with footage / highest framing",
+    "runnerUp": "byam-cam-2",   // 2nd-best available angle at the cut (null if none)
+    "confidence": 0.7,          // min(normalized margin over runner-up, saliency confidence)
+    "flagged": false            // true → surface for human review (R-AC9)
+  }, … ]
 }
 ```
 `switches` is exactly the existing shape (no change to `buildMulticamFcpxml` /
-`expandMulticamGroup`); `rationale` is parallel and optional for consumers.
+`expandMulticamGroup`); `rationale` is parallel and optional for consumers — the
+`runnerUp` / `confidence` / `flagged` fields are additive.
 
 ## 6. Evaluation plan
 
@@ -142,6 +149,13 @@ identical `switches`.
   can hand-edit to override); the per-switch `rationale` is surfaced on stdout by
   `propose-switches` and travels inside `switches.json`. Explicit `--switch` flags
   still win when both are supplied.
+- **R-AC9** *(VS-63)* Each `rationale` entry carries a **review signal**: the
+  `runnerUp` angle (2nd-best available at the cut, or null), a `confidence` in `[0,1]`
+  (the lesser of the normalized score margin over the runner-up and the chosen
+  window's saliency confidence), and a `flagged` boolean — true when the margin is
+  below `reviewMarginThreshold` **or** the saliency confidence is below
+  `reviewConfidenceThreshold` (generous by design). Consumed by the review UI
+  ([`multicam-review-ui.md`](multicam-review-ui.md), R-RUI).
 - **R-AC8** *(VS-62)* Shot-length policy: default `maxShotSeconds` **8** and
   `minShotSeconds` **0.5**. A **long-take exception** lets a clearly dominant angle
   (leading the runner-up by ≥ `longTakeMargin`) hold past `maxShotSeconds` up to

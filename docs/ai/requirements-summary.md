@@ -22,7 +22,7 @@ sync with the requirements doc and code; the source wins on conflict.
 | Render transitions into the video (no FCP) | [`render-transitions.md`](../render-transitions.md) | **Shipped** (VS-54 + VS-55, R-RT1–R-RT9) — `render-transitions` bakes the transitions into a finished video with **no FCP**, reusing the baked handles. **Windowed re-encode** (default): re-encode only each transition overlap + stream-copy-concat the bodies (cost ≈ Σ transition duration); `--full-chain` for the whole-timeline graph. **Native Tier A/B/C**: Tier A direct `xfade`, Tier B `xfade=custom` (chevron/static), Tier C overlay-mask/crop-slide (inset/split). |
 | Multi-cam editing | [`multicam.md`](../multicam.md), [`multicam-sync.md`](../multicam-sync.md) | **Shipped** — sync, group proposal, angle switching → flat-timeline export, drift correction applied on export, true FCPXML mc-clip asset (VS-27/29/30/31/32/33); **FCP import validated against the real app (VS-36)** |
 | FCP-incompatible source audio detection | [`fcp-audio-compat.md`](../fcp-audio-compat.md) | **Shipped** (VS-40 + VS-53) — detect Pro Tools / BWF WAVs (non-16-byte PCM `fmt `, `bext`/`minf`/`elm1`/`JUNK`…) that FCP imports silently; `sync-multicam` + `export-multicam-fcpxml` warn with the `ffmpeg` fix, or with `--fcp-normalize-audio` re-encode to a canonical `<name>.fcp.wav` sidecar + repoint (R-FA1–R-FA5). |
-| Edit awareness / auto multi-cam cutting | [`audio-events.md`](../audio-events.md), [`visual-saliency.md`](../visual-saliency.md), [`multicam-auto-cut.md`](../multicam-auto-cut.md) | **Shipped** (BYAM demo manual) — specs done (VS-41/42/43); **audio-events Tier-1 + Tier-2 shipped (VS-44, VS-49)**; **per-angle visual saliency shipped (VS-45)** — `analyze-visual-saliency` → `saliency.json` (motion pass gates Ollama vision, pure core 100%-tested, R-VS1–R-VS5); **angle-switch selector shipped (VS-46)** — `tools/multicam-autocut.mjs` (pure, 100%-tested) + `propose-switches` CLI emit `switches.json` (R-AC1–R-AC6); **workflow integration shipped (VS-47)** — `export-multicam-fcpxml`/`render-multicam-preview` accept `--switches`, rationale surfaced, hand-editable override (R-AC7, R-MC7); BYAM demonstration run; **shot-length policy shipped (VS-62)** — default max 8s/min 0.5s + instrumental long-take exception (R-AC8) |
+| Edit awareness / auto multi-cam cutting | [`audio-events.md`](../audio-events.md), [`visual-saliency.md`](../visual-saliency.md), [`multicam-auto-cut.md`](../multicam-auto-cut.md) | **Shipped** (BYAM demo manual) — specs done (VS-41/42/43); **audio-events Tier-1 + Tier-2 shipped (VS-44, VS-49)**; **per-angle visual saliency shipped (VS-45)** — `analyze-visual-saliency` → `saliency.json` (motion pass gates Ollama vision, pure core 100%-tested, R-VS1–R-VS5); **angle-switch selector shipped (VS-46)** — `tools/multicam-autocut.mjs` (pure, 100%-tested) + `propose-switches` CLI emit `switches.json` (R-AC1–R-AC6); **workflow integration shipped (VS-47)** — `export-multicam-fcpxml`/`render-multicam-preview` accept `--switches`, rationale surfaced, hand-editable override (R-AC7, R-MC7); BYAM demonstration run; **shot-length policy shipped (VS-62)** — default max 8s/min 0.5s + instrumental long-take exception (R-AC8); **per-switch review signal shipped (VS-63)** — runnerUp/confidence/flagged (R-AC9) feeding a planned review UI ([`multicam-review-ui.md`](../multicam-review-ui.md), R-RUI, UI design-only VS-65/66) |
 
 The core pipeline plus the editor handoff (export + FCPXML) and multi-source
 input are shipped. **Multi-cam** is shipped end to end (VS-27/29/30/31/32/33):
@@ -101,10 +101,13 @@ the full palette in VS-50). The "edit awareness" auto-cut initiative is partial
   the BYAM demonstration has been run (favors guitar on riffs / singer on vocals). The
   **shot-length policy is shipped (VS-62)**: default max 8s / min 0.5s with an
   instrumental **long-take exception** (dominant angle may hold to `longTakeMaxSeconds`
-  during solos/oners; vocal holds always cut at max) — R-AC8. Follow-ups: a web review
-  UI for low-confidence segments (VS-63) + a saliency performer/instrument mis-score
-  fix (VS-64). All within the current ffmpeg/whisper/Ollama/pure-JS-DSP stack; stem
-  separation (Demucs) deferred.
+  during solos/oners; vocal holds always cut at max) — R-AC8. The **per-switch review
+  signal is shipped (VS-63)**: `autoCut` flags near-tie / low-vision-confidence cuts with
+  a `runnerUp` + `confidence` (R-AC9), feeding a **planned local review UI**
+  ([`multicam-review-ui.md`](../multicam-review-ui.md), R-RUI — UI build VS-65, downstream
+  re-evaluation VS-66, both design-only). Follow-up: a saliency performer/instrument
+  mis-score fix (VS-64). All within the current ffmpeg/whisper/Ollama/pure-JS-DSP stack;
+  stem separation (Demucs) deferred.
   Grounded on the BYAM clip (`external/multi-cam/`).
 - **FCP transition suggestions (Shipped, VS-28)** — opt-in `transitions` on the cut
   spec emit FCP `<transition>` elements at the chosen cuts in the editor-handoff

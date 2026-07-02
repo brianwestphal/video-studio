@@ -193,6 +193,17 @@ export const REQUIREMENT_COVERAGE = {
   "R-AC6": { status: "manual", note: "propose-switches CLI I/O" },
   "R-AC7": { status: "unit", tests: ["multicam.test.ts"], note: "switchesFromDoc glue for --switches; CLI wiring + skill step manual (VS-47)" },
   "R-AC8": { status: "unit", tests: ["multicam-autocut.test.ts"], note: "shot-length policy (max 8/min 0.5) + instrumental long-take exception (VS-62)" },
+  "R-AC9": { status: "unit", tests: ["multicam-autocut.test.ts"], note: "per-switch review signal: runnerUp/confidence/flagged (VS-63)" },
+
+  // Multi-cam review UI — docs/multicam-review-ui.md. The flag signal (R-AC9) is shipped;
+  // the web UI itself (R-RUI1-6, VS-65) and downstream re-evaluation (R-RUI7, VS-66) are design-only.
+  "R-RUI1": { status: "deferred", note: "review-switches CLI + local server — design only (VS-65)" },
+  "R-RUI2": { status: "deferred", note: "surface flagged switches — design only (VS-65)" },
+  "R-RUI3": { status: "deferred", note: "±2s pre-extracted context previews — design only (VS-65)" },
+  "R-RUI4": { status: "deferred", note: "per-segment angle choice — design only (VS-65)" },
+  "R-RUI5": { status: "deferred", note: "in-place write-back + choice/edit history with notes — design only (VS-65)" },
+  "R-RUI6": { status: "deferred", note: "print export handoff line — design only (VS-65)" },
+  "R-RUI7": { status: "deferred", note: "downstream re-evaluation after a locked choice + shot-type variety — design only (VS-66)" },
 };
 
 // Audit the manifest against the ids actually defined in the docs. Pure: caller
