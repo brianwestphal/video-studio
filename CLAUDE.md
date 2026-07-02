@@ -10,15 +10,16 @@ When the user gives you work directly (not via the Hot Sheet channel or events),
 - **Use FEEDBACK NEEDED before deferring or asking about follow-ups.** When about to (a) defer a ticket needing more work, (b) ask whether to file follow-ups, or (c) close with a question buried in notes — DON'T. Leave the ticket `started`, add a `FEEDBACK NEEDED:` note (per `.hotsheet/worklist.md`), signal channel done, and wait. It's the only reliable way to surface a question.
 <!-- hotsheet:end section=ticket-driven-work -->
 
-<!-- hotsheet:begin section=testing-philosophy v=1 -->
+<!-- hotsheet:begin section=testing-philosophy v=2 -->
 ## Testing Philosophy
 
 - **Double coverage**: every feature covered by both unit tests AND E2E tests. Unit = logic in isolation; E2E = real user flows through the running app with minimal mocking.
 - **Unit tests**: Mock external deps (filesystem, network), test real logic.
 - **E2E tests**: As much as possible, use test automation tools to run realistic, user-facing flows. Minimize mocks.
 - **Coverage**: Merge all test coverage (e.g. unit, E2E server, E2E browser) into one report. Low-coverage files should get more of both test types. Aim for 100% coverage of code lines, 100% coverage of branches, and 100% of features described in the requirements documentation.
-- **Line coverage is a floor, not a ceiling**: 100% line/branch coverage proves every line *ran* — it does **not** prove every documented *behavior* (or *sequence* of behaviors) is *asserted*. Bugs of omission and untested state transitions slip through a green 100% report because the individual lines are still hit by isolated, from-clean-state tests. Track a second, orthogonal **feature/requirement coverage** axis: every documented requirement must have a test that would fail if it regressed (or a deliberate manual/review/gate/deferred classification).
-- **Transition-matrix testing for stateful modules**: for any module with modes/phases, a cache with fallback paths, or a state machine, test the *transitions between states*, not just each operation from a clean initial state — cover out-of-order, interleaved, repeated, empty-then-refill, and stale/version-boundary sequences. Untested transitions are the exact gap line coverage is structurally blind to.
+- **Coverage is a floor, not a ceiling**: 100% line/branch coverage shows every line *ran*, not that every *behavior* — or every *sequence* of behaviors — is *asserted*. It is structurally blind to a **missing state transition**: a bug living in an untested interaction sails through a green 100% report because the individual lines still get hit by isolated, single-operation tests.
+- **Transition-matrix testing for stateful modules**: for anything with modes / multiple code paths / a cache / a state machine, enumerate the states AND the transitions between them, then write tests that walk realistic multi-step sequences crossing state boundaries — not just each operation from a clean initial state.
+- **Adversarial pass on stateful changes**: when adding or altering a stateful code path, deliberately try to break it with out-of-order / interleaved / repeated / empty-then-refill sequences; pin any that would have failed as permanent regression tests.
 - **Manual test plan**: keep a manual test plan doc (e.g. `docs/manual-test-plan.md`) for features that can't be reliably automated. **Keep it up to date** — add such features there; when you add automated coverage for a previously-manual item, remove it and note it in an "Automated Coverage Summary".
 - **Always fix lint and type errors before finishing**: Fix as you go, don't batch.
 
