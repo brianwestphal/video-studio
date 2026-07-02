@@ -129,6 +129,12 @@ The cut spec's `clips` reference each source by path + in/out seconds (`audio: k
 
 Default to **dissolve/fade** unless the video's style is explicitly playful/energetic; reserve the wipes/insets/Static for matching content (avoid them in restrained/corporate edits). Tune by **video type** (teaser → snappy/hard; long edit → smoother dissolves), scene descriptions (mood shift vs continuous action), and pacing — and put the *why* in each `reason` so the user can audit it. (The motion-template transitions — wipes/insets/Static/Push — use FCP-internal `.motr` paths captured from a real export; if a future FCP version relocates them, prefer the `FxPlug` ones.)
 
+**Finish the transitions *without* FCP** ([`docs/render-transitions.md`](../../docs/render-transitions.md)). When the cut spec has a `transitions` block, the export bakes handle media into the affected segments so you can bake those transitions straight into a finished `.mov` — no NLE needed:
+```bash
+node "$TOOLKIT/tools/render-transitions.mjs" "<video-dir>/teaser.studio-export/manifest.json" [--out <file.mov>] [--full-chain]
+```
+So an editor-handoff export offers three finishing paths off the same `transitions` block: **`rebuild.sh`** (plain cut, no transitions), the **`.fcpxml`** (import to FCP for the transition pass), and **`render-transitions.mjs`** (bake them now, no FCP). The **windowed default is fast** — it re-encodes only the short overlap at each cut (cost ~ Σ transition durations), and it's the **only path that renders Tier-B/C looks natively** (chevron/static/inset/split); `--full-chain` re-encodes the whole timeline and degrades Tier B/C to the nearest `xfade`.
+
 ## Output conventions
 - Write finished cuts next to the source (e.g. `<video-dir>/teaser.mp4`). Scratch encodes can go in a work dir or `/tmp`, **but keep the AI-interpretation intermediates**: the scene breakdown (`$DATADIR/timeline.json`, with descriptions) and the whisper transcripts (`$DATADIR/transcripts/`) are a durable record of how the model read the footage — don't bury them in `/tmp`.
 - Save the assembly as a shell script alongside the output so the user can re-run/tweak.

@@ -111,8 +111,10 @@ manual/pipeline (see [`manual-test-plan.md`](manual-test-plan.md) §10).
 
 ## 6. Follow-ups
 
+- Wired into the skill as the "finish without FCP" path in `skills/video-studio/SKILL.md`
+  Step 7, alongside `rebuild.sh` (plain cut) and the `.fcpxml` (FCP import). *(VS-56, done.)*
 - Tier-C inset fidelity (border/feathering, offset insets) and additional
-  `xfade=custom` looks remain open if closer FCP parity is wanted.
+  `xfade=custom` looks remain open if closer FCP parity is wanted *(VS-57)*.
 - Wall-clock: on a synthetic 24 s / 720p cut with two 0.5 s transitions the
   windowed renderer was ~4× faster than `--full-chain` (~0.9 s vs ~3.4 s) and used
   ~6× less CPU — it re-encodes ~1 s of overlap vs the full 24 s. The advantage
