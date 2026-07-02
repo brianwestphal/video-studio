@@ -102,6 +102,31 @@ function extractFrame(path, sourceSeconds, tmp, idx) {
   return out;
 }
 
+// Compact "1h02m" / "3m40s" / "24s" for progress lines and ETAs.
+function fmtDuration(ms) {
+  const s = Math.max(0, Math.round(ms / 1000));
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m${String(s % 60).padStart(2, "0")}s`;
+  return `${Math.floor(m / 60)}h${String(m % 60).padStart(2, "0")}m`;
+}
+
+// Per-angle vision progress. On a TTY it overwrites one line in place; when piped
+// to a log it emits a newline-terminated line on the first/last call and every 5th
+// in between, so redirected runs still show forward motion without flooding.
+function makeVisionProgress(label, angleNum, angleTotal, callTotal) {
+  const tty = Boolean(process.stderr.isTTY);
+  const t0 = Date.now();
+  return function report(done) {
+    if (callTotal === 0) return;
+    const avg = done > 0 ? (Date.now() - t0) / done : 0;
+    const eta = fmtDuration(avg * (callTotal - done));
+    const line = `  [${angleNum}/${angleTotal}] ${label}  vision ${done}/${callTotal}  avg ${fmtDuration(avg)}/call  eta ~${eta}`;
+    if (tty) process.stderr.write(`\r${line.padEnd(72)}${done === callTotal ? "\n" : ""}`);
+    else if (done === 1 || done === callTotal || done % 5 === 0) process.stderr.write(`${line}\n`);
+  };
+}
+
 async function main() {
   const opts = parseArgs(process.argv.slice(2));
   if (!existsSync(opts.file)) { console.error(`Error: not found: ${opts.file}`); process.exit(1); }
@@ -124,7 +149,9 @@ async function main() {
   const angles = {};
   let totalVision = 0;
   let totalSkipped = 0;
+  let angleNum = 0;
   for (const member of videos) {
+    angleNum++;
     const tmp = mkdtempSync(join(tmpdir(), "vs-"));
     try {
       // Decode only as far into this angle as the group clock needs (+1 window slack).
@@ -137,6 +164,8 @@ async function main() {
       const selectable = selectVisionWindows(windows, { mode: opts.mode, motion, boundaries, cap: opts.cap });
       const visionSet = new Set(selectable.filter((i) => covered[i]));
 
+      const reportProgress = makeVisionProgress(member.id, angleNum, videos.length, visionSet.size);
+      let visionDone = 0;
       const entries = [];
       for (let i = 0; i < windows.length; i++) {
         if (!covered[i]) continue;
@@ -148,6 +177,7 @@ async function main() {
           const parsed = parseVisionReply(reply.message.content);
           entries.push(assembleWindowScore({ window: w, scores: { ...parsed.scores, motion: motion[i] }, labels: parsed.labels, confidence: parsed.confidence, source: "vision" }));
           totalVision++;
+          reportProgress(++visionDone);
         } else {
           entries.push(assembleWindowScore({ window: w, scores: { motion: motion[i] }, source: "motion" }));
           totalSkipped++;
