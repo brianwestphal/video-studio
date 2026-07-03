@@ -125,21 +125,34 @@ dialogs). Everything else (engine, editor UI, doctor) already exists. So:
 
 Do **not** build the whole thing up front; each phase is independently useful and reviewable.
 
-## 8. Proposed phased roadmap (→ follow-up tickets)
+## 8. Roadmap → tickets
 
-- **Phase 0 (design):** app concept + clickable wireframes for the six screens and the two
-  lanes. *(ticket filed)*
-- **Phase 1 (spike):** Tauri shell — doctor + open-project + Analyze-with-live-progress over a
-  Node subprocess. De-risks the whole approach. *(ticket filed)*
-- **Phase 2:** embed the `review-switches` editor (player + timeline + pick/split) as the app's
-  Review/Edit surface. *(to ticket after the spike)*
-- **Phase 3:** Auto lane (Claude-driven "describe your cut") + Export lane (MP4 / 9:16 / FCPXML)
-  with progress + reveal-in-Finder. *(to ticket after the spike)*
-- **Phase 4:** packaging — bundle/notarize/sign, first-run dependency-install UX, distribution.
-  *(to ticket after the spike)*
+Design approved (the wireframe above); the full build is broken out under the **`desktop-app`**
+tag:
 
-Phases 2–4 are intentionally left un-ticketed until the Phase-0 design and Phase-1 spike settle
-the open decisions in §6 — filing them now would be guessing at scope.
+- **VS-78 — Phase 0 design + wireframe.** *Done.*
+- **VS-79 — Phase 1 spike.** Tauri shell + doctor + open-project + Analyze-with-live-progress over
+  a Node subprocess; de-risks the native ↔ Node ↔ webview bridge. *(also settles the repo-location
+  decision.)*
+- **VS-80 — App shell, project model + stage navigation.** Real skeleton + the long-lived Node
+  sidecar host. *(foundation for the rest.)*
+- **VS-81 — New Project + import.** Single-source vs multi-cam detection (sources / group-propose /
+  audio-sync).
+- **VS-82 — Analyze screen.** Scene / audio-events / saliency runs with live progress + contact
+  sheet.
+- **VS-83 — Claude Agent SDK control bridge.** Structured event stream → UI; the Auto lane's engine.
+- **VS-84 — Claude auth / "Connect Claude".** Detect + embedded-PTY login / `setup-token` + Keychain.
+- **VS-85 — Application-level permission & safety layer.** Category classifier + persisted
+  "always allow" + Permissions screen (§10).
+- **VS-86 — Design screen (two lanes).** Auto prompt → SDK bridge; Manual → the timeline.
+- **VS-87 — Embed the review/edit UI** (`review-switches`) as the Review stage.
+- **VS-88 — Export lane.** MP4 / 9:16 / FCPXML over the existing exporters, progress + Reveal in
+  Finder.
+- **VS-89 — Packaging, dependency-install UX, sign + notarize.** *(last.)*
+
+Rough dependency order: **VS-79 → VS-80 →** { VS-81 → VS-82 } and { VS-83 → (VS-84, VS-85) } →
+VS-86 → VS-87 → VS-88 → VS-89. VS-83/84/85 (the Claude + permission spine) can proceed in parallel
+with the import/analyze screens once the shell (VS-80) exists.
 
 ## 9. How the app drives Claude (control channel)
 
