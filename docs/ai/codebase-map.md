@@ -68,7 +68,7 @@ and [`requirements-summary.md`](requirements-summary.md) for status.
 │   │   └── host.mjs            # I/O edge: stdin loop → spawn tool / `which` probes / project readdir → stream progress → result/error (manual, test-plan §14)
 │   ├── src-tauri/              # native Rust shell: lib.rs spawns host.mjs, streams stdout as `sidecar` events, sidecar_send + open_video commands
 │   │   ├── src/{main,lib}.rs   #   (Cargo.toml, build.rs, tauri.conf.json, capabilities/default.json, icons/)
-│   └── ui/                     # vanilla webview frontend (frontendDist): index.html + app.js + styles.css — stage rail + Setup/New Project/Analyze/Review(iframe)/Export + Permissions screens (R-APP5/6, R-RV, R-EX, R-PERM10/11)
+│   └── ui/                     # vanilla webview frontend (frontendDist): index.html + app.js + styles.css — stage rail + Setup/New Project/Analyze/Design/Review(iframe)/Export + Permissions screens (R-APP5/6, R-DS, R-RV, R-EX, R-PERM10/11)
 ├── skills/
 │   └── video-studio/SKILL.md   # the pipeline Claude follows — primary interface
 ├── tests/
@@ -111,6 +111,7 @@ and [`requirements-summary.md`](requirements-summary.md) for status.
 │   ├── desktop-app-agent-bridge.md   # DESIGN: Auto lane via a pluggable AI agent (Claude/Codex/Ollama) — structured events → UI (R-CB, VS-83)
 │   ├── desktop-app-permissions.md    # DESIGN: app-owned category permission & safety layer (R-PERM, VS-85)
 │   ├── desktop-app-export.md   # Export lane — MP4/9:16/FCPXML over shipped exporters + Reveal in Finder (R-EX, VS-88)
+│   ├── desktop-app-design.md   # Design stage — two lanes (Auto prompt + Manual open-timeline) (R-DS, VS-86)
 │   ├── desktop-app-review.md   # Review stage — embed the shipped review-switches UI via iframe (R-RV, VS-87)
 │   ├── releasing.md            # release + npm trusted-publisher setup
 │   ├── manual-test-plan.md     # manual checklist for the external-tool pipeline

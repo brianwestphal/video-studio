@@ -20,6 +20,7 @@ import {
   exportCommand,
   reviewCommand,
   parseReviewUrl,
+  proposeCommand,
 } from "../desktop/sidecar/steps.mjs";
 import { DOCTOR_TOOLS, doctorResultFromChecks } from "../desktop/sidecar/doctor.mjs";
 import {
@@ -373,6 +374,27 @@ describe("steps — reviewCommand + parseReviewUrl", () => {
     );
     expect(parseReviewUrl("some other line")).toBe(null);
     expect(parseReviewUrl(null)).toBe(null);
+  });
+});
+
+describe("steps — proposeCommand", () => {
+  it("builds propose-switches argv → switches.json (bare)", () => {
+    expect(proposeCommand("/proj")).toEqual({
+      tool: "propose-switches",
+      args: ["/proj/multicam.json", "--out", "/proj/switches.json"],
+      outPath: "/proj/switches.json",
+    });
+  });
+  it("adds audio-events + saliency when present", () => {
+    expect(proposeCommand("/proj", { hasAudioEvents: true, hasSaliency: true }).args).toEqual([
+      "/proj/multicam.json",
+      "--audio-events",
+      "/proj/audio-events.json",
+      "--saliency",
+      "/proj/saliency.json",
+      "--out",
+      "/proj/switches.json",
+    ]);
   });
 });
 

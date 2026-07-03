@@ -61,6 +61,35 @@
           <pre class="log" id="analyze-log" aria-live="polite"></pre>
         </section>
 
+        <!-- Design (two lanes) -->
+        <section class="screen" data-screen="design" hidden>
+          <header class="screen-head">
+            <h1>Design the cut</h1>
+            <p class="sub">Two lanes, one engine: describe what you want, or open the timeline and cut by hand. Either way the result is fully editable.</p>
+          </header>
+          <div class="lanes">
+            <div class="lane">
+              <div class="lane-title">Auto</div>
+              <p class="lane-desc">Describe the cut and let an AI agent propose it.</p>
+              <div class="presets" id="design-presets">
+                <button class="chip" data-preset="a punchy 15-second teaser">Teaser</button>
+                <button class="chip" data-preset="a full-song edit">Full song</button>
+                <button class="chip" data-preset="a 9:16 reel of the chorus">9:16 reel</button>
+                <button class="chip" data-preset="the best soundbites">Soundbites</button>
+              </div>
+              <textarea class="prompt" id="design-prompt" rows="3" placeholder="e.g. a punchy 15-second teaser"></textarea>
+              <button class="btn primary" id="design-make">Make my cut</button>
+              <div class="lane-note" id="design-auto-note"></div>
+            </div>
+            <div class="lane">
+              <div class="lane-title">Manual</div>
+              <p class="lane-desc">Open the timeline with an auto starting point and cut by hand.</p>
+              <button class="btn" id="design-open-timeline">Open the timeline</button>
+              <div class="lane-note" id="design-manual-note"></div>
+            </div>
+          </div>
+        </section>
+
         <!-- Review / Edit -->
         <section class="screen review-screen" data-screen="review" hidden>
           <header class="screen-head">

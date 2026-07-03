@@ -206,6 +206,63 @@ document.getElementById("run-analyze").addEventListener("click", () => {
   });
 });
 
+// --- Design (two lanes) ---------------------------------------------------
+
+// Auto lane: presets fill the prompt.
+for (const chip of document.querySelectorAll("#design-presets .chip")) {
+  chip.addEventListener("click", () => {
+    document.getElementById("design-prompt").value = chip.dataset.preset;
+  });
+}
+
+// Auto lane "Make my cut" — the engine is the AI agent bridge (VS-91), not yet wired to a
+// live backend, so this surfaces an honest "connect an agent" state rather than pretending.
+document.getElementById("design-make").addEventListener("click", () => {
+  document.getElementById("design-auto-note").textContent =
+    "The Auto lane needs a connected AI agent (Claude / Codex / Ollama). Agent setup is coming — for now, use the Manual lane to open the timeline.";
+});
+
+// Manual lane: open the timeline. If there's no cut yet, propose an auto starting point
+// (propose-switches) first, then jump to Review.
+document.getElementById("design-open-timeline").addEventListener("click", () => {
+  const note = document.getElementById("design-manual-note");
+  if (!currentProject) {
+    note.textContent = "Open a project first (New Project).";
+    return;
+  }
+  const hasCut = currentProject.project.artifacts.includes("switches");
+  if (hasCut) {
+    gotoReview();
+    return;
+  }
+  note.textContent = "Proposing an auto starting cut…";
+  send("design-cut", { folder: currentProject.folder }, {
+    onProgress: (p) => {
+      if (p.message) note.textContent = `Proposing… ${p.message}`.slice(0, 70);
+    },
+    onResult: () => {
+      note.textContent = "Cut ready — opening the timeline.";
+      // Refresh the project so the rail + artifacts pick up switches.json, then review.
+      send("project-open", { folder: currentProject.folder }, {
+        onResult: (snap) => {
+          applyProjectSnapshot(snap);
+          gotoReview();
+        },
+      });
+    },
+    onError: (e) => {
+      note.textContent = e.message;
+    },
+  });
+});
+
+function gotoReview() {
+  selectedStage = "review";
+  renderRail();
+  showScreen("review");
+  startReview();
+}
+
 // --- Review ---------------------------------------------------------------
 
 // Start (or reuse) the review server for the current project and point the iframe at it.

@@ -25,7 +25,15 @@ import {
   validateRequest,
   MESSAGE_TYPES,
 } from "./protocol.mjs";
-import { STEP_REGISTRY, toolArgv, exportCommand, genericProgress, reviewCommand, parseReviewUrl } from "./steps.mjs";
+import {
+  STEP_REGISTRY,
+  toolArgv,
+  exportCommand,
+  genericProgress,
+  reviewCommand,
+  parseReviewUrl,
+  proposeCommand,
+} from "./steps.mjs";
 import { DOCTOR_TOOLS, doctorResultFromChecks } from "./doctor.mjs";
 import {
   PROJECT_STATE_DIR,
@@ -226,6 +234,14 @@ function runExport(id, kind, folder) {
     send(errorMessage(id, ERROR_CODES.STEP_FAILED, `export setup failed: ${err.message}`));
     return;
   }
+  runToolCommand(id, command, { kind, outPath: command.outPath });
+}
+
+const EXPORT_STEPS = { "export-mp4": "mp4", "export-social": "social", "export-fcpxml": "fcpxml" };
+
+// Stream a one-shot tool command (like export/propose): spawn, forward output as progress,
+// return { ...extra, ok } on success. Shared by the export + design-cut steps.
+function runToolCommand(id, command, extra) {
   const [cmd, entry] = toolArgv(command.tool, REPO_ROOT);
   const child = spawn(cmd, [entry, ...command.args], { cwd: REPO_ROOT });
   inflight.set(id, child);
@@ -250,12 +266,23 @@ function runExport(id, kind, folder) {
   child.on("close", (code, signal) => {
     inflight.delete(id);
     if (signal) send(errorMessage(id, ERROR_CODES.STEP_FAILED, `cancelled (${signal})`));
-    else if (code === 0) send(resultMessage(id, { kind, outPath: command.outPath }));
-    else send(errorMessage(id, ERROR_CODES.STEP_FAILED, `export ${kind} exited with code ${code}`));
+    else if (code === 0) send(resultMessage(id, { ...extra, ok: true }));
+    else send(errorMessage(id, ERROR_CODES.STEP_FAILED, `${command.tool} exited with code ${code}`));
   });
 }
 
-const EXPORT_STEPS = { "export-mp4": "mp4", "export-social": "social", "export-fcpxml": "fcpxml" };
+// The Manual lane's auto starting point (R-DS2): propose an initial cut into switches.json.
+function runDesignCut(id, folder) {
+  if (!fs.existsSync(path.join(folder, "multicam.json"))) {
+    send(errorMessage(id, ERROR_CODES.STEP_FAILED, "design needs multicam.json (import a multi-cam project first)"));
+    return;
+  }
+  const command = proposeCommand(folder, {
+    hasAudioEvents: fs.existsSync(path.join(folder, "audio-events.json")),
+    hasSaliency: fs.existsSync(path.join(folder, "saliency.json")),
+  });
+  runToolCommand(id, command, { outPath: command.outPath });
+}
 
 // The review UI is a long-lived local server (tools/review-switches.mjs) the webview iframes
 // (R-RV1). It lives OUTSIDE `inflight` — it must survive across requests until review-stop or
@@ -351,6 +378,13 @@ function handle(decoded) {
       if (id !== null) {
         if (params.folder) runExport(id, EXPORT_STEPS[decoded.step], params.folder);
         else send(errorMessage(id, ERROR_CODES.MISSING_PARAM, `${decoded.step} requires param: folder`));
+      }
+      return;
+    }
+    if (decoded.step === "design-cut") {
+      if (id !== null) {
+        if (params.folder) runDesignCut(id, params.folder);
+        else send(errorMessage(id, ERROR_CODES.MISSING_PARAM, "design-cut requires param: folder"));
       }
       return;
     }

@@ -149,6 +149,8 @@ Larger features have their own source-of-truth docs (kept in sync the same way):
   permission & safety layer, R-PERM1–R-PERM12, VS-85),
   [`desktop-app-export.md`](desktop-app-export.md) (Export lane — MP4 / 9:16 / FCPXML
   over the shipped exporters + Reveal in Finder, R-EX1–R-EX5, VS-88),
-  and [`desktop-app-review.md`](desktop-app-review.md) (Review stage — embed the shipped
-  `review-switches` UI via an iframe, R-RV1–R-RV3, VS-87). Concept + roadmap:
+  [`desktop-app-review.md`](desktop-app-review.md) (Review stage — embed the shipped
+  `review-switches` UI via an iframe, R-RV1–R-RV3, VS-87),
+  and [`desktop-app-design.md`](desktop-app-design.md) (Design stage — two lanes: Auto prompt
+  + Manual open-the-timeline, R-DS1–R-DS4, VS-86). Concept + roadmap:
   [`investigations/ui-app.md`](investigations/ui-app.md).

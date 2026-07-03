@@ -19,7 +19,20 @@ export const TOOL_PATHS = Object.freeze({
   "render-preview": "tools/render-multicam-preview.mjs",
   fcpxml: "tools/export-multicam-fcpxml.mjs",
   review: "tools/review-switches.mjs",
+  "propose-switches": "tools/propose-switches.mjs",
 });
+
+// Build the argv + output path for the Manual lane's "auto starting point" — an initial
+// auto cut via propose-switches (R-DS2). Pure. audio-events/saliency sharpen the cut when
+// present; the output is the project's switches.json (what Review + the exporters read).
+export function proposeCommand(folder, { hasAudioEvents = false, hasSaliency = false } = {}) {
+  const outPath = path.join(folder, "switches.json");
+  const args = [path.join(folder, "multicam.json")];
+  if (hasAudioEvents) args.push("--audio-events", path.join(folder, "audio-events.json"));
+  if (hasSaliency) args.push("--saliency", path.join(folder, "saliency.json"));
+  args.push("--out", outPath);
+  return { tool: "propose-switches", args, outPath };
+}
 
 // Default port for the embedded review server (matches review-switches' default).
 export const REVIEW_PORT = 8777;

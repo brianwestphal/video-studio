@@ -233,6 +233,13 @@ export const REQUIREMENT_COVERAGE = {
   "R-APP17": { status: "manual", note: "Setup shows missing-tool install hints (§15.2); stage-gating + one-click install deferred to project model + VS-89 (VS-90)" },
   "R-APP18": { status: "unit", tests: ["sidecar-protocol.test.mjs"], note: "app-global config shape + tolerant parseConfig + transforms — desktop/sidecar/config.mjs (VS-90/92); the file read/write under Application Support is host I/O" },
 
+  // Desktop app — Design stage (docs/desktop-app-design.md, VS-86). proposeCommand is pure +
+  // unit-tested; the two-lane screen + design-cut spawn + the Auto-lane bridge are GUI/I/O.
+  "R-DS1": { status: "manual", note: "two-lane Design screen (Auto prompt+presets / Manual open-timeline) — GUI (manual-test-plan §15.13) (VS-86)" },
+  "R-DS2": { status: "unit", tests: ["sidecar-protocol.test.mjs"], note: "proposeCommand argv (desktop/sidecar/steps.mjs); design-cut host spawn + rail refresh is I/O (VS-86)" },
+  "R-DS3": { status: "manual", note: "Auto lane 'Make my cut' -> agent bridge; honest connect-an-agent state until VS-91 live backend (§15.13) (VS-86)" },
+  "R-DS4": { status: "review", note: "handoff: both lanes land on the same editable switches.json in Review (R-RV3); a design principle (VS-86)" },
+
   // Desktop app — Review stage (docs/desktop-app-review.md, VS-87). reviewCommand +
   // parseReviewUrl are pure + unit-tested; the server spawn + iframe embed are I/O/GUI.
   "R-RV1": { status: "unit", tests: ["sidecar-protocol.test.mjs"], note: "reviewCommand argv + parseReviewUrl URL capture (desktop/sidecar/steps.mjs); review-start/-stop long-lived server spawn is host I/O — manual §15.12 (VS-87)" },

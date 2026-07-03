@@ -111,6 +111,40 @@ body {
 }
 .artifact.none { color: var(--muted); font-family: inherit; }
 
+.lanes { display: flex; gap: 20px; flex-wrap: wrap; margin-top: 8px; }
+.lane {
+  flex: 1 1 300px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.lane-title { font-size: 18px; font-weight: 600; }
+.lane-desc { color: var(--muted); font-size: 13px; margin: -4px 0 0; }
+.presets { display: flex; gap: 8px; flex-wrap: wrap; }
+.chip {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 5px 12px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.chip:hover { border-color: #3a4150; }
+.prompt {
+  background: #101318;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--text);
+  padding: 10px 12px;
+  font: inherit;
+  resize: vertical;
+}
+.lane-note { color: var(--warn); font-size: 12px; min-height: 16px; }
+
 .review-screen { display: flex; flex-direction: column; height: 100%; }
 .review-status { color: var(--muted); font-size: 13px; padding: 12px 0; }
 .review-frame { flex: 1; width: 100%; border: 1px solid var(--line); border-radius: 8px; background: #0d0f13; min-height: 400px; }
