@@ -65,7 +65,7 @@ export default [
   // Node ESM scripts: the launcher, the caption tools, the shipped worked-example
   // scripts, and any .mjs tests.
   {
-    files: ["bin/**/*.mjs", "tools/**/*.mjs", "promo-assets/**/*.mjs", "tests/**/*.mjs"],
+    files: ["bin/**/*.mjs", "tools/**/*.mjs", "promo-assets/**/*.mjs", "tests/**/*.mjs", "desktop/**/*.mjs"],
     languageOptions: {
       ecmaVersion: "latest",
       sourceType: "module",

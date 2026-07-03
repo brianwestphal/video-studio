@@ -55,6 +55,12 @@ and [`requirements-summary.md`](requirements-summary.md) for status.
 │   ├── requirement-coverage.mjs # pure: requirement-index extraction + the feature-coverage manifest + audit (unit-tested, VS-58)
 │   ├── launcher-plan.mjs       # pure: analyzerPrepPlan — decide whether the launcher npm-installs / rebuilds from {hasDist,hasRuntimeDeps,hasToolchain}; never rebuild for an installed consumer (prebuilt dist, no TS devDeps) (unit-tested, VS-77)
 │   └── check-features.mjs      # feature/requirement coverage report + gate (I/O over requirement-coverage.mjs); `npm run check:features`
+├── desktop/                    # desktop app (VS-76) — Tauri shell over the pipeline; subdir of this repo
+│   ├── README.md               # what's built (sidecar core) vs deferred (native Tauri shell)
+│   └── sidecar/
+│       ├── protocol.mjs        # pure: NDJSON request/stream protocol — framing + validateRequest + constructors (R-APP12, 100% unit)
+│       ├── steps.mjs           # pure: step registry — buildCommand descriptors + analyzer progress parser (R-APP13, 100% unit)
+│       └── host.mjs            # I/O edge: stdin loop → spawn tool → stream progress → result/error (manual, test-plan §14)
 ├── skills/
 │   └── video-studio/SKILL.md   # the pipeline Claude follows — primary interface
 ├── tests/
@@ -69,6 +75,7 @@ and [`requirements-summary.md`](requirements-summary.md) for status.
 │   ├── multicam-dsp.test.ts    # unit tests for tools/multicam-dsp.mjs
 │   ├── multicam.test.ts        # unit tests for tools/multicam.mjs
 │   ├── multicam-groups.test.ts # unit tests for tools/multicam-groups.mjs
+│   ├── sidecar-protocol.test.mjs # unit tests for desktop/sidecar/{protocol,steps}.mjs
 │   ├── audio-events.test.ts   # unit tests for tools/audio-events.mjs
 │   ├── wav-compat.test.ts     # unit tests for tools/wav-compat.mjs
 │   ├── transitions-render.test.ts # unit tests for tools/transitions-render.mjs
@@ -213,7 +220,7 @@ consciously classified — line coverage is a floor, not a ceiling.
 | auto angle-switch selection → switches.json → exporters | `tools/propose-switches.mjs` (I/O CLI, prints rationale) + `tools/multicam-autocut.mjs` (pure: weighted scoring + constraint smoothing + shot-length policy w/ instrumental long-take exception + per-switch review signal + `evaluate()` metrics, VS-46/62/63); fed to `export-multicam-fcpxml`/`render-multicam-preview` via `--switches` (glue: `switchesFromDoc` in `multicam.mjs`, VS-47) |
 | review low-confidence auto-cuts in a browser | `tools/review-switches.mjs` (local server + page + ffmpeg ±2s previews, I/O) over `tools/review-model.mjs` (pure: flagged segments, candidate angles, apply-choice + history, VS-65); synced per-segment playback + section-of-interest band (VS-71/72); whole-video assembled timeline preview — client-side multi-cam player over `/source` (HTTP Range) + `/assembled`, live pick updates (VS-73); writes picks back to `switches.json` + `switches.history.json` (`docs/multicam-review-ui.md`, R-RUI) |
 | is every documented requirement tested? (feature coverage) | `docs/feature-coverage.md` (R7.5/R-EC) + `tools/requirement-coverage.mjs` (pure: index + manifest + audit) + `tools/check-features.mjs` (report/gate) + `tests/conventions.test.ts` |
-| desktop app (VS-76, design only) | `docs/investigations/ui-app.md` (concept + roadmap + wireframe) → `docs/desktop-app.md` (shell/project model/stage nav/sidecar host, R-APP, VS-80) + `docs/desktop-app-agent-bridge.md` (Auto lane via a pluggable AI agent — Claude/Codex/Ollama, R-CB, VS-83) + `docs/desktop-app-permissions.md` (app-owned permission layer, R-PERM, VS-85); all `deferred` in the coverage manifest until built |
+| desktop app (VS-76) | `docs/investigations/ui-app.md` (concept + roadmap + wireframe) → `docs/desktop-app.md` (shell/project model/stage nav/sidecar host, R-APP, VS-80) + `docs/desktop-app-agent-bridge.md` (Auto lane via a pluggable AI agent — Claude/Codex/Ollama, R-CB, VS-83) + `docs/desktop-app-permissions.md` (app-owned permission layer, R-PERM, VS-85). **Built so far:** the Node sidecar core — `desktop/sidecar/protocol.mjs` (NDJSON protocol, R-APP12) + `desktop/sidecar/steps.mjs` (step registry + progress parsers, R-APP13), pure + 100% unit (`tests/sidecar-protocol.test.mjs`); `desktop/sidecar/host.mjs` is the I/O edge (manual, §14). Native Tauri shell + screens still deferred (VS-90). |
 | non-speech audio-events pass → audio-events.json | `tools/analyze-audio-events.mjs` (ffmpeg I/O) + `tools/audio-events.mjs` (pure: envelope/onsets/sectioning + spectral descriptors/structural novelty, VS-44/49) |
 | per-angle visual saliency → saliency.json | `tools/analyze-visual-saliency.mjs` (ffmpeg motion pass + gated Ollama vision, I/O) + `tools/visual-saliency.mjs` (pure: windowing, group-clock map, motion norm, vision-reply parse, gating, schema, VS-45) |
 | FCP-incompatible WAV audio detection + opt-in normalize | `docs/fcp-audio-compat.md` (R-FA) + `tools/wav-compat.mjs` (pure) + `tools/wav-compat-io.mjs` (I/O warn / `--fcp-normalize-audio` re-encode), wired into `sync-multicam`/`export-multicam-fcpxml` (VS-40/53) |

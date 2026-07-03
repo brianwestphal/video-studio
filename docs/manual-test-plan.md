@@ -253,9 +253,31 @@ Needs a synced group + a `switches.json` from §12 (whose `rationale` carries th
 | 13.7 | **Re-propose (VS-67)** — run with `--audio-events <…> --saliency <…>` | A **Re-propose downstream** button appears (hidden without both inputs). Pick an angle for one cut, click it: the still-auto cuts re-flow around your pick (variety-aware, via `autoCut` locks), the page re-renders with the new flagged set, and your pick is preserved. Nothing is written yet. |
 | 13.8 | After 13.7, click **Save** | Persists the re-proposed switches (`.bak` keeps the *original*, even across repeated saves) + a history entry `{ reproposedWithLocks: n }`. A second Save with no further change is a no-op. |
 
+## 14. Desktop app — Node sidecar host (`desktop/sidecar/host.mjs`, VS-90)
+
+The sidecar host's stdio plumbing + child-process spawning is the I/O edge; the protocol
+framing + step registry it uses are unit-tested (see the Automated Coverage Summary). Run
+from the repo root after `npm run build`.
+
+| # | Action | Expect |
+|---|--------|--------|
+| 14.1 | `node desktop/sidecar/host.mjs` then type `{"type":"request","id":1,"step":"analyze-scenes","params":{"video":"<clip>.mp4"}}` + Enter | First line is `{"type":"ready"}`; then a stream of `{"type":"progress","id":1,"progress":{...}}` (stages `detect`/`detected`/`extract`/`describe`) as the analyzer runs; ends with `{"type":"result","id":1,...}`. |
+| 14.2 | Send a request for an unknown step (`"step":"bogus"`) | A single `{"type":"error","id":...,"error":{"code":"unknown_step",...}}`; the host stays up for further requests. |
+| 14.3 | Send a request missing a required param (`analyze-scenes` with no `video`) | `{"type":"error",...,"code":"missing_param",...}`. |
+| 14.4 | Send a malformed line (`not json`) | `{"type":"error","id":null,"error":{"code":"malformed",...}}`; stream not poisoned — a following valid request still runs. |
+| 14.5 | Start a long `analyze-scenes`, then send `{"type":"cancel","id":1}` | The child is killed; a terminal `{"type":"error",...,"message":"cancelled (SIGTERM)"}` for id 1. |
+| 14.6 | Close stdin (Ctrl-D) mid-run | Any in-flight child is terminated and the host exits. |
+
 ## Automated Coverage Summary
 
 Covered by unit tests (do **not** re-test by hand):
+
+- **`desktop/sidecar/protocol.mjs`** — NDJSON framing (`frameMessage`/`parseFrames`),
+  `validateRequest`, and the host→shell message constructors
+  (`tests/sidecar-protocol.test.mjs`). 100% coverage. Only the `host.mjs` stdio/spawn edge
+  (§14) is manual.
+- **`desktop/sidecar/steps.mjs`** — `toolArgv`, the analyzer progress parser, and each
+  step's `buildCommand` descriptor (`tests/sidecar-protocol.test.mjs`). 100% coverage.
 
 - **`src/scene-math.ts`** — `parseFps`, `buildScenes`, `formatTimecode`
   (`tests/scene-math.test.ts`). 100% coverage.

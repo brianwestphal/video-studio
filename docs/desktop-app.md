@@ -12,8 +12,10 @@ Design background + the phased roadmap live in
 [`investigations/ui-app.md`](investigations/ui-app.md); the seven-screen visual deck is
 [`investigations/ui-app-wireframe.html`](investigations/ui-app-wireframe.html) (VS-78).
 
-Status: **Design only** — nothing here is built yet. Requirements are captured so the
-build (VS-79 spike → VS-80 shell → the screen tickets) has a source of truth.
+Status: **Mostly design** — the **Node sidecar protocol core is built** (VS-90:
+`desktop/sidecar/protocol.mjs` + `steps.mjs`, R-APP12/13, unit-tested to 100%); the native
+Tauri shell, project model, stage nav, and doctor screen remain. Requirements are the
+source of truth for the rest of the build (VS-90 shell → the screen tickets).
 
 ## 1. Concept
 
@@ -89,20 +91,24 @@ works with no agent at all. **Both lanes ship in the MVP** (maintainer decision,
 - **R-APP11** One **long-lived Node process** hosts all pipeline invocations for the app
   session (generalizing the VS-79 spike's one-off analyze call). The Rust shell spawns it
   once, restarts it if it dies, and routes all screen requests through it.
-- **R-APP12** The host exposes a **typed request/stream protocol** over stdio (newline-
-  delimited JSON, matching glassbox): a request names a **pipeline step** (e.g.
-  `analyze-scenes`, `analyze-audio-events`, `sync-multicam`, `propose-switches`,
-  `export`) with typed params; the host replies with a stream of **progress events**
-  followed by a terminal **result** or **error**. Message framing (`{type, id, ...}`) and
-  the request/result/progress/error discriminants are a **pure protocol module** shared by
-  both ends and unit-tested to 100%.
-- **R-APP13** The host maps each step to the existing tool: scene analysis →
-  `dist/analyzer.js`, audio events → `analyze-audio-events.mjs`, saliency →
-  `analyze-visual-saliency.mjs`, sources/groups → `analyze-sources.mjs` /
-  `propose-groups.mjs`, sync → `sync-multicam.mjs`, switches → `propose-switches`,
-  export/render → the existing exporters/renderers. Steps run as child processes (or
-  in-process where a tool exposes a pure API) with their **stderr/stdout progress parsed
-  into protocol progress events** (VS-60 already emits granular per-call progress).
+- **R-APP12** *(built — `desktop/sidecar/protocol.mjs`)* The host exposes a **typed
+  request/stream protocol** over stdio (newline-delimited JSON, matching glassbox): a
+  request names a **pipeline step** (e.g. `analyze-scenes`, `analyze-audio-events`,
+  `analyze-sources`) with typed params; the host replies with a stream of **progress
+  events** followed by a terminal **result** or **error**. Message framing (`{type, id,
+  ...}`), the request/result/progress/error discriminants, and request validation are a
+  **pure protocol module** shared by both ends and **unit-tested to 100%**
+  (`tests/sidecar-protocol.test.mjs`). The stdin/stdout plumbing is the thin I/O edge
+  (`host.mjs`, manual).
+- **R-APP13** *(built — `desktop/sidecar/steps.mjs`)* The host maps each step to the
+  existing tool via a **pure step registry**: scene analysis → `dist/analyzer.js`, audio
+  events → `analyze-audio-events.mjs`, sources → `analyze-sources.mjs` (extensible to
+  saliency / `sync-multicam` / `propose-switches` / the exporters). Each step's
+  `buildCommand` descriptor (logical tool + argv) and its **progress parser** (e.g. the
+  real `dist/analyzer.js` status lines → normalized progress) are pure and **100%
+  unit-tested**; steps run as child processes with their stdout/stderr parsed into
+  protocol progress events (VS-60 already emits granular per-call progress). The spawn
+  itself is the I/O edge (`host.mjs`, manual).
 - **R-APP14** Requests are **cancellable** and **serialized per project** where a step
   mutates shared artifacts; independent read-only steps may run concurrently. A cancelled
   or failed step must leave artifacts in a consistent state (the tools already write

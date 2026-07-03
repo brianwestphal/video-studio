@@ -32,6 +32,8 @@ export default defineConfig({
         "tools/review-model.mjs",
         "tools/requirement-coverage.mjs",
         "tools/launcher-plan.mjs",
+        "desktop/sidecar/protocol.mjs",
+        "desktop/sidecar/steps.mjs",
       ],
       thresholds: {
         lines: 100,
