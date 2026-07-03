@@ -11,6 +11,7 @@
 
 import { spawn } from "node:child_process";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -33,6 +34,15 @@ import {
   newProjectState,
   reconcileProject,
 } from "./project.mjs";
+import {
+  parseConfig,
+  serializeConfig,
+  addRecentProject,
+  addRule,
+  revokeRule,
+  resetRules,
+  setCategoryPolicy,
+} from "./config.mjs";
 
 // The repo root is two levels up from desktop/sidecar/. The app lives in a subdir
 // of this repo (settled), so the pipeline tools sit alongside at ../../.
@@ -148,9 +158,63 @@ function runProjectCreate(id, folder, name) {
   }
 }
 
+// The app-global config lives under the user's Application Support dir (macOS), separate
+// from any project folder + from any agent's own settings (R-APP18). These are the I/O edge
+// around the pure transforms in config.mjs.
+const CONFIG_PATH = path.join(os.homedir(), "Library", "Application Support", "video-studio", "config.json");
+
+function loadConfig() {
+  try {
+    return parseConfig(JSON.parse(fs.readFileSync(CONFIG_PATH, "utf8")));
+  } catch {
+    return parseConfig(null); // missing/corrupt → defaults
+  }
+}
+
+function saveConfig(config) {
+  fs.mkdirSync(path.dirname(CONFIG_PATH), { recursive: true });
+  fs.writeFileSync(CONFIG_PATH, serializeConfig(config));
+  return config;
+}
+
+// Apply a pure config transform, persist, and return the new config to the UI.
+function runConfig(id, transform) {
+  try {
+    send(resultMessage(id, saveConfig(transform(loadConfig()))));
+  } catch (err) {
+    send(errorMessage(id, ERROR_CODES.STEP_FAILED, `config error: ${err.message}`));
+  }
+}
+
+// Route a `config-*` step to its pure transform (or a read). Returns true if handled.
+function handleConfigStep(id, step, params) {
+  switch (step) {
+    case "config-get":
+      send(resultMessage(id, loadConfig()));
+      return true;
+    case "config-add-recent":
+      runConfig(id, (c) => addRecentProject(c, params.folder));
+      return true;
+    case "config-add-rule":
+      runConfig(id, (c) => addRule(c, params.rule));
+      return true;
+    case "config-revoke-rule":
+      runConfig(id, (c) => revokeRule(c, params.index));
+      return true;
+    case "config-reset-rules":
+      runConfig(id, (c) => resetRules(c));
+      return true;
+    case "config-set-policy":
+      runConfig(id, (c) => setCategoryPolicy(c, params.category, params.decision));
+      return true;
+    default:
+      return false;
+  }
+}
+
 function handle(decoded) {
-  // The doctor + project steps are handled here (not via the registry): doctor is a
-  // fan-out of probes; the project steps are filesystem reads/writes, not a tool spawn.
+  // The doctor + project + config steps are handled here (not via the registry): doctor is a
+  // fan-out of probes; the project + config steps are filesystem reads/writes, not a tool spawn.
   if (decoded && typeof decoded === "object" && decoded.type === MESSAGE_TYPES.REQUEST) {
     const id = typeof decoded.id === "string" || Number.isFinite(decoded.id) ? decoded.id : null;
     const params = decoded.params && typeof decoded.params === "object" ? decoded.params : {};
@@ -169,6 +233,12 @@ function handle(decoded) {
       if (id !== null) {
         if (params.folder) runProjectCreate(id, params.folder, params.name);
         else send(errorMessage(id, ERROR_CODES.MISSING_PARAM, "project-create requires param: folder"));
+      }
+      return;
+    }
+    if (typeof decoded.step === "string" && decoded.step.startsWith("config-")) {
+      if (id !== null && !handleConfigStep(id, decoded.step, params)) {
+        send(errorMessage(id, ERROR_CODES.UNKNOWN_STEP, `unknown step: ${decoded.step}`));
       }
       return;
     }

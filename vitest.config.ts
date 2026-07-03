@@ -38,6 +38,7 @@ export default defineConfig({
         "desktop/sidecar/project.mjs",
         "desktop/sidecar/agent.mjs",
         "desktop/sidecar/permissions.mjs",
+        "desktop/sidecar/config.mjs",
       ],
       thresholds: {
         lines: 100,

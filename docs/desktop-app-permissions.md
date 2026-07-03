@@ -19,9 +19,11 @@ Design rationale: [`investigations/ui-app.md`](investigations/ui-app.md) §10.
 Status: **Partial** — the **pure policy core is built** (`desktop/sidecar/permissions.mjs`,
 unit-tested to 100%): the category classifier (R-PERM1–3), the default policy (R-PERM4), the
 rule matcher with scope + precedence (R-PERM5/6), the `decide` enforcement order (R-PERM7/9),
-and `deriveAllowedTools` (R-PERM8). **Remaining:** the **Permissions screen** UI (R-PERM10/11),
-the **config store** persistence (R-PERM12), and wiring `decide` into the live `canUseTool`
-choke point (host I/O, with VS-91's live backend). Depends on VS-91. Wireframe screen 07.
+and `deriveAllowedTools` (R-PERM8). The **rule store** is built too — `desktop/sidecar/config.mjs`
+(R-PERM12): the tolerant parse + the add/revoke/reset-all/policy-toggle transforms (100% unit),
+persisted by the host's `config-*` steps under Application Support. **Remaining:** the
+**Permissions screen** UI (R-PERM10/11) and wiring `decide` into the live `canUseTool` choke point
+(host I/O, with VS-91's live backend). Depends on VS-91. Wireframe screen 07.
 
 ## 1. Principle
 

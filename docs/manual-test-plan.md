@@ -270,6 +270,7 @@ from the repo root after `npm run build`.
 | 14.7 | Send `{"type":"request","id":3,"step":"doctor"}` | A single `{"type":"result","id":3,"data":{"ready":...,"rows":[...]}}` — one row per tool (node/ffmpeg/ffprobe/whisper/ollama/claude) with `found` + `status` (`ok`/`missing-required`/`missing-optional`); `ready` true iff all required tools resolve. |
 | 14.8 | In a folder containing `multicam.json` + `audio-events.json`, send `{"type":"request","id":4,"step":"project-open","params":{"folder":"<dir>"}}` | `result` with `data.project.artifacts` = `["audioEvents","multicam"]` (re-derived from disk) and `data.stages` showing new-project + analyze `done`, design `idle`, review/export `locked`. |
 | 14.9 | `project-create` in an empty folder | Writes `.video-studio/project.json`; `result` snapshot has no artifacts and the rail shows only Setup active / New Project reachable. |
+| 14.10 | `config-add-recent` then `config-add-rule` then `config-get` | Each returns the updated app config; the rule + recent project persist across requests (written under `~/Library/Application Support/video-studio/config.json`). `config-revoke-rule`/`config-reset-rules`/`config-set-policy` mutate + persist likewise; an unknown `config-*` step errors `unknown_step`. |
 
 ## 15. Desktop app window (`desktop/src-tauri`, VS-79/VS-90)
 
@@ -310,8 +311,11 @@ Covered by unit tests (do **not** re-test by hand):
 - **`desktop/sidecar/permissions.mjs`** — `classifyToolCall` (6 categories, traversal-safe),
   `isInProject`, `DEFAULT_POLICY`, `matchRule` (scope + precedence), `decide` (enforcement
   order), `deriveAllowedTools` (`tests/sidecar-protocol.test.mjs`). 100% coverage. The
-  Permissions screen UI, the persisted rule store, and the `canUseTool` wiring are not yet
-  built (VS-92 tail).
+  Permissions screen UI and the `canUseTool` wiring are not yet built (VS-92 tail).
+- **`desktop/sidecar/config.mjs`** — `parseConfig` (tolerant), `addRecentProject`,
+  `addRule`/`revokeRule`/`resetRules`, `setCategoryPolicy`, `effectivePolicy`,
+  `serializeConfig` (`tests/sidecar-protocol.test.mjs`). 100% coverage. Only the `config-*`
+  host steps' file read/write (§14.10) + the Permissions/recents screens are manual.
 
 - **`src/scene-math.ts`** — `parseFps`, `buildScenes`, `formatTimecode`
   (`tests/scene-math.test.ts`). 100% coverage.

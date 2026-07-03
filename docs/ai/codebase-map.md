@@ -64,6 +64,7 @@ and [`requirements-summary.md`](requirements-summary.md) for status.
 │   │   ├── project.mjs         # pure: project model — ARTIFACTS map, deriveStages, reconcileProject (filesystem-wins) (R-APP7/8/10, 100% unit)
 │   │   ├── agent.mjs           # pure: AI agent bridge core — normalizeClaudeEvent, eventToFeedEntry, validateCutPlan, isAuthFailure (R-CB2/6/7/11, 100% unit)
 │   │   ├── permissions.mjs     # pure: safety layer — classifyToolCall, DEFAULT_POLICY, matchRule, decide, deriveAllowedTools (R-PERM1-9, 100% unit)
+│   │   ├── config.mjs          # pure: app-global config — parseConfig (tolerant), recent projects, rules (add/revoke/reset), policy overrides (R-APP18/R-PERM12, 100% unit)
 │   │   └── host.mjs            # I/O edge: stdin loop → spawn tool / `which` probes / project readdir → stream progress → result/error (manual, test-plan §14)
 │   ├── src-tauri/              # native Rust shell: lib.rs spawns host.mjs, streams stdout as `sidecar` events, sidecar_send + open_video commands
 │   │   ├── src/{main,lib}.rs   #   (Cargo.toml, build.rs, tauri.conf.json, capabilities/default.json, icons/)

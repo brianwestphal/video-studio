@@ -84,9 +84,11 @@ works with no agent at all. **Both lanes ship in the MVP** (maintainer decision,
   `multicam.json`, `audio-events.json`, `saliency.json`, `switches.json`, exports — the
   `ARTIFACTS` map). The state shape + `newProjectState` are pure + unit-tested; the file
   read/write is host I/O (`project-open`/`project-create` steps).
-- **R-APP9** *(partial)* The app can **create** a project and **open** an existing project
-  folder (the New Project screen + the `open_folder` dialog + the host steps). **Recent
-  projects** (app-global config, §6/R-APP18) is not yet persisted.
+- **R-APP9** *(built — logic)* The app can **create** a project and **open** an existing
+  project folder (the New Project screen + the `open_folder` dialog + the host steps), and
+  **recent projects** persist via `config.mjs` `addRecentProject` (dedupe + cap) + the
+  `config-add-recent`/`config-get` host steps. The recents *list UI* is the remaining manual
+  piece.
 - **R-APP10** *(built — `reconcileProject`)* The state file is **advisory over the
   filesystem** — artifacts on disk are the source of truth; the app re-derives artifact
   presence on open and reconciles the state file, so a project stays valid even if a user
@@ -141,11 +143,12 @@ works with no agent at all. **Both lanes ship in the MVP** (maintainer decision,
 
 ## 7. App-global config
 
-- **R-APP18** App-level settings (recent projects, the selected agent backend, and the
-  permission rules of VS-85) live in the **app's own config location** (per-user, e.g. under
-  the app's Application Support dir), **separate from** any project folder and from any
-  agent's own settings (Claude Code / Codex / Ollama). Reading/merging/writing this config
-  is pure over its parsed contents.
+- **R-APP18** *(built — `desktop/sidecar/config.mjs`)* App-level settings (recent projects,
+  the selected agent backend, and the permission policy + rules of VS-92) live in the **app's
+  own config location** (`~/Library/Application Support/video-studio/config.json`), **separate
+  from** any project folder and from any agent's own settings (Claude Code / Codex / Ollama).
+  The config shape + tolerant `parseConfig` + the immutable transforms are pure + 100%
+  unit-tested; the host's `config-*` steps do the file read/write.
 
 ## 8. Settled decisions (maintainer, 2026-07-03)
 

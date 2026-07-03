@@ -222,7 +222,7 @@ export const REQUIREMENT_COVERAGE = {
   "R-APP6": { status: "manual", note: "active/locked stage state in desktop/ui; full done-derivation pending project model (manual §15.1) (VS-90)" },
   "R-APP7": { status: "unit", tests: ["sidecar-protocol.test.mjs"], note: "deriveStages — pure done/active/locked from artifact presence, in desktop/sidecar/project.mjs (VS-90)" },
   "R-APP8": { status: "unit", tests: ["sidecar-protocol.test.mjs"], note: "project state shape + ARTIFACTS map + newProjectState in project.mjs; the .video-studio/project.json read/write is host I/O (VS-90)" },
-  "R-APP9": { status: "manual", note: "project-open/project-create host steps + frontend; recent-projects persistence pending (manual-test-plan §15.6) (VS-90)" },
+  "R-APP9": { status: "unit", tests: ["sidecar-protocol.test.mjs"], note: "create/open (project-open/project-create host steps) + recent-projects persistence via config.mjs addRecentProject (dedupe+cap) (VS-90); dialogs + the recents UI are manual" },
   "R-APP10": { status: "unit", tests: ["sidecar-protocol.test.mjs"], note: "reconcileProject — filesystem-wins re-derivation of artifacts (pure); the readdir is host I/O (VS-90)" },
   "R-APP11": { status: "deferred", note: "one long-lived Node sidecar host, restarted on death (VS-80)" },
   "R-APP12": { status: "unit", tests: ["sidecar-protocol.test.mjs"], note: "sidecar protocol framing + request validation — desktop/sidecar/protocol.mjs (VS-90); host stdio wiring in host.mjs is manual" },
@@ -231,7 +231,7 @@ export const REQUIREMENT_COVERAGE = {
   "R-APP15": { status: "deferred", note: "observable host lifecycle; in-flight failure surfaces + retryable (VS-80)" },
   "R-APP16": { status: "unit", tests: ["sidecar-protocol.test.mjs"], note: "doctorResultFromChecks (rows + readiness) in desktop/sidecar/doctor.mjs (VS-79/90); the `which` probes + Setup rendering are manual (§14.7/§15.2)" },
   "R-APP17": { status: "manual", note: "Setup shows missing-tool install hints (§15.2); stage-gating + one-click install deferred to project model + VS-89 (VS-90)" },
-  "R-APP18": { status: "deferred", note: "app-global config (recent projects + VS-85 rules) separate from projects + Claude settings (VS-80)" },
+  "R-APP18": { status: "unit", tests: ["sidecar-protocol.test.mjs"], note: "app-global config shape + tolerant parseConfig + transforms — desktop/sidecar/config.mjs (VS-90/92); the file read/write under Application Support is host I/O" },
 
   // Desktop app — pluggable AI agent control bridge (docs/desktop-app-agent-bridge.md, VS-83).
   // Design only. Backends: Claude (Agent SDK, first/reference), Codex, Ollama, behind one
@@ -263,7 +263,7 @@ export const REQUIREMENT_COVERAGE = {
   "R-PERM9": { status: "unit", tests: ["sidecar-protocol.test.mjs"], note: "decide never gates AskUserQuestion (VS-92)" },
   "R-PERM10": { status: "deferred", note: "Permissions screen plain-language toggles over default policy — UI not built (VS-92)" },
   "R-PERM11": { status: "deferred", note: "live remembered-approvals list, per-rule revoke + reset-all — UI not built (VS-92)" },
-  "R-PERM12": { status: "deferred", note: "rules stored in app config (per-project/global) — the config store I/O not built (VS-92)" },
+  "R-PERM12": { status: "unit", tests: ["sidecar-protocol.test.mjs"], note: "rules stored in app config — addRule/revokeRule/resetRules/setCategoryPolicy pure transforms in config.mjs (VS-92); the config-* host steps read/write the file (I/O)" },
 };
 
 // Audit the manifest against the ids actually defined in the docs. Pure: caller

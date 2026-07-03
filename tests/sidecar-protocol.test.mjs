@@ -41,6 +41,17 @@ import {
   decide,
   deriveAllowedTools,
 } from "../desktop/sidecar/permissions.mjs";
+import {
+  emptyConfig,
+  parseConfig,
+  addRecentProject,
+  addRule,
+  revokeRule,
+  resetRules,
+  setCategoryPolicy,
+  effectivePolicy,
+  serializeConfig,
+} from "../desktop/sidecar/config.mjs";
 
 describe("protocol — framing", () => {
   it("frameMessage produces one NDJSON line", () => {
@@ -658,5 +669,118 @@ describe("permissions — deriveAllowedTools", () => {
   it("a policy that asks for a category drops its tools", () => {
     const policy = { ...DEFAULT_POLICY, [CATEGORIES.READ]: "ask", [CATEGORIES.WRITE]: "ask", [CATEGORIES.MEDIA]: "ask" };
     expect(deriveAllowedTools(policy)).toEqual([]);
+  });
+});
+
+describe("config — parseConfig (tolerant)", () => {
+  it("nullish / non-object / array → empty config", () => {
+    expect(parseConfig(null)).toEqual(emptyConfig());
+    expect(parseConfig(42)).toEqual(emptyConfig());
+    expect(parseConfig([1])).toEqual(emptyConfig());
+  });
+  it("keeps valid fields, drops junk", () => {
+    const raw = {
+      recentProjects: ["/a", "", 5, "/b"],
+      agentBackend: "ollama",
+      policy: { [CATEGORIES.MEDIA]: "ask", nope: "allow", [CATEGORIES.READ]: "bogus" },
+      rules: [
+        null,
+        { category: "not-a-cat", scope: "everywhere", decision: "allow" },
+        { category: CATEGORIES.EGRESS, scope: "sideways", decision: "allow" },
+        { category: CATEGORIES.SHELL, scope: "project", decision: "allow" }, // missing project
+        { category: CATEGORIES.SHELL, scope: "everywhere", decision: "maybe" },
+        { category: CATEGORIES.EGRESS, scope: "everywhere", decision: "allow" },
+        { category: CATEGORIES.WRITE, scope: "project", project: "/p", decision: "deny" },
+      ],
+    };
+    expect(parseConfig(raw)).toEqual({
+      version: 1,
+      recentProjects: ["/a", "/b"],
+      agentBackend: "ollama",
+      policy: { [CATEGORIES.MEDIA]: "ask" },
+      rules: [
+        { category: CATEGORIES.EGRESS, scope: "everywhere", decision: "allow" },
+        { category: CATEGORIES.WRITE, scope: "project", project: "/p", decision: "deny" },
+      ],
+    });
+  });
+  it("defaults agentBackend + non-array recents", () => {
+    expect(parseConfig({ agentBackend: "", recentProjects: "x", policy: null })).toMatchObject({
+      agentBackend: "claude",
+      recentProjects: [],
+      policy: {},
+    });
+  });
+});
+
+describe("config — recent projects", () => {
+  it("adds to front, dedupes, and caps", () => {
+    let c = emptyConfig();
+    c = addRecentProject(c, "/a");
+    c = addRecentProject(c, "/b");
+    c = addRecentProject(c, "/a"); // moves to front
+    expect(c.recentProjects).toEqual(["/a", "/b"]);
+    c = addRecentProject(c, "/c", 2);
+    expect(c.recentProjects).toEqual(["/c", "/a"]);
+  });
+  it("ignores an empty/non-string folder", () => {
+    const c = emptyConfig();
+    expect(addRecentProject(c, "")).toBe(c);
+    expect(addRecentProject(c, 5)).toBe(c);
+  });
+});
+
+describe("config — rules", () => {
+  const rule = { category: CATEGORIES.EGRESS, scope: "everywhere", decision: "allow" };
+  it("adds valid rules and ignores invalid ones", () => {
+    let c = emptyConfig();
+    c = addRule(c, rule);
+    expect(c.rules).toEqual([rule]);
+    expect(addRule(c, { category: "bad", scope: "everywhere", decision: "allow" })).toBe(c);
+  });
+  it("replaces a matching rule's decision, leaving other rules untouched", () => {
+    const other = { category: CATEGORIES.SHELL, scope: "everywhere", decision: "deny" };
+    let c = addRule(addRule(emptyConfig(), other), rule);
+    c = addRule(c, { ...rule, decision: "deny" });
+    expect(c.rules).toEqual([other, { ...rule, decision: "deny" }]);
+  });
+  it("keeps project-scoped rules distinct from everywhere ones", () => {
+    let c = addRule(emptyConfig(), rule);
+    c = addRule(c, { category: CATEGORIES.EGRESS, scope: "project", project: "/p", decision: "deny" });
+    expect(c.rules).toHaveLength(2);
+  });
+  it("revokes by index (out-of-range = no-op) and resets all", () => {
+    let c = addRule(addRule(emptyConfig(), rule), {
+      category: CATEGORIES.SHELL,
+      scope: "everywhere",
+      decision: "deny",
+    });
+    expect(revokeRule(c, 5)).toBe(c);
+    expect(revokeRule(c, -1)).toBe(c);
+    expect(revokeRule(c, 1.5)).toBe(c);
+    c = revokeRule(c, 0);
+    expect(c.rules).toEqual([{ category: CATEGORIES.SHELL, scope: "everywhere", decision: "deny" }]);
+    expect(resetRules(c).rules).toEqual([]);
+  });
+});
+
+describe("config — policy overrides", () => {
+  it("setCategoryPolicy toggles a known category; ignores bad input", () => {
+    let c = emptyConfig();
+    c = setCategoryPolicy(c, CATEGORIES.EGRESS, "allow");
+    expect(c.policy[CATEGORIES.EGRESS]).toBe("allow");
+    expect(setCategoryPolicy(c, "nope", "allow")).toBe(c);
+    expect(setCategoryPolicy(c, CATEGORIES.MEDIA, "deny")).toBe(c); // only allow/ask
+  });
+  it("effectivePolicy overlays overrides on DEFAULT_POLICY", () => {
+    const c = setCategoryPolicy(emptyConfig(), CATEGORIES.EGRESS, "allow");
+    const eff = effectivePolicy(c);
+    expect(eff[CATEGORIES.EGRESS]).toBe("allow");
+    expect(eff[CATEGORIES.MEDIA]).toBe("allow"); // inherited
+    expect(eff[CATEGORIES.DESTRUCTIVE]).toBe("ask"); // inherited
+  });
+  it("serializeConfig round-trips through parseConfig", () => {
+    const c = addRecentProject(setCategoryPolicy(emptyConfig(), CATEGORIES.SHELL, "allow"), "/proj");
+    expect(parseConfig(JSON.parse(serializeConfig(c)))).toEqual(c);
   });
 });
