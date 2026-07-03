@@ -309,6 +309,14 @@ document.getElementById("design-make").addEventListener("click", () => {
     note.textContent = "Describe the cut you want (or pick a preset).";
     return;
   }
+  // The cut flow (Design → Review → Export) is multi-cam only for now: it produces a
+  // switches.json (angle-switch cut). A single-source project can't yet — say so up front,
+  // before spending any agent tokens.
+  if (!currentProject.project.artifacts.includes("multicam")) {
+    note.textContent =
+      "Making a cut currently needs a multi-cam project (a folder of camera angles). Single-video cutting through Review/Export isn't wired yet — it's on the roadmap.";
+    return;
+  }
   feed.innerHTML = "";
   note.textContent = "Working…";
   const btn = document.getElementById("design-make");
@@ -323,12 +331,32 @@ document.getElementById("design-make").addEventListener("click", () => {
   send("agent-run", { prompt: `${prompt}\n\n(Project folder: ${currentProject.folder})`, folder: currentProject.folder }, {
     onProgress: (p) => addFeed(p.label, p.detail),
     onResult: () => {
-      btn.disabled = false;
-      note.textContent = "Done. Open the timeline to review + refine the cut.";
+      // Turn the run into an actual, editable cut and open Review. (Tailoring the cut
+      // precisely to the prompt is VS-96; this is video-studio's auto-cut baseline.)
+      note.textContent = "Building your cut…";
+      send("design-cut", { folder: currentProject.folder }, {
+        onProgress: (p) => {
+          if (p.message) note.textContent = `Building your cut… ${p.message}`.slice(0, 70);
+        },
+        onResult: () => {
+          btn.disabled = false;
+          send("project-open", { folder: currentProject.folder }, {
+            onResult: (snap) => {
+              applyProjectSnapshot(snap);
+              gotoStage("review");
+            },
+          });
+        },
+        onError: (e) => {
+          btn.disabled = false;
+          note.textContent = e.message;
+        },
+      });
     },
     onError: (e) => {
       btn.disabled = false;
-      note.textContent = e.code === "not_connected" ? "Claude isn't connected. Add your API key / sign in (setup coming)." : e.message;
+      note.textContent =
+        e.code === "not_connected" ? "Claude isn't connected. Add your API key / sign in (setup coming)." : e.message;
     },
   });
 });
@@ -344,6 +372,11 @@ document.getElementById("design-open-timeline").addEventListener("click", () => 
   const hasCut = currentProject.project.artifacts.includes("switches");
   if (hasCut) {
     gotoReview();
+    return;
+  }
+  if (!currentProject.project.artifacts.includes("multicam")) {
+    note.textContent =
+      "The timeline needs a multi-cam project (a folder of camera angles). Single-video editing isn't wired through Review/Export yet — it's on the roadmap.";
     return;
   }
   note.textContent = "Proposing an auto starting cut…";
