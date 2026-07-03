@@ -62,7 +62,7 @@ and [`requirements-summary.md`](requirements-summary.md) for status.
 │   │   ├── steps.mjs           # pure: step registry — buildCommand descriptors + analyzer progress parser (R-APP13, 100% unit)
 │   │   ├── doctor.mjs          # pure: tool list + doctorResultFromChecks for the Setup screen (R-APP16/17, 100% unit)
 │   │   ├── project.mjs         # pure: project model — ARTIFACTS map, deriveStages, reconcileProject (filesystem-wins) (R-APP7/8/10, 100% unit)
-│   │   ├── agent.mjs           # pure: AI agent bridge core — normalizeClaudeEvent, eventToFeedEntry, validateCutPlan, isAuthFailure (R-CB2/6/7/11, 100% unit)
+│   │   ├── agent.mjs           # pure: AI agent bridge core — normalizeClaudeEvent, eventToFeedEntry, validateCutPlan, isAuthFailure (R-CB2/6/7/11, 100% unit). host.mjs `agent-run` drives the live @anthropic-ai/claude-agent-sdk over these (R-CB3, devDep)
 │   │   ├── permissions.mjs     # pure: safety layer — classifyToolCall, DEFAULT_POLICY, matchRule, decide, deriveAllowedTools (R-PERM1-9, 100% unit)
 │   │   ├── config.mjs          # pure: app-global config — parseConfig (tolerant), recent projects, rules (add/revoke/reset), policy overrides (R-APP18/R-PERM12, 100% unit)
 │   │   └── host.mjs            # I/O edge: stdin loop → spawn tool / `which` probes / project readdir → stream progress → result/error (manual, test-plan §14)

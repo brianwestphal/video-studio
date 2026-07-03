@@ -18,12 +18,16 @@ Part of the desktop-app initiative — see the umbrella [`desktop-app.md`](deskt
 backend's tool-permission choke point defined here). Design rationale:
 [`investigations/ui-app.md`](investigations/ui-app.md) §9.
 
-Status: **Partial** — the **backend-agnostic pure core is built** (`desktop/sidecar/agent.mjs`,
-unit-tested to 100%): event normalization (R-CB2), the event→activity-feed mapping (R-CB6),
-structured cut-plan validation (R-CB7), and auth-failure detection (R-CB11). **Remaining:** the
-live headless Claude run via `@anthropic-ai/claude-agent-sdk` in the host (R-CB3), session
-resume (R-CB8), the `canUseTool` choke point (R-CB9/10, consumed by VS-92), and the Codex/Ollama
-backends (R-CB4/5). Depends on VS-90 (sidecar host); pairs with VS-84 (auth) + VS-92 (permissions).
+Status: **Live (Claude)** — the pure core (`desktop/sidecar/agent.mjs`, 100% unit) **and** the
+live Claude backend are built: the `agent-run` host step drives `@anthropic-ai/claude-agent-sdk`
+headless, streams its events through `normalizeClaudeEvent`/`eventToFeedEntry` (R-CB2/3/6), captures
+the `session_id`, and gates every escalated tool call through `permissions.decide` at the
+`canUseTool` choke point (R-CB9) — verified against a real run. The Design **Auto lane** calls it
+with a live activity feed. **Remaining (follow-ups):** the Auto lane landing on a finished structured
+cut plan + session-resume UX (**VS-96**); interactive native permission prompts / `AskUserQuestion`
+picker / `allowedTools` pre-approval / the SDK-own-sandbox coverage gap (**VS-97**); Keychain auth
+(**VS-84**); and the **Codex/Ollama** backends (R-CB4/5, VS-93/94). Note: the SDK ships as a
+**devDependency** (desktop-only; excluded from the lean published npm package — packaging is VS-89).
 
 ## 1. Why structured events, not TUI scraping
 

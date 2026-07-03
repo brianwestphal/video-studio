@@ -237,7 +237,7 @@ export const REQUIREMENT_COVERAGE = {
   // unit-tested; the two-lane screen + design-cut spawn + the Auto-lane bridge are GUI/I/O.
   "R-DS1": { status: "manual", note: "two-lane Design screen (Auto prompt+presets / Manual open-timeline) — GUI (manual-test-plan §15.13) (VS-86)" },
   "R-DS2": { status: "unit", tests: ["sidecar-protocol.test.mjs"], note: "proposeCommand argv (desktop/sidecar/steps.mjs); design-cut host spawn + rail refresh is I/O (VS-86)" },
-  "R-DS3": { status: "manual", note: "Auto lane 'Make my cut' -> agent bridge; honest connect-an-agent state until VS-91 live backend (§15.13) (VS-86)" },
+  "R-DS3": { status: "manual", note: "Auto lane 'Make my cut' -> live agent-run, streams the activity feed (§15.13); landing on a finished cut plan is VS-96 (VS-86)" },
   "R-DS4": { status: "review", note: "handoff: both lanes land on the same editable switches.json in Review (R-RV3); a design principle (VS-86)" },
 
   // Desktop app — Review stage (docs/desktop-app-review.md, VS-87). reviewCommand +
@@ -260,13 +260,13 @@ export const REQUIREMENT_COVERAGE = {
   // validation become status:"unit"; the agent run + session I/O is manual.
   "R-CB1": { status: "deferred", note: "pluggable agent-backend interface: run/stream/choke-point/capabilities; Claude+Codex+Ollama, user-selectable, Claude first (VS-83)" },
   "R-CB2": { status: "unit", tests: ["sidecar-protocol.test.mjs"], note: "normalizeClaudeEvent tolerates unknown event types (never fatal) — desktop/sidecar/agent.mjs (VS-91)" },
-  "R-CB3": { status: "deferred", note: "Claude backend: headless Agent SDK run in host is the I/O edge — not built (VS-91)" },
+  "R-CB3": { status: "manual", note: "Claude backend LIVE: agent-run host step drives @anthropic-ai/claude-agent-sdk, streams via normalizeClaudeEvent/eventToFeedEntry — verified against a real run (manual-test-plan §15.14) (VS-91)" },
   "R-CB4": { status: "deferred", note: "Codex backend behind the same interface — separate build ticket (VS-83)" },
   "R-CB5": { status: "deferred", note: "Ollama backend: local model via app-driven constrained tool loop through the same choke point — separate build ticket (VS-83)" },
   "R-CB6": { status: "unit", tests: ["sidecar-protocol.test.mjs"], note: "eventToFeedEntry — normalized event -> activity-feed line (friendly tool labels) — agent.mjs (VS-91); the live SDK run is host I/O" },
   "R-CB7": { status: "unit", tests: ["sidecar-protocol.test.mjs"], note: "validateCutPlan — structured cut-plan validation + normalize/sort — agent.mjs (VS-91)" },
   "R-CB8": { status: "deferred", note: "session handle capture is in normalizeClaudeEvent (VS-91); resume across turns is the live-backend I/O (not built)" },
-  "R-CB9": { status: "deferred", note: "pre-approve pipeline tools; misses -> backend choke point (canUseTool / Ollama gate) -> VS-92 (VS-91)" },
+  "R-CB9": { status: "manual", note: "canUseTool -> permissions.decide wired + verified (escalated calls denied by our policy); allowedTools pre-approval + interactive-prompt + SDK-sandbox-coverage are VS-97 follow-ups (VS-91)" },
   "R-CB10": { status: "deferred", note: "backend question affordance (AskUserQuestion) via same choke point -> native picker (VS-91)" },
   "R-CB11": { status: "unit", tests: ["sidecar-protocol.test.mjs"], note: "isAuthFailure — detect credential failure from a result event -> Connect flow (VS-84) (VS-91)" },
 

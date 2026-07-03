@@ -51,6 +51,8 @@ import {
   resetRules,
   setCategoryPolicy,
 } from "./config.mjs";
+import { normalizeClaudeEvent, eventToFeedEntry, isAuthFailure, AGENT_EVENT_KINDS } from "./agent.mjs";
+import { decide } from "./permissions.mjs";
 
 // The repo root is two levels up from desktop/sidecar/. The app lives in a subdir
 // of this repo (settled), so the pipeline tools sit alongside at ../../.
@@ -343,6 +345,56 @@ function runReviewStop(id) {
   send(resultMessage(id, { stopped: true }));
 }
 
+// The Auto lane's live engine (R-CB3): drive Claude headless via @anthropic-ai/claude-agent-sdk.
+// The pure normalize/feed/auth logic (agent.mjs) + the permission decision (permissions.mjs)
+// are unit-tested; this is the I/O edge that runs the SDK and streams its events. The SDK is
+// lazy-imported so the host doesn't pay its (heavy) load unless the Auto lane is used.
+async function runAgentRun(id, { prompt, folder, resume }) {
+  let query;
+  try {
+    ({ query } = await import("@anthropic-ai/claude-agent-sdk"));
+  } catch (err) {
+    send(errorMessage(id, ERROR_CODES.STEP_FAILED, `agent SDK not available: ${err.message}`));
+    return;
+  }
+  const projectRoot = folder || REPO_ROOT;
+  const rules = loadConfig().rules;
+
+  // Every non-pre-approved tool the agent wants flows through OUR safety layer (R-CB9): allow
+  // silently, deny, or — since the interactive native prompt isn't wired through the sidecar
+  // yet — deny an "ask" with an explanation (the run continues; that one action is blocked).
+  const canUseTool = async (toolName, input) => {
+    const d = decide(toolName, input, projectRoot, rules);
+    if (d === "allow") return { behavior: "allow", updatedInput: input };
+    if (d === "deny") return { behavior: "deny", message: "Blocked by video-studio's safety policy." };
+    return { behavior: "deny", message: "Needs your approval — interactive permission prompts are coming soon." };
+  };
+
+  const options = { cwd: projectRoot, permissionMode: "default", canUseTool };
+  if (resume) options.resume = resume;
+
+  let sessionId = null;
+  try {
+    for await (const msg of query({ prompt: String(prompt ?? ""), options })) {
+      const n = normalizeClaudeEvent(msg);
+      if (n.kind === AGENT_EVENT_KINDS.SESSION && n.sessionId) sessionId = n.sessionId;
+      if (n.kind === AGENT_EVENT_KINDS.RESULT && isAuthFailure(n)) {
+        send(errorMessage(id, "not_connected", n.text || "Claude is not connected."));
+        return;
+      }
+      const feed = eventToFeedEntry(n);
+      if (feed) send(progressMessage(id, feed));
+      if (n.kind === AGENT_EVENT_KINDS.RESULT) {
+        send(resultMessage(id, { sessionId, ok: n.ok, text: n.text }));
+        return;
+      }
+    }
+    send(resultMessage(id, { sessionId, ok: true, text: "" }));
+  } catch (err) {
+    send(errorMessage(id, ERROR_CODES.STEP_FAILED, `agent run failed: ${err.message}`));
+  }
+}
+
 function handle(decoded) {
   // The doctor + project + config + export steps are handled here (not via the registry):
   // doctor is a fan-out of probes; the others are filesystem/tool orchestration around the
@@ -397,6 +449,13 @@ function handle(decoded) {
     }
     if (decoded.step === "review-stop") {
       if (id !== null) runReviewStop(id);
+      return;
+    }
+    if (decoded.step === "agent-run") {
+      if (id !== null) {
+        if (params.prompt) runAgentRun(id, params);
+        else send(errorMessage(id, ERROR_CODES.MISSING_PARAM, "agent-run requires param: prompt"));
+      }
       return;
     }
   }

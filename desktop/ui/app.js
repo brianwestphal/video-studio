@@ -215,11 +215,42 @@ for (const chip of document.querySelectorAll("#design-presets .chip")) {
   });
 }
 
-// Auto lane "Make my cut" — the engine is the AI agent bridge (VS-91), not yet wired to a
-// live backend, so this surfaces an honest "connect an agent" state rather than pretending.
+// Auto lane "Make my cut" — drive the live AI agent (VS-91) with the prompt + project
+// context, streaming its activity into a feed. The agent proposes; Review refines (R-DS4).
 document.getElementById("design-make").addEventListener("click", () => {
-  document.getElementById("design-auto-note").textContent =
-    "The Auto lane needs a connected AI agent (Claude / Codex / Ollama). Agent setup is coming — for now, use the Manual lane to open the timeline.";
+  const note = document.getElementById("design-auto-note");
+  const feed = document.getElementById("design-feed");
+  const prompt = document.getElementById("design-prompt").value.trim();
+  if (!currentProject) {
+    note.textContent = "Open a project first (New Project).";
+    return;
+  }
+  if (!prompt) {
+    note.textContent = "Describe the cut you want (or pick a preset).";
+    return;
+  }
+  feed.innerHTML = "";
+  note.textContent = "Working…";
+  const btn = document.getElementById("design-make");
+  btn.disabled = true;
+  const addFeed = (label, detail) => {
+    const li = document.createElement("li");
+    li.className = "feed-item";
+    li.innerHTML = `<span class="feed-label">${label}</span>${detail ? `<span class="feed-detail">${detail}</span>` : ""}`;
+    feed.appendChild(li);
+    feed.scrollTop = feed.scrollHeight;
+  };
+  send("agent-run", { prompt: `${prompt}\n\n(Project folder: ${currentProject.folder})`, folder: currentProject.folder }, {
+    onProgress: (p) => addFeed(p.label, p.detail),
+    onResult: () => {
+      btn.disabled = false;
+      note.textContent = "Done. Open the timeline to review + refine the cut.";
+    },
+    onError: (e) => {
+      btn.disabled = false;
+      note.textContent = e.code === "not_connected" ? "Claude isn't connected. Add your API key / sign in (setup coming)." : e.message;
+    },
+  });
 });
 
 // Manual lane: open the timeline. If there's no cut yet, propose an auto starting point
