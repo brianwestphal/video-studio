@@ -261,8 +261,8 @@ export const REQUIREMENT_COVERAGE = {
   "R-PERM7": { status: "unit", tests: ["sidecar-protocol.test.mjs"], note: "decide: rules first, default only on a miss; canUseTool wiring is host I/O (VS-92)" },
   "R-PERM8": { status: "unit", tests: ["sidecar-protocol.test.mjs"], note: "deriveAllowedTools from allow-by-default categories, kept in sync (VS-92)" },
   "R-PERM9": { status: "unit", tests: ["sidecar-protocol.test.mjs"], note: "decide never gates AskUserQuestion (VS-92)" },
-  "R-PERM10": { status: "deferred", note: "Permissions screen plain-language toggles over default policy — UI not built (VS-92)" },
-  "R-PERM11": { status: "deferred", note: "live remembered-approvals list, per-rule revoke + reset-all — UI not built (VS-92)" },
+  "R-PERM10": { status: "manual", note: "Permissions screen plain-language category toggles (desktop/ui) over setCategoryPolicy (unit-tested); GUI in manual-test-plan §15.8 (VS-92)" },
+  "R-PERM11": { status: "manual", note: "Permissions screen remembered-approvals list + per-rule revoke + reset-all (desktop/ui) over revokeRule/resetRules (unit-tested); GUI in manual-test-plan §15.9 (VS-92)" },
   "R-PERM12": { status: "unit", tests: ["sidecar-protocol.test.mjs"], note: "rules stored in app config — addRule/revokeRule/resetRules/setCategoryPolicy pure transforms in config.mjs (VS-92); the config-* host steps read/write the file (I/O)" },
 };
 

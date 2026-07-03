@@ -202,6 +202,85 @@ document.getElementById("run-analyze").addEventListener("click", () => {
   });
 });
 
+// --- Permissions (app settings) -------------------------------------------
+
+// Category metadata for the toggles. `def` mirrors permissions.mjs DEFAULT_POLICY;
+// `toggle:false` categories are shown but always ask (safety).
+const PERM_CATEGORIES = [
+  { key: "media-processing", label: "Process video", desc: "ffmpeg / whisper / our pipeline tools", def: "allow", toggle: true },
+  { key: "read-in-project", label: "Read this project", desc: "read files inside the project folder", def: "allow", toggle: true },
+  { key: "write-in-project", label: "Write results here", desc: "write outputs into the project folder", def: "allow", toggle: true },
+  { key: "network-egress", label: "Access the network", desc: "anything beyond local Ollama + the agent API", def: "ask", toggle: true },
+  { key: "other-shell", label: "Run other commands", desc: "shell that isn't recognized", def: "ask", toggle: true },
+  { key: "destructive", label: "Delete / write outside the project", desc: "always asks, for your safety", def: "ask", toggle: false },
+];
+const PERM_LABELS = Object.fromEntries(PERM_CATEGORIES.map((c) => [c.key, c.label]));
+
+function effectiveDecision(cat, policy) {
+  return policy[cat.key] ?? cat.def;
+}
+
+function renderPermissions(config) {
+  const policy = config.policy || {};
+  const toggles = document.getElementById("perm-toggles");
+  toggles.innerHTML = "";
+  for (const cat of PERM_CATEGORIES) {
+    const allowed = effectiveDecision(cat, policy) === "allow";
+    const li = document.createElement("li");
+    li.className = "perm-toggle";
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.checked = allowed;
+    cb.disabled = !cat.toggle;
+    cb.addEventListener("change", () => {
+      send("config-set-policy", { category: cat.key, decision: cb.checked ? "allow" : "ask" }, { onResult: renderPermissions });
+    });
+    const text = document.createElement("div");
+    text.className = "perm-text";
+    text.innerHTML = `<div class="perm-label">${cat.label}</div><div class="perm-desc">${cat.desc}</div>`;
+    const state = document.createElement("span");
+    state.className = "perm-state";
+    state.textContent = allowed ? "allowed" : "asks";
+    const label = document.createElement("label");
+    label.className = "perm-switch";
+    label.append(cb, state);
+    li.append(text, label);
+    toggles.appendChild(li);
+  }
+
+  const rules = config.rules || [];
+  const list = document.getElementById("perm-rules");
+  list.innerHTML = "";
+  document.getElementById("perm-rules-empty").hidden = rules.length > 0;
+  document.getElementById("perm-reset").hidden = rules.length === 0;
+  rules.forEach((r, i) => {
+    const li = document.createElement("li");
+    li.className = "perm-rule";
+    const scope = r.scope === "project" ? "this project" : "everywhere";
+    li.innerHTML = `<span class="perm-rule-text">${r.decision === "deny" ? "Never" : "Always"} allow <b>${PERM_LABELS[r.category] || r.category}</b> (${scope})</span>`;
+    const revoke = document.createElement("button");
+    revoke.className = "btn small";
+    revoke.textContent = "Revoke";
+    revoke.addEventListener("click", () => send("config-revoke-rule", { index: i }, { onResult: renderPermissions }));
+    li.appendChild(revoke);
+    list.appendChild(li);
+  });
+}
+
+function loadPermissions() {
+  send("config-get", {}, { onResult: renderPermissions });
+}
+
+document.getElementById("perm-reset").addEventListener("click", () => {
+  send("config-reset-rules", {}, { onResult: renderPermissions });
+});
+document.getElementById("open-permissions").addEventListener("click", () => {
+  selectedStage = null;
+  renderRail();
+  showScreen("permissions");
+  loadPermissions();
+});
+
 // --- boot -----------------------------------------------------------------
 
 renderRail();

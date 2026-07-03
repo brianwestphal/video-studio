@@ -21,9 +21,11 @@ unit-tested to 100%): the category classifier (R-PERM1–3), the default policy 
 rule matcher with scope + precedence (R-PERM5/6), the `decide` enforcement order (R-PERM7/9),
 and `deriveAllowedTools` (R-PERM8). The **rule store** is built too — `desktop/sidecar/config.mjs`
 (R-PERM12): the tolerant parse + the add/revoke/reset-all/policy-toggle transforms (100% unit),
-persisted by the host's `config-*` steps under Application Support. **Remaining:** the
-**Permissions screen** UI (R-PERM10/11) and wiring `decide` into the live `canUseTool` choke point
-(host I/O, with VS-91's live backend). Depends on VS-91. Wireframe screen 07.
+persisted by the host's `config-*` steps under Application Support. The **Permissions screen** is
+built too (`desktop/ui`, R-PERM10/11): plain-language category toggles + a remembered-approvals
+list with per-rule revoke + reset-all, wired to the config steps. **Remaining:** wiring `decide`
+into the live `canUseTool` choke point (host I/O, lands with VS-91's live backend). Depends on
+VS-91. Wireframe screen 07.
 
 ## 1. Principle
 

@@ -68,7 +68,7 @@ and [`requirements-summary.md`](requirements-summary.md) for status.
 │   │   └── host.mjs            # I/O edge: stdin loop → spawn tool / `which` probes / project readdir → stream progress → result/error (manual, test-plan §14)
 │   ├── src-tauri/              # native Rust shell: lib.rs spawns host.mjs, streams stdout as `sidecar` events, sidecar_send + open_video commands
 │   │   ├── src/{main,lib}.rs   #   (Cargo.toml, build.rs, tauri.conf.json, capabilities/default.json, icons/)
-│   └── ui/                     # vanilla webview frontend (frontendDist): index.html + app.js + styles.css — stage rail + Setup/Analyze screens (R-APP5/6)
+│   └── ui/                     # vanilla webview frontend (frontendDist): index.html + app.js + styles.css — stage rail + Setup/New Project/Analyze + Permissions screens (R-APP5/6, R-PERM10/11)
 ├── skills/
 │   └── video-studio/SKILL.md   # the pipeline Claude follows — primary interface
 ├── tests/

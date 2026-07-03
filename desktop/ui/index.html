@@ -8,7 +8,10 @@
   </head>
   <body>
     <div class="app">
-      <nav class="rail" id="rail" aria-label="Pipeline stages"></nav>
+      <nav class="rail" aria-label="Pipeline stages">
+        <div class="rail-stages" id="rail"></div>
+        <button class="rail-settings" id="open-permissions">Permissions</button>
+      </nav>
 
       <main class="panel">
         <!-- Setup / doctor -->
@@ -56,6 +59,19 @@
             <div class="stage-label" id="analyze-stage"></div>
           </div>
           <pre class="log" id="analyze-log" aria-live="polite"></pre>
+        </section>
+
+        <!-- Permissions (app settings, not a pipeline stage) -->
+        <section class="screen" data-screen="permissions" hidden>
+          <header class="screen-head">
+            <h1>Permissions</h1>
+            <p class="sub">video-studio decides what the AI agent may do — independent of the agent's own permissions. Choose what's allowed silently vs asked about.</p>
+          </header>
+          <ul class="perm-toggles" id="perm-toggles"></ul>
+          <h2 class="perm-subhead">Remembered approvals</h2>
+          <p class="sub" id="perm-rules-empty" hidden>No remembered rules yet. When you choose "Always allow this kind", it shows up here.</p>
+          <ul class="perm-rules" id="perm-rules"></ul>
+          <button class="btn" id="perm-reset" hidden>Reset all remembered approvals</button>
         </section>
       </main>
     </div>

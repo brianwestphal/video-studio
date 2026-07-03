@@ -31,6 +31,19 @@ body {
   flex-direction: column;
   gap: 4px;
 }
+.rail-stages { display: flex; flex-direction: column; gap: 4px; }
+.rail-settings {
+  margin-top: auto;
+  text-align: left;
+  background: none;
+  border: 0;
+  color: var(--muted);
+  font-size: 13px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.rail-settings:hover { background: #191c22; color: var(--text); }
 
 .stage {
   text-align: left;
@@ -97,6 +110,35 @@ body {
   color: var(--text);
 }
 .artifact.none { color: var(--muted); font-family: inherit; }
+
+.perm-toggles { list-style: none; padding: 0; margin: 8px 0 0; max-width: 680px; }
+.perm-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+.perm-label { font-weight: 600; }
+.perm-desc { color: var(--muted); font-size: 12px; margin-top: 2px; }
+.perm-switch { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
+.perm-state { color: var(--muted); font-size: 12px; min-width: 52px; text-align: right; }
+.perm-subhead { font-size: 15px; margin: 28px 0 10px; }
+.perm-rules { list-style: none; padding: 0; margin: 0 0 16px; max-width: 680px; }
+.perm-rule {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  margin-bottom: 6px;
+}
+.btn.small { padding: 5px 12px; font-size: 12px; }
 
 .progress { margin: 18px 0; max-width: 640px; }
 .bar { height: 8px; background: #12151b; border-radius: 999px; overflow: hidden; }
