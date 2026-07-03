@@ -307,6 +307,11 @@ Covered by unit tests (do **not** re-test by hand):
   `eventToFeedEntry`, `validateCutPlan`, `isAuthFailure` (`tests/sidecar-protocol.test.mjs`).
   100% coverage. The live `@anthropic-ai/claude-agent-sdk` run + session resume + the
   `canUseTool` choke point are the I/O edge (not yet built — VS-91 tail / VS-92).
+- **`desktop/sidecar/permissions.mjs`** — `classifyToolCall` (6 categories, traversal-safe),
+  `isInProject`, `DEFAULT_POLICY`, `matchRule` (scope + precedence), `decide` (enforcement
+  order), `deriveAllowedTools` (`tests/sidecar-protocol.test.mjs`). 100% coverage. The
+  Permissions screen UI, the persisted rule store, and the `canUseTool` wiring are not yet
+  built (VS-92 tail).
 
 - **`src/scene-math.ts`** — `parseFps`, `buildScenes`, `formatTimecode`
   (`tests/scene-math.test.ts`). 100% coverage.

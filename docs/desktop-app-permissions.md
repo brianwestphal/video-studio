@@ -16,8 +16,12 @@ Part of the desktop-app initiative — see the umbrella [`desktop-app.md`](deskt
 which routes non-pre-approved calls into the choke point this layer implements).
 Design rationale: [`investigations/ui-app.md`](investigations/ui-app.md) §10.
 
-Status: **Design only** — nothing built yet. Depends on VS-83 (the agent bridge's choke
-point). Wireframe screen 07.
+Status: **Partial** — the **pure policy core is built** (`desktop/sidecar/permissions.mjs`,
+unit-tested to 100%): the category classifier (R-PERM1–3), the default policy (R-PERM4), the
+rule matcher with scope + precedence (R-PERM5/6), the `decide` enforcement order (R-PERM7/9),
+and `deriveAllowedTools` (R-PERM8). **Remaining:** the **Permissions screen** UI (R-PERM10/11),
+the **config store** persistence (R-PERM12), and wiring `decide` into the live `canUseTool`
+choke point (host I/O, with VS-91's live backend). Depends on VS-91. Wireframe screen 07.
 
 ## 1. Principle
 

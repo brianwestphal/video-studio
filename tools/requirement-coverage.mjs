@@ -252,18 +252,18 @@ export const REQUIREMENT_COVERAGE = {
   // Desktop app — application-level permission & safety layer (docs/desktop-app-permissions.md, VS-85).
   // Design only. When built, the classifier + default-policy lookup + rule matcher + config
   // merge are all PURE and held to 100% unit coverage (project convention); the screen UI is manual.
-  "R-PERM1": { status: "deferred", note: "classify tool call into media/read/write/destructive/egress/other-shell (VS-85)" },
-  "R-PERM2": { status: "deferred", note: "classifier is pure over (tool,input,root); 100% unit when built (VS-85)" },
-  "R-PERM3": { status: "deferred", note: "conservative: ambiguous/traversal -> most restrictive category (VS-85)" },
-  "R-PERM4": { status: "deferred", note: "per-category default allow/ask policy tuned so Auto lane rarely prompts (VS-85)" },
-  "R-PERM5": { status: "deferred", note: "Allow once / Deny / Always allow this category -> persisted category rule (VS-85)" },
-  "R-PERM6": { status: "deferred", note: "rule scope this-project vs everywhere; pure matcher with precedence, 100% unit (VS-85)" },
-  "R-PERM7": { status: "deferred", note: "enforce: rules first, prompt only on miss of an ask-default (VS-85)" },
-  "R-PERM8": { status: "deferred", note: "allowedTools derived from allow-by-default categories, kept in sync (VS-85)" },
-  "R-PERM9": { status: "deferred", note: "AskUserQuestion handled by question UI, not gated as risky (VS-85)" },
-  "R-PERM10": { status: "deferred", note: "Permissions screen plain-language toggles over default policy (VS-85)" },
-  "R-PERM11": { status: "deferred", note: "live remembered-approvals list, per-rule revoke + reset-all (VS-85)" },
-  "R-PERM12": { status: "deferred", note: "rules stored in app config (per-project/global), pure load/merge/save (VS-85)" },
+  "R-PERM1": { status: "unit", tests: ["sidecar-protocol.test.mjs"], note: "classifyToolCall -> 6 categories in desktop/sidecar/permissions.mjs (VS-92)" },
+  "R-PERM2": { status: "unit", tests: ["sidecar-protocol.test.mjs"], note: "classifier is pure over (tool,input,root) — 100% unit (VS-92)" },
+  "R-PERM3": { status: "unit", tests: ["sidecar-protocol.test.mjs"], note: "conservative: ambiguous/off-project reads -> shell; path traversal -> outside (isInProject) (VS-92)" },
+  "R-PERM4": { status: "unit", tests: ["sidecar-protocol.test.mjs"], note: "DEFAULT_POLICY per-category allow/ask lookup (VS-92)" },
+  "R-PERM5": { status: "unit", tests: ["sidecar-protocol.test.mjs"], note: "category rule shape + matchRule honor 'always allow this kind' (VS-92); the prompt UI that writes it is manual" },
+  "R-PERM6": { status: "unit", tests: ["sidecar-protocol.test.mjs"], note: "matchRule: this-project vs everywhere scope + precedence (project beats everywhere, deny beats allow) (VS-92)" },
+  "R-PERM7": { status: "unit", tests: ["sidecar-protocol.test.mjs"], note: "decide: rules first, default only on a miss; canUseTool wiring is host I/O (VS-92)" },
+  "R-PERM8": { status: "unit", tests: ["sidecar-protocol.test.mjs"], note: "deriveAllowedTools from allow-by-default categories, kept in sync (VS-92)" },
+  "R-PERM9": { status: "unit", tests: ["sidecar-protocol.test.mjs"], note: "decide never gates AskUserQuestion (VS-92)" },
+  "R-PERM10": { status: "deferred", note: "Permissions screen plain-language toggles over default policy — UI not built (VS-92)" },
+  "R-PERM11": { status: "deferred", note: "live remembered-approvals list, per-rule revoke + reset-all — UI not built (VS-92)" },
+  "R-PERM12": { status: "deferred", note: "rules stored in app config (per-project/global) — the config store I/O not built (VS-92)" },
 };
 
 // Audit the manifest against the ids actually defined in the docs. Pure: caller

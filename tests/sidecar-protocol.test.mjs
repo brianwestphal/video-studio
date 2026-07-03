@@ -32,6 +32,15 @@ import {
   validateCutPlan,
   isAuthFailure,
 } from "../desktop/sidecar/agent.mjs";
+import {
+  CATEGORIES,
+  DEFAULT_POLICY,
+  isInProject,
+  classifyToolCall,
+  matchRule,
+  decide,
+  deriveAllowedTools,
+} from "../desktop/sidecar/permissions.mjs";
 
 describe("protocol — framing", () => {
   it("frameMessage produces one NDJSON line", () => {
@@ -531,5 +540,123 @@ describe("agent — isAuthFailure", () => {
     expect(isAuthFailure({ kind: "result", ok: true, text: "auth ok" })).toBe(false);
     expect(isAuthFailure({ kind: "assistant" })).toBe(false);
     expect(isAuthFailure(null)).toBe(false);
+  });
+});
+
+const ROOT = "/Users/x/proj";
+
+describe("permissions — isInProject (pure path containment)", () => {
+  it("in-project + exact root are inside", () => {
+    expect(isInProject(`${ROOT}/a/b.json`, ROOT)).toBe(true);
+    expect(isInProject(ROOT, ROOT)).toBe(true);
+  });
+  it("outside + traversal escapes read as outside", () => {
+    expect(isInProject("/etc/passwd", ROOT)).toBe(false);
+    expect(isInProject(`${ROOT}/../secret`, ROOT)).toBe(false); // .. pops back out
+    expect(isInProject("/../etc", "/")).toBe(false); // .. above root is a no-op → "/etc" (root "/")...
+  });
+  it("falsy inputs are outside; relative paths normalize without escaping", () => {
+    expect(isInProject("", ROOT)).toBe(false);
+    expect(isInProject(`${ROOT}/x`, "")).toBe(false);
+    expect(isInProject("../x", "rel")).toBe(false); // leading .. kept (relative)
+    expect(isInProject("../../x", "rel")).toBe(false); // accumulating ..
+  });
+});
+
+describe("permissions — classifyToolCall", () => {
+  it("our pipeline tools + engine commands → media-processing", () => {
+    expect(classifyToolCall("analyze-scenes", {}, ROOT)).toBe(CATEGORIES.MEDIA);
+    expect(classifyToolCall("Bash", { command: "ffmpeg -i a.mp4 out.mp4" }, ROOT)).toBe(CATEGORIES.MEDIA);
+    expect(classifyToolCall("Bash", { command: "/opt/homebrew/bin/ffprobe a.mp4" }, ROOT)).toBe(CATEGORIES.MEDIA);
+    expect(classifyToolCall("Bash", { command: "node /r/dist/analyzer.js clip.mp4" }, ROOT)).toBe(CATEGORIES.MEDIA);
+    expect(classifyToolCall("Bash", { command: "node tools/propose-switches.mjs" }, ROOT)).toBe(CATEGORIES.MEDIA);
+  });
+  it("destructive + egress shell", () => {
+    expect(classifyToolCall("Bash", { command: "rm -rf build" }, ROOT)).toBe(CATEGORIES.DESTRUCTIVE);
+    expect(classifyToolCall("Bash", { command: "echo hi > /etc/hosts" }, ROOT)).toBe(CATEGORIES.DESTRUCTIVE);
+    expect(classifyToolCall("Bash", { command: "mv a b" }, ROOT)).toBe(CATEGORIES.DESTRUCTIVE);
+    expect(classifyToolCall("Bash", { command: "curl https://x.com" }, ROOT)).toBe(CATEGORIES.EGRESS);
+    expect(classifyToolCall("Bash", { command: "git push origin main" }, ROOT)).toBe(CATEGORIES.EGRESS);
+  });
+  it("plain shell + node-non-pipeline + empty command → other-shell", () => {
+    expect(classifyToolCall("Bash", { command: "echo hello" }, ROOT)).toBe(CATEGORIES.SHELL);
+    expect(classifyToolCall("Bash", { command: "node server.js" }, ROOT)).toBe(CATEGORIES.SHELL);
+    expect(classifyToolCall("Bash", {}, ROOT)).toBe(CATEGORIES.SHELL);
+  });
+  it("read tools: in-project → read, outside → other-shell", () => {
+    expect(classifyToolCall("Read", { file_path: `${ROOT}/a.json` }, ROOT)).toBe(CATEGORIES.READ);
+    expect(classifyToolCall("Grep", { path: `${ROOT}/src` }, ROOT)).toBe(CATEGORIES.READ);
+    expect(classifyToolCall("Read", { file_path: "/etc/passwd" }, ROOT)).toBe(CATEGORIES.SHELL);
+    expect(classifyToolCall("Read", null, ROOT)).toBe(CATEGORIES.SHELL); // no path
+  });
+  it("write tools: in-project → write, outside → destructive", () => {
+    expect(classifyToolCall("Write", { file_path: `${ROOT}/out.json` }, ROOT)).toBe(CATEGORIES.WRITE);
+    expect(classifyToolCall("NotebookEdit", { notebook_path: `${ROOT}/n.ipynb` }, ROOT)).toBe(CATEGORIES.WRITE);
+    expect(classifyToolCall("Edit", { path: `${ROOT}/y` }, ROOT)).toBe(CATEGORIES.WRITE); // path fallback
+    expect(classifyToolCall("Write", { file_path: "/tmp/evil" }, ROOT)).toBe(CATEGORIES.DESTRUCTIVE);
+  });
+  it("network tools + unknown tools", () => {
+    expect(classifyToolCall("WebFetch", { url: "x" }, ROOT)).toBe(CATEGORIES.EGRESS);
+    expect(classifyToolCall("Mystery", {}, ROOT)).toBe(CATEGORIES.SHELL);
+    expect(classifyToolCall(null, {}, ROOT)).toBe(CATEGORIES.SHELL);
+  });
+});
+
+describe("permissions — matchRule (scope + precedence)", () => {
+  const rule = (o) => ({ scope: "everywhere", decision: "allow", ...o });
+  it("no rules / non-array → null", () => {
+    expect(matchRule(CATEGORIES.SHELL, ROOT, null)).toBe(null);
+    expect(matchRule(CATEGORIES.SHELL, ROOT, [])).toBe(null);
+  });
+  it("ignores non-matching category, null entries, and other-project scopes", () => {
+    const rules = [null, rule({ category: CATEGORIES.MEDIA }), { category: CATEGORIES.SHELL, scope: "project", project: "/other", decision: "allow" }];
+    expect(matchRule(CATEGORIES.SHELL, ROOT, rules)).toBe(null);
+  });
+  it("everywhere allow/deny; deny beats allow in the same tier", () => {
+    expect(matchRule(CATEGORIES.EGRESS, ROOT, [rule({ category: CATEGORIES.EGRESS })])).toBe("allow");
+    expect(
+      matchRule(CATEGORIES.EGRESS, ROOT, [
+        rule({ category: CATEGORIES.EGRESS, decision: "allow" }),
+        rule({ category: CATEGORIES.EGRESS, decision: "deny" }),
+      ]),
+    ).toBe("deny");
+  });
+  it("a project-scoped rule beats an everywhere rule of the opposite decision", () => {
+    const rules = [
+      rule({ category: CATEGORIES.SHELL, decision: "deny" }), // everywhere deny
+      { category: CATEGORIES.SHELL, scope: "project", project: ROOT, decision: "allow" }, // project allow wins
+    ];
+    expect(matchRule(CATEGORIES.SHELL, ROOT, rules)).toBe("allow");
+  });
+});
+
+describe("permissions — decide (enforcement order)", () => {
+  it("questions are never gated", () => {
+    expect(decide("AskUserQuestion", {}, ROOT, [])).toBe("allow");
+  });
+  it("default policy applies on a rule miss (allow vs ask)", () => {
+    expect(decide("analyze-scenes", {}, ROOT, [])).toBe("allow"); // media allowed
+    expect(decide("Bash", { command: "curl x" }, ROOT, [])).toBe("ask"); // egress asks
+    expect(decide(null, {}, ROOT, [])).toBe("ask"); // unknown → shell → ask
+  });
+  it("a persisted rule short-circuits the default", () => {
+    const rules = [{ category: CATEGORIES.EGRESS, scope: "everywhere", decision: "allow" }];
+    expect(decide("Bash", { command: "curl x" }, ROOT, rules)).toBe("allow");
+    const deny = [{ category: CATEGORIES.MEDIA, scope: "everywhere", decision: "deny" }];
+    expect(decide("analyze-scenes", {}, ROOT, deny)).toBe("deny");
+  });
+});
+
+describe("permissions — deriveAllowedTools", () => {
+  it("default policy pre-approves media + read + write tool names", () => {
+    const allowed = deriveAllowedTools();
+    expect(allowed).toContain("analyze-scenes");
+    expect(allowed).toContain("Read");
+    expect(allowed).toContain("Write");
+    expect(allowed).not.toContain("WebFetch");
+  });
+  it("a policy that asks for a category drops its tools", () => {
+    const policy = { ...DEFAULT_POLICY, [CATEGORIES.READ]: "ask", [CATEGORIES.WRITE]: "ask", [CATEGORIES.MEDIA]: "ask" };
+    expect(deriveAllowedTools(policy)).toEqual([]);
   });
 });
