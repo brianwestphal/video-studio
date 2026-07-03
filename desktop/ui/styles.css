@@ -111,6 +111,10 @@ body {
 }
 .artifact.none { color: var(--muted); font-family: inherit; }
 
+.review-screen { display: flex; flex-direction: column; height: 100%; }
+.review-status { color: var(--muted); font-size: 13px; padding: 12px 0; }
+.review-frame { flex: 1; width: 100%; border: 1px solid var(--line); border-radius: 8px; background: #0d0f13; min-height: 400px; }
+
 .export-cards { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 8px; }
 .export-card {
   flex: 1 1 200px;

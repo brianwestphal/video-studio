@@ -147,6 +147,8 @@ Larger features have their own source-of-truth docs (kept in sync the same way):
   AI agent backend — Claude / Codex / Ollama — structured events → UI, R-CB1–R-CB11, VS-83),
   [`desktop-app-permissions.md`](desktop-app-permissions.md) (app-owned category-based
   permission & safety layer, R-PERM1–R-PERM12, VS-85),
-  and [`desktop-app-export.md`](desktop-app-export.md) (Export lane — MP4 / 9:16 / FCPXML
-  over the shipped exporters + Reveal in Finder, R-EX1–R-EX5, VS-88). Concept + roadmap:
+  [`desktop-app-export.md`](desktop-app-export.md) (Export lane — MP4 / 9:16 / FCPXML
+  over the shipped exporters + Reveal in Finder, R-EX1–R-EX5, VS-88),
+  and [`desktop-app-review.md`](desktop-app-review.md) (Review stage — embed the shipped
+  `review-switches` UI via an iframe, R-RV1–R-RV3, VS-87). Concept + roadmap:
   [`investigations/ui-app.md`](investigations/ui-app.md).

@@ -77,6 +77,7 @@ function renderRail() {
       selectedStage = stage.key;
       renderRail();
       showScreen(stage.key);
+      onEnterScreen(stage.key);
     });
     rail.appendChild(el);
   }
@@ -204,6 +205,39 @@ document.getElementById("run-analyze").addEventListener("click", () => {
     },
   });
 });
+
+// --- Review ---------------------------------------------------------------
+
+// Start (or reuse) the review server for the current project and point the iframe at it.
+function startReview() {
+  const status = document.getElementById("review-status");
+  const frame = document.getElementById("review-frame");
+  if (!currentProject) {
+    status.hidden = false;
+    frame.hidden = true;
+    status.textContent = "Open a project first (New Project).";
+    return;
+  }
+  status.hidden = false;
+  status.textContent = "Starting the review UI…";
+  frame.hidden = true;
+  send("review-start", { folder: currentProject.folder }, {
+    onResult: (data) => {
+      frame.src = data.url;
+      frame.hidden = false;
+      status.hidden = true;
+    },
+    onError: (e) => {
+      status.hidden = false;
+      status.textContent = e.message;
+    },
+  });
+}
+
+// Per-screen entry hook (currently only Review needs one).
+function onEnterScreen(key) {
+  if (key === "review") startReview();
+}
 
 // --- Export ---------------------------------------------------------------
 

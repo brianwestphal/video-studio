@@ -18,6 +18,8 @@ import {
   STEP_REGISTRY,
   EXPORT_KINDS,
   exportCommand,
+  reviewCommand,
+  parseReviewUrl,
 } from "../desktop/sidecar/steps.mjs";
 import { DOCTOR_TOOLS, doctorResultFromChecks } from "../desktop/sidecar/doctor.mjs";
 import {
@@ -340,6 +342,37 @@ describe("steps — exportCommand", () => {
       expect(exportCommand(kind, "/p").outPath).toContain("/p/exports/");
     }
     expect(() => exportCommand("nope", "/p")).toThrow(/unknown export kind/);
+  });
+});
+
+describe("steps — reviewCommand + parseReviewUrl", () => {
+  it("builds the review server argv (default port, no optional artifacts)", () => {
+    expect(reviewCommand("/proj")).toEqual({
+      tool: "review",
+      args: ["/proj/multicam.json", "--switches", "/proj/switches.json", "--no-open", "--port", "8777"],
+    });
+  });
+  it("includes audio-events + saliency + a custom port when given", () => {
+    const c = reviewCommand("/proj", { hasAudioEvents: true, hasSaliency: true, port: 9000 });
+    expect(c.args).toEqual([
+      "/proj/multicam.json",
+      "--switches",
+      "/proj/switches.json",
+      "--no-open",
+      "--port",
+      "9000",
+      "--audio-events",
+      "/proj/audio-events.json",
+      "--saliency",
+      "/proj/saliency.json",
+    ]);
+  });
+  it("parseReviewUrl extracts the URL from the startup line, else null", () => {
+    expect(parseReviewUrl("Review UI at http://127.0.0.1:8777/ — pick angles for 3 cut(s)…")).toBe(
+      "http://127.0.0.1:8777/",
+    );
+    expect(parseReviewUrl("some other line")).toBe(null);
+    expect(parseReviewUrl(null)).toBe(null);
   });
 });
 

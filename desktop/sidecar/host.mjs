@@ -25,7 +25,7 @@ import {
   validateRequest,
   MESSAGE_TYPES,
 } from "./protocol.mjs";
-import { STEP_REGISTRY, toolArgv, exportCommand, genericProgress } from "./steps.mjs";
+import { STEP_REGISTRY, toolArgv, exportCommand, genericProgress, reviewCommand, parseReviewUrl } from "./steps.mjs";
 import { DOCTOR_TOOLS, doctorResultFromChecks } from "./doctor.mjs";
 import {
   PROJECT_STATE_DIR,
@@ -257,6 +257,65 @@ function runExport(id, kind, folder) {
 
 const EXPORT_STEPS = { "export-mp4": "mp4", "export-social": "social", "export-fcpxml": "fcpxml" };
 
+// The review UI is a long-lived local server (tools/review-switches.mjs) the webview iframes
+// (R-RV1). It lives OUTSIDE `inflight` — it must survive across requests until review-stop or
+// host exit, not be killed by the per-request close handler.
+let reviewServer = null; // { child, url }
+
+function runReviewStart(id, folder) {
+  if (reviewServer) {
+    send(resultMessage(id, { url: reviewServer.url }));
+    return;
+  }
+  if (!fs.existsSync(path.join(folder, "switches.json")) || !fs.existsSync(path.join(folder, "multicam.json"))) {
+    send(errorMessage(id, ERROR_CODES.STEP_FAILED, "review needs multicam.json + a reviewed cut (switches.json)"));
+    return;
+  }
+  const { tool, args } = reviewCommand(folder, {
+    hasAudioEvents: fs.existsSync(path.join(folder, "audio-events.json")),
+    hasSaliency: fs.existsSync(path.join(folder, "saliency.json")),
+  });
+  const [cmd, entry] = toolArgv(tool, REPO_ROOT);
+  const child = spawn(cmd, [entry, ...args], { cwd: REPO_ROOT });
+  let answered = false;
+
+  let buffer = "";
+  child.stdout.on("data", (chunk) => {
+    buffer += chunk.toString();
+    const parts = buffer.split("\n");
+    buffer = parts.pop() ?? "";
+    for (const line of parts) {
+      const url = parseReviewUrl(line);
+      if (url && !answered) {
+        answered = true;
+        reviewServer = { child, url };
+        send(resultMessage(id, { url }));
+      }
+    }
+  });
+  child.on("error", (err) => {
+    if (!answered) {
+      answered = true;
+      send(errorMessage(id, ERROR_CODES.STEP_FAILED, `review server failed: ${err.message}`));
+    }
+  });
+  child.on("close", (code) => {
+    if (reviewServer && reviewServer.child === child) reviewServer = null;
+    if (!answered) {
+      answered = true;
+      send(errorMessage(id, ERROR_CODES.STEP_FAILED, `review server exited (code ${code}) before it was ready`));
+    }
+  });
+}
+
+function runReviewStop(id) {
+  if (reviewServer) {
+    reviewServer.child.kill("SIGTERM");
+    reviewServer = null;
+  }
+  send(resultMessage(id, { stopped: true }));
+}
+
 function handle(decoded) {
   // The doctor + project + config + export steps are handled here (not via the registry):
   // doctor is a fan-out of probes; the others are filesystem/tool orchestration around the
@@ -295,6 +354,17 @@ function handle(decoded) {
       }
       return;
     }
+    if (decoded.step === "review-start") {
+      if (id !== null) {
+        if (params.folder) runReviewStart(id, params.folder);
+        else send(errorMessage(id, ERROR_CODES.MISSING_PARAM, "review-start requires param: folder"));
+      }
+      return;
+    }
+    if (decoded.step === "review-stop") {
+      if (id !== null) runReviewStop(id);
+      return;
+    }
   }
   const v = validateRequest(decoded, STEP_REGISTRY);
   if (!v.ok) {
@@ -322,6 +392,7 @@ process.stdin.on("data", (chunk) => {
 });
 process.stdin.on("end", () => {
   for (const child of inflight.values()) child.kill("SIGTERM");
+  if (reviewServer) reviewServer.child.kill("SIGTERM");
 });
 
 send(readyMessage());

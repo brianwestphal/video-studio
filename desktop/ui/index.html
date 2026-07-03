@@ -61,6 +61,16 @@
           <pre class="log" id="analyze-log" aria-live="polite"></pre>
         </section>
 
+        <!-- Review / Edit -->
+        <section class="screen review-screen" data-screen="review" hidden>
+          <header class="screen-head">
+            <h1>Review &amp; Edit</h1>
+            <p class="sub">The synced multi-angle player + timeline. Flagged "needs a look" cuts come first; pick angles, split, then Save.</p>
+          </header>
+          <div class="review-status" id="review-status">Open a project with a cut (switches.json) to review.</div>
+          <iframe class="review-frame" id="review-frame" hidden title="Review UI"></iframe>
+        </section>
+
         <!-- Export -->
         <section class="screen" data-screen="export" hidden>
           <header class="screen-head">

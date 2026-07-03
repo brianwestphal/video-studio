@@ -233,6 +233,12 @@ export const REQUIREMENT_COVERAGE = {
   "R-APP17": { status: "manual", note: "Setup shows missing-tool install hints (§15.2); stage-gating + one-click install deferred to project model + VS-89 (VS-90)" },
   "R-APP18": { status: "unit", tests: ["sidecar-protocol.test.mjs"], note: "app-global config shape + tolerant parseConfig + transforms — desktop/sidecar/config.mjs (VS-90/92); the file read/write under Application Support is host I/O" },
 
+  // Desktop app — Review stage (docs/desktop-app-review.md, VS-87). reviewCommand +
+  // parseReviewUrl are pure + unit-tested; the server spawn + iframe embed are I/O/GUI.
+  "R-RV1": { status: "unit", tests: ["sidecar-protocol.test.mjs"], note: "reviewCommand argv + parseReviewUrl URL capture (desktop/sidecar/steps.mjs); review-start/-stop long-lived server spawn is host I/O — manual §15.12 (VS-87)" },
+  "R-RV2": { status: "manual", note: "Review stage iframes the review server URL; auto-start on enter, prompt when no cut (manual-test-plan §15.12) (VS-87)" },
+  "R-RV3": { status: "review", note: "flagged-first + switches.json write-back are the shipped review UI's behavior (R-RUI2/R-AC7); the stage is glue (VS-87)" },
+
   // Desktop app — Export lane (docs/desktop-app-export.md, VS-88). exportCommand is pure +
   // unit-tested; the ffmpeg render + Reveal-in-Finder + the screen are manual.
   "R-EX1": { status: "manual", note: "3 outcomes (mp4/social/fcpxml) over shipped exporters via export-* host steps + Export screen (manual-test-plan §15.10) (VS-88)" },

@@ -33,7 +33,7 @@ import { applyReview, candidateAngles, reviewSegments, splitSwitch } from "./rev
 import { sourceTime } from "./visual-saliency.mjs";
 
 function parseArgs(argv) {
-  const o = { file: undefined, switches: undefined, group: undefined, audioEvents: undefined, saliency: undefined, contextSeconds: 2, port: 8777, all: false };
+  const o = { file: undefined, switches: undefined, group: undefined, audioEvents: undefined, saliency: undefined, contextSeconds: 2, port: 8777, all: false, open: true };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--switches") o.switches = argv[++i];
@@ -43,7 +43,8 @@ function parseArgs(argv) {
     else if (a === "--context") o.contextSeconds = Number(argv[++i]);
     else if (a === "--port") o.port = Number(argv[++i]);
     else if (a === "--all") o.all = true;
-    else if (a === "-h" || a === "--help") { console.log("Usage: review-switches <multicam.json> --switches <switches.json> [--group id] [--audio-events p] [--saliency p] [--context s] [--port n] [--all]"); process.exit(0); }
+    else if (a === "--no-open") o.open = false;
+    else if (a === "-h" || a === "--help") { console.log("Usage: review-switches <multicam.json> --switches <switches.json> [--group id] [--audio-events p] [--saliency p] [--context s] [--port n] [--all] [--no-open]"); process.exit(0); }
     else if (a.startsWith("-")) { console.error(`Unknown option: ${a}`); process.exit(2); }
     else o.file = a;
   }
@@ -530,8 +531,10 @@ function main() {
   server.listen(opts.port, "127.0.0.1", () => {
     const url = `http://127.0.0.1:${opts.port}/`;
     console.log(`Review UI at ${url} — pick angles for ${segments.length} flagged cut(s)${canRepropose ? ", re-propose, " : ", "}then Save. Ctrl-C to quit.`);
-    const opener = process.platform === "darwin" ? "open" : "xdg-open";
-    try { spawn(opener, [url], { stdio: "ignore", detached: true }).unref(); } catch { /* headless: the URL is printed above */ }
+    if (opts.open) {
+      const opener = process.platform === "darwin" ? "open" : "xdg-open";
+      try { spawn(opener, [url], { stdio: "ignore", detached: true }).unref(); } catch { /* headless: the URL is printed above */ }
+    }
   });
   process.on("SIGINT", () => { rmSync(tmp, { recursive: true, force: true }); process.exit(0); });
 }

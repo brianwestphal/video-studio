@@ -18,7 +18,35 @@ export const TOOL_PATHS = Object.freeze({
   sources: "tools/analyze-sources.mjs",
   "render-preview": "tools/render-multicam-preview.mjs",
   fcpxml: "tools/export-multicam-fcpxml.mjs",
+  review: "tools/review-switches.mjs",
 });
+
+// Default port for the embedded review server (matches review-switches' default).
+export const REVIEW_PORT = 8777;
+
+// Build the argv to launch the review UI server for a project (R-RV1). Pure. The host
+// spawns it long-lived with --no-open and reads the URL back (parseReviewUrl). Optional
+// artifacts (audio-events/saliency) enable the re-propose feature when present.
+export function reviewCommand(folder, { hasAudioEvents = false, hasSaliency = false, port = REVIEW_PORT } = {}) {
+  const args = [
+    path.join(folder, "multicam.json"),
+    "--switches",
+    path.join(folder, "switches.json"),
+    "--no-open",
+    "--port",
+    String(port),
+  ];
+  if (hasAudioEvents) args.push("--audio-events", path.join(folder, "audio-events.json"));
+  if (hasSaliency) args.push("--saliency", path.join(folder, "saliency.json"));
+  return { tool: "review", args };
+}
+
+// Extract the server URL from review-switches' startup line ("Review UI at http://…").
+// Returns the URL or null. Pure.
+export function parseReviewUrl(line) {
+  const m = /Review UI at (http:\/\/\S+)/.exec(String(line ?? ""));
+  return m ? m[1] : null;
+}
 
 // Resolve a logical tool key to a concrete `["node", <abs entry>]` argv prefix.
 // Pure: path.join does no I/O. Throws on an unknown tool so a bad step descriptor
