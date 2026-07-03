@@ -12,10 +12,13 @@ Design background + the phased roadmap live in
 [`investigations/ui-app.md`](investigations/ui-app.md); the seven-screen visual deck is
 [`investigations/ui-app-wireframe.html`](investigations/ui-app-wireframe.html) (VS-78).
 
-Status: **Mostly design** — the **Node sidecar protocol core is built** (VS-90:
-`desktop/sidecar/protocol.mjs` + `steps.mjs`, R-APP12/13, unit-tested to 100%); the native
-Tauri shell, project model, stage nav, and doctor screen remain. Requirements are the
-source of truth for the rest of the build (VS-90 shell → the screen tickets).
+Status: **Partial** — the **native Tauri shell is scaffolded** (VS-79/VS-90): `desktop/src-tauri`
+(Rust) spawns the Node sidecar and streams its events to a vanilla webview (`desktop/ui`) with
+the stage rail (R-APP5/6), a Setup/doctor screen (R-APP16/17), and an Analyze screen that runs
+`analyze-scenes` with live streamed progress. The sidecar protocol/steps/doctor cores
+(`desktop/sidecar/*.mjs`, R-APP12/13/16/17) are unit-tested to 100%. **Remaining:** the persisted
+project model (R-APP8–10), the New Project / Design / Review / Export screens, and packaging.
+Run the app with `npm run desktop:dev`.
 
 ## 1. Concept
 
@@ -59,11 +62,13 @@ works with no agent at all. **Both lanes ship in the MVP** (maintainer decision,
 
 ## 3. Stage navigation & shell chrome
 
-- **R-APP5** The window shows a **left stage rail** with the six stages in order:
-  **Setup, New Project, Analyze, Design, Review/Edit, Export** (matching the wireframe).
-- **R-APP6** Each stage carries a **visual state**: `done` (artifact present + valid),
-  `active` (current), or `locked` (its prerequisites are not met yet). A locked stage is
-  not selectable; selecting an available stage swaps the main panel to that screen.
+- **R-APP5** *(built — `desktop/ui`)* The window shows a **left stage rail** with the six
+  stages in order: **Setup, New Project, Analyze, Design, Review/Edit, Export** (matching the
+  wireframe).
+- **R-APP6** *(partial — `desktop/ui`)* Each stage carries a **visual state**: `active`
+  (current) or `locked` (not wired yet — not selectable); the full `done` (artifact present +
+  valid) derivation lands with the project model (R-APP7–10). Selecting an available stage
+  swaps the main panel to that screen.
 - **R-APP7** Stage state is **derived from the project's artifacts** (§4), not stored
   independently — e.g. Analyze is `done` when the scene timeline + audio-events artifacts
   exist for the current sources, Review is `locked` until a cut (`switches.json`) exists.
@@ -119,17 +124,18 @@ works with no agent at all. **Both lanes ship in the MVP** (maintainer decision,
 
 ## 6. Setup / doctor screen
 
-- **R-APP16** The Setup screen **reuses the launcher's tool checks** (`checkTools` in
-  `bin/video-studio.mjs`) to show green/red status for the engine tools (ffmpeg, ffprobe,
-  whisper, ollama), the **Node runtime** (R-APP1a), and the **selected AI agent backend**
-  (Claude / Codex / Ollama, per [`desktop-app-agent-bridge.md`](desktop-app-agent-bridge.md)),
-  with the same honesty about the heavy external deps.
-- **R-APP17** Consistent with **assume-nothing** (R-APP1a), a missing dependency is never a
-  silent failure: the screen **detects and guides** — offering an install path (Homebrew
-  where applicable, or the packaged app's guided install, VS-89) and blocking the stages
-  that need it with a plain-language reason. Ollama is optional (R2.4); the **AI agent is
-  optional** (Auto lane only — the Manual lane needs none); a missing *required* engine tool
-  (ffmpeg/whisper) blocks Analyze/Export and says so.
+- **R-APP16** *(built — `desktop/sidecar/doctor.mjs` + the Setup screen)* The Setup screen
+  probes tool presence (the `doctor` sidecar step) and shows green/red status for the engine
+  tools (ffmpeg, ffprobe, whisper, ollama), the **Node runtime** (R-APP1a), and the AI agent
+  (Claude; Codex/Ollama per [`desktop-app-agent-bridge.md`](desktop-app-agent-bridge.md)),
+  with the same honesty about the heavy external deps. The rows + readiness verdict
+  (`doctorResultFromChecks`) are pure + 100% unit-tested.
+- **R-APP17** *(partial)* Consistent with **assume-nothing** (R-APP1a), a missing dependency
+  is never a silent failure: the Setup screen shows each missing tool with a plain-language
+  **install hint**. Full stage-gating (blocking Analyze/Export on a missing *required* engine
+  tool) + the one-click install path (Homebrew / the packaged app's guided install, VS-89)
+  land with the project model + packaging. Ollama is optional (R2.4); the **AI agent is
+  optional** (Auto lane only — the Manual lane needs none).
 
 ## 7. App-global config
 

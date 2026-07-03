@@ -17,6 +17,7 @@ import {
   genericProgress,
   STEP_REGISTRY,
 } from "../desktop/sidecar/steps.mjs";
+import { DOCTOR_TOOLS, doctorResultFromChecks } from "../desktop/sidecar/doctor.mjs";
 
 describe("protocol — framing", () => {
   it("frameMessage produces one NDJSON line", () => {
@@ -264,5 +265,48 @@ describe("steps — buildCommand descriptors", () => {
   it("each step exposes a progress parser", () => {
     expect(STEP_REGISTRY["analyze-scenes"].parseProgress).toBe(parseAnalyzerProgress);
     expect(STEP_REGISTRY["analyze-audio-events"].parseProgress).toBe(genericProgress);
+  });
+});
+
+describe("doctor — doctorResultFromChecks", () => {
+  it("all tools found → ready, no missing", () => {
+    const found = Object.fromEntries(DOCTOR_TOOLS.map((t) => [t.key, true]));
+    const r = doctorResultFromChecks(found);
+    expect(r.ready).toBe(true);
+    expect(r.missingRequired).toEqual([]);
+    expect(r.rows.every((row) => row.status === "ok")).toBe(true);
+    expect(r.rows).toHaveLength(DOCTOR_TOOLS.length);
+  });
+
+  it("a missing required tool → not ready and listed", () => {
+    const found = Object.fromEntries(DOCTOR_TOOLS.map((t) => [t.key, t.key !== "ffmpeg"]));
+    const r = doctorResultFromChecks(found);
+    expect(r.ready).toBe(false);
+    expect(r.missingRequired).toEqual(["ffmpeg"]);
+    expect(r.rows.find((row) => row.key === "ffmpeg").status).toBe("missing-required");
+  });
+
+  it("a missing optional tool → still ready, status missing-optional", () => {
+    const found = Object.fromEntries(DOCTOR_TOOLS.map((t) => [t.key, t.key !== "ollama"]));
+    const r = doctorResultFromChecks(found);
+    expect(r.ready).toBe(true);
+    expect(r.rows.find((row) => row.key === "ollama").status).toBe("missing-optional");
+  });
+
+  it("nullish / non-object checks → everything missing", () => {
+    const r = doctorResultFromChecks(null);
+    expect(r.ready).toBe(false);
+    expect(r.rows.every((row) => row.found === false)).toBe(true);
+    // required tools show up as missing-required
+    expect(r.missingRequired).toEqual(DOCTOR_TOOLS.filter((t) => t.required).map((t) => t.key));
+  });
+
+  it("accepts a custom tool list", () => {
+    const tools = [{ key: "x", label: "X", required: true, hint: "h" }];
+    expect(doctorResultFromChecks({ x: true }, tools)).toEqual({
+      ready: true,
+      missingRequired: [],
+      rows: [{ key: "x", label: "X", required: true, hint: "h", found: true, status: "ok" }],
+    });
   });
 });

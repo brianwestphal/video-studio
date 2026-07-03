@@ -24,6 +24,7 @@ import {
   MESSAGE_TYPES,
 } from "./protocol.mjs";
 import { STEP_REGISTRY, toolArgv } from "./steps.mjs";
+import { DOCTOR_TOOLS, doctorResultFromChecks } from "./doctor.mjs";
 
 // The repo root is two levels up from desktop/sidecar/. The app lives in a subdir
 // of this repo (settled), so the pipeline tools sit alongside at ../../.
@@ -74,7 +75,36 @@ function runStep({ id, step, params }) {
   });
 }
 
+// Doctor is not a single-tool spawn — it probes each dependency with `which` and
+// summarizes via the pure doctorResultFromChecks. It sidesteps the step registry.
+function runDoctor(id) {
+  const found = {};
+  let pending = DOCTOR_TOOLS.length;
+  const finish = () => {
+    if (--pending === 0) send(resultMessage(id, doctorResultFromChecks(found)));
+  };
+  for (const tool of DOCTOR_TOOLS) {
+    const probe = spawn("which", [tool.key]);
+    probe.on("error", () => {
+      found[tool.key] = false;
+      finish();
+    });
+    probe.on("close", (code) => {
+      found[tool.key] = code === 0;
+      finish();
+    });
+  }
+}
+
 function handle(decoded) {
+  // The doctor step is handled here (not via the registry) — it's a fan-out of
+  // probes, not one child process.
+  if (decoded && typeof decoded === "object" && decoded.type === MESSAGE_TYPES.REQUEST && decoded.step === "doctor") {
+    const id = typeof decoded.id === "string" || Number.isFinite(decoded.id) ? decoded.id : null;
+    if (id === null) return;
+    runDoctor(id);
+    return;
+  }
   const v = validateRequest(decoded, STEP_REGISTRY);
   if (!v.ok) {
     if (v.id !== null) send(errorMessage(v.id, v.code, v.message));

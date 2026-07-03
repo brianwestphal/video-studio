@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Video Studio</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app">
+      <nav class="rail" id="rail" aria-label="Pipeline stages"></nav>
+
+      <main class="panel">
+        <!-- Setup / doctor -->
+        <section class="screen" data-screen="setup">
+          <header class="screen-head">
+            <h1>Setup</h1>
+            <p class="sub">video-studio runs external tools. This checks what's installed — nothing is assumed.</p>
+          </header>
+          <button class="btn" id="run-doctor">Check tools</button>
+          <ul class="doctor" id="doctor-rows"></ul>
+        </section>
+
+        <!-- Analyze -->
+        <section class="screen" data-screen="analyze" hidden>
+          <header class="screen-head">
+            <h1>Analyze</h1>
+            <p class="sub">Open a video and run frame-accurate scene detection with live progress.</p>
+          </header>
+          <div class="row">
+            <button class="btn" id="open-video">Open video…</button>
+            <span class="path" id="video-path">No video selected</span>
+          </div>
+          <div class="row">
+            <button class="btn primary" id="run-analyze" disabled>Analyze scenes</button>
+          </div>
+          <div class="progress" id="analyze-progress" hidden>
+            <div class="bar"><div class="bar-fill" id="analyze-bar"></div></div>
+            <div class="stage-label" id="analyze-stage"></div>
+          </div>
+          <pre class="log" id="analyze-log" aria-live="polite"></pre>
+        </section>
+      </main>
+    </div>
+    <script src="app.js"></script>
+  </body>
+</html>

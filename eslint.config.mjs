@@ -78,6 +78,22 @@ export default [
     },
   },
 
+  // The desktop app's webview frontend — browser globals (window, document) +
+  // the injected Tauri API. Vanilla JS, no framework.
+  {
+    files: ["desktop/ui/**/*.js"],
+    languageOptions: {
+      ecmaVersion: "latest",
+      sourceType: "script",
+      globals: { ...globals.browser },
+    },
+    plugins: { "simple-import-sort": simpleImportSort },
+    rules: {
+      "no-unused-vars": ["error", { argsIgnorePattern: "^_", varsIgnorePattern: "^_" }],
+      "no-console": "off",
+    },
+  },
+
   {
     ignores: [
       "dist/**",

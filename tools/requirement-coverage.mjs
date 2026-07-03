@@ -218,9 +218,9 @@ export const REQUIREMENT_COVERAGE = {
   "R-APP2": { status: "deferred", note: "Rust shell spawns long-lived Node sidecar over typed stdio protocol (VS-80)" },
   "R-APP3": { status: "deferred", note: "reuse existing pipeline as-is, no engine fork (VS-80)" },
   "R-APP4": { status: "deferred", note: "macOS-only to start; Tauri leaves cross-platform open (VS-80)" },
-  "R-APP5": { status: "deferred", note: "left stage rail: Setup/New Project/Analyze/Design/Review/Export (VS-80)" },
-  "R-APP6": { status: "deferred", note: "per-stage done/active/locked state (VS-80)" },
-  "R-APP7": { status: "deferred", note: "stage state = pure fn of project state + artifact presence (VS-80)" },
+  "R-APP5": { status: "manual", note: "left stage rail in desktop/ui — GUI (manual-test-plan §15.1) (VS-79/90)" },
+  "R-APP6": { status: "manual", note: "active/locked stage state in desktop/ui; full done-derivation pending project model (manual §15.1) (VS-90)" },
+  "R-APP7": { status: "deferred", note: "stage state = pure fn of project state + artifact presence (VS-90)" },
   "R-APP8": { status: "deferred", note: "Project = footage folder + per-project state file tracking artifacts (VS-80)" },
   "R-APP9": { status: "deferred", note: "create/open/recent projects (VS-80)" },
   "R-APP10": { status: "deferred", note: "filesystem is source of truth; pure reconcile of state vs readdir (VS-80)" },
@@ -229,8 +229,8 @@ export const REQUIREMENT_COVERAGE = {
   "R-APP13": { status: "unit", tests: ["sidecar-protocol.test.mjs"], note: "pure step registry: buildCommand descriptors + analyzer progress parser — desktop/sidecar/steps.mjs (VS-90); child-process spawn in host.mjs is manual" },
   "R-APP14": { status: "deferred", note: "cancellable, serialized-per-project mutating steps; atomic-write safe (VS-80)" },
   "R-APP15": { status: "deferred", note: "observable host lifecycle; in-flight failure surfaces + retryable (VS-80)" },
-  "R-APP16": { status: "deferred", note: "Setup screen reuses launcher checkTools (VS-80)" },
-  "R-APP17": { status: "deferred", note: "Homebrew install guidance; full first-run dep UX deferred to VS-89 (VS-80)" },
+  "R-APP16": { status: "unit", tests: ["sidecar-protocol.test.mjs"], note: "doctorResultFromChecks (rows + readiness) in desktop/sidecar/doctor.mjs (VS-79/90); the `which` probes + Setup rendering are manual (§14.7/§15.2)" },
+  "R-APP17": { status: "manual", note: "Setup shows missing-tool install hints (§15.2); stage-gating + one-click install deferred to project model + VS-89 (VS-90)" },
   "R-APP18": { status: "deferred", note: "app-global config (recent projects + VS-85 rules) separate from projects + Claude settings (VS-80)" },
 
   // Desktop app — pluggable AI agent control bridge (docs/desktop-app-agent-bridge.md, VS-83).

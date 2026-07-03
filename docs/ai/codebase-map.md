@@ -55,12 +55,16 @@ and [`requirements-summary.md`](requirements-summary.md) for status.
 │   ├── requirement-coverage.mjs # pure: requirement-index extraction + the feature-coverage manifest + audit (unit-tested, VS-58)
 │   ├── launcher-plan.mjs       # pure: analyzerPrepPlan — decide whether the launcher npm-installs / rebuilds from {hasDist,hasRuntimeDeps,hasToolchain}; never rebuild for an installed consumer (prebuilt dist, no TS devDeps) (unit-tested, VS-77)
 │   └── check-features.mjs      # feature/requirement coverage report + gate (I/O over requirement-coverage.mjs); `npm run check:features`
-├── desktop/                    # desktop app (VS-76) — Tauri shell over the pipeline; subdir of this repo
-│   ├── README.md               # what's built (sidecar core) vs deferred (native Tauri shell)
-│   └── sidecar/
-│       ├── protocol.mjs        # pure: NDJSON request/stream protocol — framing + validateRequest + constructors (R-APP12, 100% unit)
-│       ├── steps.mjs           # pure: step registry — buildCommand descriptors + analyzer progress parser (R-APP13, 100% unit)
-│       └── host.mjs            # I/O edge: stdin loop → spawn tool → stream progress → result/error (manual, test-plan §14)
+├── desktop/                    # desktop app (VS-76) — Tauri shell over the pipeline; subdir of this repo. `npm run desktop:dev`
+│   ├── README.md               # layout + how to run (dev) + what's built vs deferred
+│   ├── sidecar/
+│   │   ├── protocol.mjs        # pure: NDJSON request/stream protocol — framing + validateRequest + constructors (R-APP12, 100% unit)
+│   │   ├── steps.mjs           # pure: step registry — buildCommand descriptors + analyzer progress parser (R-APP13, 100% unit)
+│   │   ├── doctor.mjs          # pure: tool list + doctorResultFromChecks for the Setup screen (R-APP16/17, 100% unit)
+│   │   └── host.mjs            # I/O edge: stdin loop → spawn tool / `which` probes → stream progress → result/error (manual, test-plan §14)
+│   ├── src-tauri/              # native Rust shell: lib.rs spawns host.mjs, streams stdout as `sidecar` events, sidecar_send + open_video commands
+│   │   ├── src/{main,lib}.rs   #   (Cargo.toml, build.rs, tauri.conf.json, capabilities/default.json, icons/)
+│   └── ui/                     # vanilla webview frontend (frontendDist): index.html + app.js + styles.css — stage rail + Setup/Analyze screens (R-APP5/6)
 ├── skills/
 │   └── video-studio/SKILL.md   # the pipeline Claude follows — primary interface
 ├── tests/
