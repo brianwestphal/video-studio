@@ -44,19 +44,32 @@ fn sidecar_send(state: tauri::State<Sidecar>, payload: String) -> Result<(), Str
 }
 
 // Native "open a video" file dialog. Returns the chosen path, or None if cancelled.
+// Runs the blocking picker OFF the main thread (spawn_blocking) — a blocking dialog on the
+// main thread deadlocks the event loop the dialog needs to render, freezing the app.
 #[tauri::command]
-fn open_video(app: tauri::AppHandle) -> Option<String> {
-    app.dialog()
-        .file()
-        .add_filter("Video", &["mp4", "mov", "m4v", "mkv", "webm", "avi"])
-        .blocking_pick_file()
-        .map(|p| p.to_string())
+async fn open_video(app: tauri::AppHandle) -> Option<String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        app.dialog()
+            .file()
+            .add_filter("Video", &["mp4", "mov", "m4v", "mkv", "webm", "avi"])
+            .blocking_pick_file()
+            .map(|p| p.to_string())
+    })
+    .await
+    .ok()
+    .flatten()
 }
 
-// Native "choose a project folder" dialog. Returns the chosen directory, or None.
+// Native "choose a project folder" dialog. Returns the chosen directory, or None. Same
+// off-the-main-thread pattern as open_video (see the note there).
 #[tauri::command]
-fn open_folder(app: tauri::AppHandle) -> Option<String> {
-    app.dialog().file().blocking_pick_folder().map(|p| p.to_string())
+async fn open_folder(app: tauri::AppHandle) -> Option<String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        app.dialog().file().blocking_pick_folder().map(|p| p.to_string())
+    })
+    .await
+    .ok()
+    .flatten()
 }
 
 // Reveal a finished file in Finder (select it), the macOS `open -R <path>`.
