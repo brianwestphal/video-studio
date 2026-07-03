@@ -18,6 +18,7 @@ export const ARTIFACTS = Object.freeze({
   saliency: "saliency.json",
   switches: "switches.json",
   switchesHistory: "switches.history.json",
+  cut: "cut.json", // single-source cut spec (export-project input)
   exports: "exports",
 });
 
@@ -28,8 +29,10 @@ export const STAGES = Object.freeze([
   { key: "setup", label: "Setup", requires: null, doneWhen: () => false },
   { key: "new-project", label: "New Project", requires: null, doneWhen: (a) => a.has("sources") || a.has("multicam") },
   { key: "analyze", label: "Analyze", requires: "new-project", doneWhen: (a) => a.has("audioEvents") },
-  { key: "design", label: "Design", requires: "analyze", doneWhen: (a) => a.has("switches") },
-  { key: "review", label: "Review", requires: "design", doneWhen: (a) => a.has("switchesHistory") },
+  // Design produces a cut: switches.json (multi-cam) or cut.json (single-source).
+  { key: "design", label: "Design", requires: "analyze", doneWhen: (a) => a.has("switches") || a.has("cut") },
+  // Review: multi-cam records a history; a single-source cut needs no separate review pass.
+  { key: "review", label: "Review", requires: "design", doneWhen: (a) => a.has("switchesHistory") || a.has("cut") },
   { key: "export", label: "Export", requires: "review", doneWhen: (a) => a.has("exports") },
 ]);
 

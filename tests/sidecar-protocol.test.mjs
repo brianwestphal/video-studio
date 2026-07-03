@@ -40,6 +40,7 @@ import {
   validateCutPlan,
   isAuthFailure,
 } from "../desktop/sidecar/agent.mjs";
+import { CUT_TARGETS, proposeCutSpec } from "../desktop/sidecar/cutspec.mjs";
 import {
   CATEGORIES,
   DEFAULT_POLICY,
@@ -538,6 +539,13 @@ describe("project — deriveStages", () => {
     expect(st.setup).toBe("active"); // fell back
   });
 
+  it("a single-source cut.json satisfies both Design and Review; Export unlocks", () => {
+    const st = byKey(deriveStages(new Set(["sources", "audioEvents", "cut"]), "setup"));
+    expect(st.design).toBe("done");
+    expect(st.review).toBe("done");
+    expect(st.export).toBe("idle"); // reachable, no export artifact yet
+  });
+
   it("full pipeline: every stage done except the never-done setup", () => {
     const all = new Set(["sources", "audioEvents", "switches", "switchesHistory", "exports"]);
     const st = byKey(deriveStages(all, null));
@@ -680,6 +688,69 @@ describe("agent — validateCutPlan", () => {
     expect(
       validateCutPlan({ switches: [{ atSeconds: 5, memberId: "b" }, { atSeconds: 1, memberId: "a" }], extra: 1 }),
     ).toEqual({ ok: true, plan: { switches: [{ atSeconds: 1, memberId: "a" }, { atSeconds: 5, memberId: "b" }] } });
+  });
+});
+
+describe("cutspec — proposeCutSpec", () => {
+  const mkSources = (n, dur, { id = "clip" } = {}) => ({
+    sources: [{ id, path: "/v.mp4", fps: 24, width: 1920, height: 1080 }],
+    scenes: Array.from({ length: n }, (_, i) => ({
+      sourceId: id,
+      startSeconds: i * dur,
+      endSeconds: i * dur + dur,
+    })),
+  });
+
+  it("throws when there are no sources or no scenes", () => {
+    expect(() => proposeCutSpec(null)).toThrow(/no analyzed scenes/);
+    expect(() => proposeCutSpec({ sources: [], scenes: [] })).toThrow(/no analyzed scenes/);
+    expect(() => proposeCutSpec({ sources: [{ id: "a", path: "/v", fps: 24, width: 2, height: 2 }], scenes: [] })).toThrow();
+    expect(() => proposeCutSpec({ scenes: [{ sourceId: "a", startSeconds: 0, endSeconds: 3 }] })).toThrow();
+  });
+
+  it("kind 'full' keeps every scene whole", () => {
+    const spec = proposeCutSpec(mkSources(3, 5), { kind: "full" });
+    expect(spec.project).toEqual({ fps: 24, width: 1920, height: 1080, name: "full" });
+    expect(spec.clips).toHaveLength(3);
+    expect(spec.clips[0]).toEqual({ source: "/v.mp4", in: 0, out: 5, audio: "keep" });
+    expect(spec.clips[2]).toMatchObject({ in: 10, out: 15 });
+  });
+
+  it("a named kind makes a spread montage capped at the target + maxClipSeconds", () => {
+    const spec = proposeCutSpec(mkSources(20, 3), { kind: "teaser" }); // target 15, maxClip 4
+    const total = spec.clips.reduce((t, c) => t + (c.out - c.in), 0);
+    expect(total).toBeLessThanOrEqual(CUT_TARGETS.teaser);
+    expect(spec.clips.every((c) => c.out - c.in <= 4)).toBe(true);
+    expect(spec.clips.length).toBeGreaterThan(1); // spans the video, not one clip
+    expect(spec.clips.every((c) => c.audio === "keep")).toBe(true);
+  });
+
+  it("an unknown kind falls back to a 45s target; targetSeconds overrides", () => {
+    const a = proposeCutSpec(mkSources(30, 2), { kind: "mystery" });
+    expect(a.clips.reduce((t, c) => t + (c.out - c.in), 0)).toBeLessThanOrEqual(45);
+    const b = proposeCutSpec(mkSources(30, 2), { kind: "teaser", targetSeconds: 6, maxClipSeconds: 2 });
+    expect(b.clips.reduce((t, c) => t + (c.out - c.in), 0)).toBeLessThanOrEqual(6);
+  });
+
+  it("uses the primary source path when a scene's sourceId isn't found", () => {
+    const s = mkSources(4, 4);
+    s.scenes[0].sourceId = "ghost"; // not in sources → primary.path
+    const spec = proposeCutSpec(s, { kind: "full" });
+    expect(spec.clips[0].source).toBe("/v.mp4");
+  });
+
+  it("skips zero-length scenes, and falls back to the first scene if all are zero-length", () => {
+    // one zero-length scene interleaved is skipped
+    const s = mkSources(6, 3);
+    s.scenes[0] = { sourceId: "clip", startSeconds: 9, endSeconds: 9 }; // stride hits index 0 → dur 0 → skip
+    const spec = proposeCutSpec(s, { kind: "teaser", maxClipSeconds: 4 });
+    expect(spec.clips.every((c) => c.out > c.in)).toBe(true);
+    // all zero-length → fallback single clip (in === out)
+    const zero = { sources: [{ id: "clip", path: "/v.mp4", fps: 24, width: 2, height: 2 }], scenes: [
+      { sourceId: "clip", startSeconds: 5, endSeconds: 5 },
+    ] };
+    const fb = proposeCutSpec(zero, { kind: "teaser" });
+    expect(fb.clips).toEqual([{ source: "/v.mp4", in: 5, out: 5, audio: "keep" }]);
   });
 });
 
