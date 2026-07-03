@@ -374,10 +374,17 @@ function runDesignCut(id, folder, kind) {
     runToolCommand(id, command, { outPath: command.outPath, kind: "multicam" });
     return;
   }
-  // Single-source: proposeCutSpec is pure — read sources.json, write cut.json (no child).
+  // Single-source: proposeCutSpec is pure — read sources.json (+ audio-events.json when
+  // present, for loudness/onset-aware selection), write cut.json (no child process).
   try {
     const sources = JSON.parse(fs.readFileSync(path.join(folder, "sources.json"), "utf8"));
-    const spec = proposeCutSpec(sources, { kind: kind || "highlights" });
+    let audioEvents = null;
+    try {
+      audioEvents = JSON.parse(fs.readFileSync(path.join(folder, "audio-events.json"), "utf8"));
+    } catch {
+      audioEvents = null; // optional — falls back to spread selection
+    }
+    const spec = proposeCutSpec(sources, { kind: kind || "highlights" }, audioEvents);
     fs.writeFileSync(path.join(folder, "cut.json"), JSON.stringify(spec, null, 2));
     send(resultMessage(id, { outPath: path.join(folder, "cut.json"), kind: "single", clips: spec.clips.length }));
   } catch (err) {

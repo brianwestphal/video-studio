@@ -754,6 +754,78 @@ describe("cutspec — proposeCutSpec", () => {
   });
 });
 
+describe("cutspec — audio-aware selection", () => {
+  // 4 scenes of 3s each (0-3, 3-6, 6-9, 9-12).
+  const src = () => ({
+    sources: [{ id: "clip", path: "/v.mp4", fps: 24, width: 2, height: 2 }],
+    scenes: [
+      { sourceId: "clip", startSeconds: 0, endSeconds: 3 },
+      { sourceId: "clip", startSeconds: 3, endSeconds: 6 },
+      { sourceId: "clip", startSeconds: 6, endSeconds: 9 },
+      { sourceId: "clip", startSeconds: 9, endSeconds: 12 },
+    ],
+  });
+
+  it("picks the loudest scene first (energy from the envelope)", () => {
+    // rmsDb (hop 1s, 12 samples): scene 6-9 is loud (-3), the rest quiet (-20).
+    const ae = {
+      envelope: { hopSeconds: 1, rmsDb: Array.from({ length: 12 }, (_, i) => (i >= 6 && i < 9 ? -3 : -20)) },
+      events: [{ kind: "instrumental", startSeconds: 0, endSeconds: 12 }], // non-onset → skipped in scoring
+    };
+    const spec = proposeCutSpec(src(), { kind: "teaser", targetSeconds: 3, maxClipSeconds: 4 }, ae);
+    expect(spec.clips).toHaveLength(1);
+    expect(spec.clips[0].in).toBe(6); // the loud scene
+  });
+
+  it("an onset gives a scene a boost over an equally-loud one; result stays chronological", () => {
+    const flat = { hopSeconds: 1, rmsDb: Array.from({ length: 12 }, () => -10) };
+    const ae = { envelope: flat, events: [{ kind: "onset", startSeconds: 9.5, endSeconds: 10.5 }] };
+    const spec = proposeCutSpec(src(), { kind: "highlights", targetSeconds: 6, maxClipSeconds: 3 }, ae);
+    // scene 9-12 (has the onset) is picked; a second (equal-score, lowest index) fills the rest.
+    const ins = spec.clips.map((c) => c.in);
+    expect(ins).toContain(9);
+    expect(ins).toEqual([...ins].sort((a, b) => a - b)); // chronological
+  });
+
+  it("soundbites favor vocal coverage; a non-overlapping vocal event doesn't count", () => {
+    const ae = {
+      envelope: { hopSeconds: 1, rmsDb: Array.from({ length: 12 }, () => -10) },
+      events: [
+        { kind: "vocal", startSeconds: 9, endSeconds: 12 }, // overlaps scene 9-12
+        { kind: "vocal", startSeconds: 20, endSeconds: 22 }, // no overlap with any scene
+      ],
+    };
+    const spec = proposeCutSpec(src(), { kind: "soundbites", targetSeconds: 3 }, ae);
+    expect(spec.clips[0].in).toBe(9);
+  });
+
+  it("tolerates a missing/short envelope + no events (all scenes score -Infinity → chronological)", () => {
+    const ae = { events: [] }; // no envelope, no useful events
+    const spec = proposeCutSpec(src(), { kind: "highlights", targetSeconds: 6, maxClipSeconds: 3 }, ae);
+    expect(spec.clips.map((c) => c.in)).toEqual([0, 3]); // stable order, first scenes
+    // envelope present but rmsDb missing + a scene beyond its range → also -Infinity path
+    const ae2 = { envelope: { hopSeconds: 1 }, events: [] };
+    expect(() => proposeCutSpec(src(), { kind: "teaser", targetSeconds: 3 }, ae2)).not.toThrow();
+  });
+
+  it("audio path with no events key, and stops once the target is reached", () => {
+    const ae = { envelope: { hopSeconds: 1, rmsDb: Array.from({ length: 12 }, (_, i) => -i) } }; // no `events`
+    const spec = proposeCutSpec(src(), { kind: "teaser", targetSeconds: 3, maxClipSeconds: 4 }, ae);
+    expect(spec.clips).toHaveLength(1); // one 3s clip hits the target → break
+  });
+
+  it("skips zero-length scenes in the audio path", () => {
+    const s = src();
+    s.scenes[2] = { sourceId: "clip", startSeconds: 6, endSeconds: 6 }; // zero-length
+    const ae = { envelope: { hopSeconds: 1, rmsDb: Array.from({ length: 12 }, () => -10) }, events: [] };
+    // target > total footage → the loop reaches every ranked scene, so the zero-length one
+    // hits the dur<=0 skip instead of being cut off by an early target break.
+    const spec = proposeCutSpec(s, { kind: "highlights", targetSeconds: 20, maxClipSeconds: 4 }, ae);
+    expect(spec.clips.every((c) => c.out > c.in)).toBe(true);
+    expect(spec.clips).toHaveLength(3); // the 3 non-zero scenes
+  });
+});
+
 describe("cutspec — flatRenderCommand", () => {
   const spec = { project: { fps: 24 }, clips: [
     { source: "/v.mp4", in: 1, out: 3, audio: "keep" },

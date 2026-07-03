@@ -17,10 +17,80 @@ export const CUT_TARGETS = Object.freeze({
   trailer: 75,
 });
 
+// Mean loudness (rmsDb) over a scene's time window, read off the audio-events envelope
+// (rmsDb sampled every hopSeconds). Returns -Infinity when the window has no samples. Pure.
+function meanRmsInRange(envelope, a, b) {
+  const rms = envelope && Array.isArray(envelope.rmsDb) ? envelope.rmsDb : [];
+  const hop = envelope && envelope.hopSeconds > 0 ? envelope.hopSeconds : 0.05;
+  const i0 = Math.max(0, Math.floor(a / hop));
+  const i1 = Math.min(rms.length, Math.ceil(b / hop));
+  if (i1 <= i0) return -Infinity;
+  let sum = 0;
+  for (let i = i0; i < i1; i++) sum += rms[i];
+  return sum / (i1 - i0);
+}
+
+// Seconds of a scene that overlap audio events of a given kind (e.g. "vocal", "onset"). Pure.
+function overlapSeconds(events, kind, sc) {
+  let s = 0;
+  for (const e of Array.isArray(events) ? events : []) {
+    if (e.kind !== kind) continue;
+    const lo = Math.max(sc.startSeconds, e.startSeconds);
+    const hi = Math.min(sc.endSeconds, e.endSeconds);
+    if (hi > lo) s += hi - lo;
+  }
+  return s;
+}
+
+// Score a scene for a cut kind: soundbites favor vocal coverage; everything else favors
+// loud, punchy moments (energy + onset density). Pure.
+function sceneScore(sc, kind, audioEvents) {
+  if (kind === "soundbites") return overlapSeconds(audioEvents.events, "vocal", sc);
+  return meanRmsInRange(audioEvents.envelope, sc.startSeconds, sc.endSeconds) + overlapSeconds(audioEvents.events, "onset", sc) * 2;
+}
+
+// Rank scenes by audio score, take the best until the target length (capped per clip), then
+// restore chronological order. Returns [{ sc, in, out }]. Pure.
+function selectByAudio(scenes, target, maxClip, kind, audioEvents) {
+  const ranked = scenes
+    .map((sc, i) => ({ sc, i, score: sceneScore(sc, kind, audioEvents) }))
+    .sort((a, b) => b.score - a.score || a.i - b.i);
+  const chosen = [];
+  let total = 0;
+  for (const { sc } of ranked) {
+    if (total >= target) break;
+    const dur = Math.min(maxClip, sc.endSeconds - sc.startSeconds, target - total);
+    if (dur <= 0) continue;
+    chosen.push({ sc, in: sc.startSeconds, out: sc.startSeconds + dur });
+    total += dur;
+  }
+  chosen.sort((a, b) => a.in - b.in);
+  return chosen;
+}
+
+// Walk scenes at an even stride so the cut spans the whole video (no audio guidance).
+// Returns [{ sc, in, out }]. Pure.
+function selectSpread(scenes, target, maxClip) {
+  const wanted = Math.max(1, Math.ceil(target / maxClip));
+  const stride = Math.max(1, Math.floor(scenes.length / wanted));
+  const chosen = [];
+  let total = 0;
+  for (let i = 0; i < scenes.length && total < target; i += stride) {
+    const sc = scenes[i];
+    const dur = Math.min(maxClip, sc.endSeconds - sc.startSeconds, target - total);
+    if (dur <= 0) continue;
+    chosen.push({ sc, in: sc.startSeconds, out: sc.startSeconds + dur });
+    total += dur;
+  }
+  return chosen;
+}
+
 // Propose a cut spec from an analyzed source pool. `kind` picks a target length + strategy;
 // `targetSeconds` overrides it; `maxClipSeconds` caps each montage clip so one long scene
-// can't swallow the whole cut. Throws when there are no analyzed scenes to cut from. Pure.
-export function proposeCutSpec(sources, { kind = "highlights", targetSeconds, maxClipSeconds = 4 } = {}) {
+// can't swallow the whole cut. When `audioEvents` (audio-events.json) is given, scenes are
+// chosen by loudness/onsets (or vocal coverage for soundbites) rather than evenly spread.
+// Throws when there are no analyzed scenes to cut from. Pure.
+export function proposeCutSpec(sources, { kind = "highlights", targetSeconds, maxClipSeconds = 4 } = {}, audioEvents = null) {
   const srcs = sources && Array.isArray(sources.sources) ? sources.sources : [];
   const scenes = sources && Array.isArray(sources.scenes) ? sources.scenes : [];
   if (srcs.length === 0 || scenes.length === 0) {
@@ -39,20 +109,12 @@ export function proposeCutSpec(sources, { kind = "highlights", targetSeconds, ma
     return { project, clips: scenes.map((sc) => clip(sc, sc.startSeconds, sc.endSeconds)) };
   }
 
-  // Otherwise a spread montage: walk scenes at an even stride so the cut spans the whole
-  // video, cap each to maxClipSeconds, and accumulate until the target length.
   const target = targetSeconds != null ? targetSeconds : (CUT_TARGETS[kind] ?? 45);
-  const wanted = Math.max(1, Math.ceil(target / maxClipSeconds));
-  const stride = Math.max(1, Math.floor(scenes.length / wanted));
-  const clips = [];
-  let total = 0;
-  for (let i = 0; i < scenes.length && total < target; i += stride) {
-    const sc = scenes[i];
-    const dur = Math.min(maxClipSeconds, sc.endSeconds - sc.startSeconds, target - total);
-    if (dur <= 0) continue;
-    clips.push(clip(sc, sc.startSeconds, sc.startSeconds + dur));
-    total += dur;
-  }
+  const ranges = audioEvents
+    ? selectByAudio(scenes, target, maxClipSeconds, kind, audioEvents)
+    : selectSpread(scenes, target, maxClipSeconds);
+  const clips = ranges.map((r) => clip(r.sc, r.in, r.out));
+
   // Degenerate case (e.g. one very short scene): fall back to the first scene up to target.
   if (clips.length === 0) {
     const sc = scenes[0];
