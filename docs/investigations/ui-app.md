@@ -136,3 +136,59 @@ Do **not** build the whole thing up front; each phase is independently useful an
 
 Phases 2–4 are intentionally left un-ticketed until the Phase-0 design and Phase-1 spike settle
 the open decisions in §6 — filing them now would be guessing at scope.
+
+## 9. How the app drives Claude (control channel)
+
+The maintainer's instinct is to embed a single fixed terminal (like `~/Documents/hotsheet`'s
+terminals, minus the dynamic creation) running the `claude` CLI, and detect login / permission /
+question states from it. That works, but **scraping the interactive TUI for control flow is
+fragile** — it means parsing ANSI/redraw output that changes across Claude Code versions. There's
+a purpose-built alternative that removes the guesswork (facts verified against the Claude Code
+docs — headless / agent-sdk / permissions / authentication pages).
+
+**Primary control channel = the Claude Agent SDK (`@anthropic-ai/claude-agent-sdk`), not TUI
+scraping.** Run Claude Code headlessly from the same Node sidecar the Rust shell already spawns
+(glassbox pattern). It yields **structured, streamed events** — `system`/`init` (with
+`session_id`), `assistant` messages, `tool_use`, `tool_result`, `result` — so there's nothing to
+scrape. The load-bearing pieces for exactly the cases the maintainer listed:
+
+- **Permission checks + questions → the `canUseTool(toolName, input)` callback.** When Claude
+  wants a tool that isn't pre-approved, the SDK invokes this callback; the app renders its **own
+  native approve/deny UI** and returns `{behavior:"allow"}` / `{behavior:"deny"}`. The
+  **`AskUserQuestion`** tool arrives through the same callback (with a `questions[]` + `options`
+  payload), so "Claude is asking something" becomes a friendly native picker whose answer we feed
+  back. No terminal parsing. (Caveat: pre-approved tools never reach the callback; the raw headless
+  CLI has no `canUseTool` — that capability is why we prefer the SDK over the bare CLI.)
+- **Presenting Claude's work → consume the structured events** (`assistant` text, `tool_use`,
+  `tool_result`) and map them to friendly UI ("Analyzing scenes ✓", "Proposed a 15 s teaser",
+  list the generated files). Even better, since we own the prompt/skill, ask Claude for a
+  **structured result (JSON-schema output)** — a cut plan the app renders directly — instead of
+  parsing prose.
+- **Constrain the surface.** Pre-approve our own pipeline tools via `allowedTools` (or expose the
+  pipeline as an **MCP server the app provides**) so a non-technical user is only ever prompted for
+  genuinely novel/risky actions — far fewer scary dialogs.
+
+**Where a real terminal (PTY) still earns its place — keep it, but scoped:**
+
+- **Login / auth.** Headless runs need a credential (`ANTHROPIC_API_KEY`, a `CLAUDE_CODE_OAUTH_TOKEN`
+  from `claude setup-token`, or a cloud-provider env), and interactive OAuth login is inherently a
+  terminal + browser flow. **Detect "not authenticated"** from a failed headless run (auth error /
+  non-zero exit), then present a "Connect your Claude account" step that either runs the interactive
+  login in an embedded PTY (reuse hotsheet's xterm+PTY) or accepts a pasted key — stored in the
+  macOS Keychain.
+- **Power-user / debug drawer.** An optional, usually-hidden terminal mirroring the raw session:
+  reassuring for technical users, invaluable for support ("show me the logs").
+
+So the shape is **SDK for control + presentation; terminal for login + optional visibility**, both
+hosted in the one Node sidecar. This directly answers the maintainer's detection list without
+betting the UX on TUI scraping.
+
+**Decisions this raises (for Phase 0 / VS-78):**
+- **SDK vs raw headless CLI** — the SDK's `canUseTool` is what makes the native approval/question UI
+  possible; the bare CLI can only pre-allow/deny by name. → lean SDK.
+- **Auth model in a GUI** — API key vs OAuth token vs `setup-token`; Keychain storage; how to make
+  first-run login painless.
+- **How agentic to be** — a freewheeling agent (more permission prompts) vs a tightly tool-scoped
+  agent that returns a structured cut plan (fewer prompts, more legible) — the latter is friendlier
+  for non-technical users.
+- **Version-pin** the SDK/CLI and tolerate unknown event types (the event schema evolves).
