@@ -22,7 +22,7 @@ sync with the requirements doc and code; the source wins on conflict.
 | Render transitions into the video (no FCP) | [`render-transitions.md`](../render-transitions.md) | **Shipped** (VS-54 + VS-55, R-RT1–R-RT9) — `render-transitions` bakes the transitions into a finished video with **no FCP**, reusing the baked handles. **Windowed re-encode** (default): re-encode only each transition overlap + stream-copy-concat the bodies (cost ≈ Σ transition duration); `--full-chain` for the whole-timeline graph. **Native Tier A/B/C**: Tier A direct `xfade`, Tier B `xfade=custom` (chevron/static), Tier C overlay-mask/crop-slide (inset/split). |
 | Multi-cam editing | [`multicam.md`](../multicam.md), [`multicam-sync.md`](../multicam-sync.md) | **Shipped** — sync, group proposal, angle switching → flat-timeline export, drift correction applied on export, true FCPXML mc-clip asset (VS-27/29/30/31/32/33); **FCP import validated against the real app (VS-36)** |
 | FCP-incompatible source audio detection | [`fcp-audio-compat.md`](../fcp-audio-compat.md) | **Shipped** (VS-40 + VS-53) — detect Pro Tools / BWF WAVs (non-16-byte PCM `fmt `, `bext`/`minf`/`elm1`/`JUNK`…) that FCP imports silently; `sync-multicam` + `export-multicam-fcpxml` warn with the `ffmpeg` fix, or with `--fcp-normalize-audio` re-encode to a canonical `<name>.fcp.wav` sidecar + repoint (R-FA1–R-FA5). |
-| Desktop app (VS-76 initiative) | [`desktop-app.md`](../desktop-app.md), [`desktop-app-claude-bridge.md`](../desktop-app-claude-bridge.md), [`desktop-app-permissions.md`](../desktop-app-permissions.md) | **Design only** — a native Tauri shell over the existing pipeline (glassbox pattern: Rust shell → long-lived Node sidecar → vanilla webview). Requirements captured for the three high-priority foundation pieces: app shell / project model / stage nav + sidecar host (R-APP1–18, VS-80), Claude Agent SDK control bridge for the Auto lane (R-CB1–9, VS-83), and the app-owned category-based permission & safety layer (R-PERM1–12, VS-85). Nothing built; the spike (VS-79) + screen tickets (VS-81/82/84/86/87/88/89) are pending. |
+| Desktop app (VS-76 initiative) | [`desktop-app.md`](../desktop-app.md), [`desktop-app-agent-bridge.md`](../desktop-app-agent-bridge.md), [`desktop-app-permissions.md`](../desktop-app-permissions.md) | **Design only** — a native Tauri shell over the existing pipeline (glassbox pattern: Rust shell → long-lived Node sidecar → vanilla webview). Requirements for the three high-priority foundation pieces are **spec-complete** (maintainer forks settled 2026-07-03): app shell / project model / stage nav + sidecar host (R-APP, VS-80), a **pluggable** AI agent control bridge for the Auto lane — Claude / Codex / Ollama, agent **optional** (R-CB1–11, VS-83), and the app-owned category-based permission & safety layer (R-PERM1–12, VS-85). Settled: subdir of this repo; both lanes in MVP; assume-nothing detect+guide. Nothing built; the spike (VS-79) + build tickets are pending. |
 | Edit awareness / auto multi-cam cutting | [`audio-events.md`](../audio-events.md), [`visual-saliency.md`](../visual-saliency.md), [`multicam-auto-cut.md`](../multicam-auto-cut.md) | **Shipped** (BYAM demo manual) — specs done (VS-41/42/43); **audio-events Tier-1 + Tier-2 shipped (VS-44, VS-49)**; **per-angle visual saliency shipped (VS-45)** — `analyze-visual-saliency` → `saliency.json` (motion pass gates Ollama vision, pure core 100%-tested, R-VS1–R-VS5); **angle-switch selector shipped (VS-46)** — `tools/multicam-autocut.mjs` (pure, 100%-tested) + `propose-switches` CLI emit `switches.json` (R-AC1–R-AC6); **workflow integration shipped (VS-47)** — `export-multicam-fcpxml`/`render-multicam-preview` accept `--switches`, rationale surfaced, hand-editable override (R-AC7, R-MC7); BYAM demonstration run; **shot-length policy shipped (VS-62)** — default max 8s/min 0.5s + instrumental long-take exception (R-AC8); **per-switch review signal shipped (VS-63)** — runnerUp/confidence/flagged (R-AC9); **review UI shipped (VS-65)** — `review-switches.mjs` local server + `review-model.mjs` (pure, 100%) surface flagged cuts with ±2s previews, write picks back to switches.json + history ([`multicam-review-ui.md`](../multicam-review-ui.md), R-RUI1–6); **locks + shot-type variety shipped (VS-66)** — `autoCut` honors `locks` + a shot-type variety penalty, `shotType` in the vision schema; **review-UI re-propose shipped (VS-67)** — opt-in button re-flows the still-auto cuts around confirmed picks (R-RUI7); **review-UI interactive playback shipped (VS-71)** — per-segment synchronized transport, one audio-focus clip at a time, fullscreen, audio-bearing previews (R-RUI8); **section-of-interest scrubber band shipped (VS-72)**; **whole-video assembled timeline preview shipped (VS-73)** — client-side multi-cam player (HTTP-Range sources, live pick updates), angle-colored bar with flagged sections (R-RUI9); **manual review editing shipped (VS-74)** — force-add any cut (forceKeys/`/add-review`), split at the playhead (`splitSwitch`/`/split`), timeline docked as a collapsible nav-bar drawer (R-RUI10) |
 
 The core pipeline plus the editor handoff (export + FCPXML) and multi-source
@@ -168,23 +168,25 @@ the full palette in VS-50). The "edit awareness" auto-cut initiative is partial
   up-to-date sidecar). See [`fcp-audio-compat.md`](../fcp-audio-compat.md)
   (R-FA1–R-FA5).
 
-- **Desktop app (VS-76; Design only)** — a native app front door over the unchanged
-  engine, so non-technical creatives get timelines + buttons instead of `--flags`. Approved
-  concept + wireframe (VS-78) in [`../investigations/ui-app.md`](../investigations/ui-app.md).
-  Requirements now exist for the three high-priority foundation tickets:
+- **Desktop app (VS-76; Design only, specs complete)** — a native app front door over the
+  unchanged engine, so non-technical creatives get timelines + buttons instead of `--flags`.
+  Approved concept + wireframe (VS-78) in [`../investigations/ui-app.md`](../investigations/ui-app.md).
+  Requirements exist for the three high-priority foundation tickets:
   **shell + project model + stage nav + Node sidecar host** ([`../desktop-app.md`](../desktop-app.md),
-  R-APP1–18, VS-80); the **Claude Agent SDK control bridge** that powers the Auto lane —
-  headless Claude via `@anthropic-ai/claude-agent-sdk`, structured events → activity feed,
-  `canUseTool` choke point ([`../desktop-app-claude-bridge.md`](../desktop-app-claude-bridge.md),
-  R-CB1–9, VS-83); and the **app-owned permission & safety layer** — a pure category
-  classifier + persisted "always allow this kind" rules + a Permissions screen, independent
-  of Claude's own permissions ([`../desktop-app-permissions.md`](../desktop-app-permissions.md),
-  R-PERM1–12, VS-85). All requirements are `deferred` in the coverage manifest; when built,
-  the doc-flagged pure cores (stage-state derivation, sidecar protocol framing, event→feed
-  mapping, the permission classifier/matcher) become 100%-unit-tested per convention.
-  **Open product forks** (repo location; is-Claude-required; MVP breadth; Node runtime; dep
-  UX) are unsettled — captured in [`../desktop-app.md`](../desktop-app.md) §8 and surfaced to
-  the maintainer.
+  R-APP, VS-80); a **pluggable AI agent control bridge** that powers the Auto lane —
+  **Claude / Codex / Ollama** behind one interface, agent **optional** (Manual lane needs
+  none), Claude via `@anthropic-ai/claude-agent-sdk` first, structured events → activity
+  feed, backend-agnostic tool-permission choke point
+  ([`../desktop-app-agent-bridge.md`](../desktop-app-agent-bridge.md), R-CB1–11, VS-83); and
+  the **app-owned permission & safety layer** — a pure category classifier + persisted
+  "always allow this kind" rules + a Permissions screen, independent of any agent's own
+  permissions ([`../desktop-app-permissions.md`](../desktop-app-permissions.md), R-PERM1–12,
+  VS-85). **Maintainer forks settled 2026-07-03** (`desktop-app.md` §8): subdir of this repo;
+  agent optional + pluggable; both lanes in MVP; assume-nothing (detect + guide, incl. Node).
+  All requirements are `deferred` in the coverage manifest; when built, the doc-flagged pure
+  cores (stage-state derivation, sidecar protocol framing, normalized event→feed mapping, the
+  permission classifier/matcher) become 100%-unit-tested per convention. VS-80/83/85 are
+  spec-complete; the spike (VS-79) + build tickets carry the implementation.
 
 ## Known gaps / follow-ups
 

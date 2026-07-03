@@ -5,7 +5,7 @@ It gives non-technical creatives (musicians, videographers) a timeline-and-butto
 door to the same engine the Claude skill drives today. This document is the umbrella
 requirements doc for the app's **shell, project model, stage navigation, and the Node
 sidecar host** (VS-80); the two subsystems with their own specs are the
-[Claude Agent SDK control bridge](desktop-app-claude-bridge.md) (VS-83) and the
+[pluggable AI agent control bridge](desktop-app-agent-bridge.md) (VS-83) and the
 [application-level permission & safety layer](desktop-app-permissions.md) (VS-85).
 
 Design background + the phased roadmap live in
@@ -24,20 +24,34 @@ unit of work is a **Project** (a folder of footage). A left rail of pipeline sta
 with live progress. The engine underneath is the unchanged `tools/*.mjs` + `dist/analyzer.js`
 pipeline; the app only *invokes* those and *visualizes* their JSON artifacts.
 
+The app has **two lanes into the same engine**: an **Auto lane** (describe intent → an AI
+agent proposes a cut) and a **Manual lane** (the timeline/review editor). The AI agent is
+**optional and pluggable** — Claude, Codex, or a local Ollama model behind one interface
+(see [`desktop-app-agent-bridge.md`](desktop-app-agent-bridge.md)) — so the Manual lane
+works with no agent at all. **Both lanes ship in the MVP** (maintainer decision,
+2026-07-03).
+
 ## 2. Architecture
 
 - **R-APP1** The app is a **Tauri** shell (Rust window) with a **vanilla HTML/JS/TS
   webview frontend** — no React/Svelte — matching the maintainer's existing
   `~/Documents/hotsheet` + `~/Documents/glassbox` pattern. The heavy engine (ffmpeg /
-  whisper / ollama / claude) stays **external** and is detected, never bundled into the
-  webview.
+  whisper / ollama / an AI agent) stays **external** to the webview.
+- **R-APP1a** **Assume nothing about the machine** (maintainer decision, 2026-07-03). A
+  packaged Tauri build must not presume any tool — including the **Node runtime** — is
+  present. The app **detects** what's installed and **guides** the user to supply what's
+  missing (§6, and the packaging decision in VS-89: bundle vs guided install per tool);
+  it never silently fails on a missing dependency.
 - **R-APP2** The Rust shell spawns a **long-lived Node subprocess** (the *sidecar host*,
   §5) via `tauri-plugin-shell` / `std::process::Command`, and communicates with it over a
   typed request/stream protocol (§5). This is the glassbox pattern (Rust shell → Node
-  pipeline → webview) applied 1:1.
+  pipeline → webview) applied 1:1. Per R-APP1a the Node runtime the shell spawns is
+  **detected-or-provided**, not assumed (bundled-sidecar vs guided-install decided at
+  packaging, VS-89).
 - **R-APP3** The app **reuses the existing pipeline as-is** — it must not fork or
   reimplement `tools/*.mjs`, `dist/analyzer.js`, or `review-switches`. New app code is
-  glue (sidecar host, protocol, screens), not engine.
+  glue (sidecar host, protocol, screens), not engine. It lives in a **subdirectory of this
+  repo** (maintainer decision, 2026-07-03) for direct reuse without publishing.
 - **R-APP4** macOS-only to start (matches the launcher's platform guard, R2.1); Tauri
   leaves cross-platform open for later without committing to it now.
 
@@ -100,44 +114,48 @@ pipeline; the app only *invokes* those and *visualizes* their JSON artifacts.
 ## 6. Setup / doctor screen
 
 - **R-APP16** The Setup screen **reuses the launcher's tool checks** (`checkTools` in
-  `bin/video-studio.mjs`) to show green/red status for ffmpeg, ffprobe, whisper, ollama,
-  and claude, with the same honesty about the heavy external deps.
-- **R-APP17** For installable tools it offers the launcher's **Homebrew install** guidance
-  (deferring the full first-run dependency-install UX to packaging, VS-89). Ollama is shown
-  as optional (R2.4); a missing required tool blocks the stages that need it and says so.
+  `bin/video-studio.mjs`) to show green/red status for the engine tools (ffmpeg, ffprobe,
+  whisper, ollama), the **Node runtime** (R-APP1a), and the **selected AI agent backend**
+  (Claude / Codex / Ollama, per [`desktop-app-agent-bridge.md`](desktop-app-agent-bridge.md)),
+  with the same honesty about the heavy external deps.
+- **R-APP17** Consistent with **assume-nothing** (R-APP1a), a missing dependency is never a
+  silent failure: the screen **detects and guides** — offering an install path (Homebrew
+  where applicable, or the packaged app's guided install, VS-89) and blocking the stages
+  that need it with a plain-language reason. Ollama is optional (R2.4); the **AI agent is
+  optional** (Auto lane only — the Manual lane needs none); a missing *required* engine tool
+  (ffmpeg/whisper) blocks Analyze/Export and says so.
 
 ## 7. App-global config
 
-- **R-APP18** App-level settings (recent projects, and later the permission rules of
-  VS-85) live in the **app's own config location** (per-user, e.g. under the app's
-  Application Support dir), **separate from** any project folder and from Claude Code's own
-  settings. Reading/merging/writing this config is pure over its parsed contents.
+- **R-APP18** App-level settings (recent projects, the selected agent backend, and the
+  permission rules of VS-85) live in the **app's own config location** (per-user, e.g. under
+  the app's Application Support dir), **separate from** any project folder and from any
+  agent's own settings (Claude Code / Codex / Ollama). Reading/merging/writing this config
+  is pure over its parsed contents.
 
-## 8. Open decisions (for the maintainer)
+## 8. Settled decisions (maintainer, 2026-07-03)
 
-These product forks from [`investigations/ui-app.md`](investigations/ui-app.md) §6 change
-scope materially and are **not settled**; the requirements above assume the investigation's
-recommendation in each case and should be revisited once confirmed:
+The product forks from [`investigations/ui-app.md`](investigations/ui-app.md) §6 were
+resolved by the maintainer on VS-80; the requirements above reflect these:
 
-- **Repo location** (blocks VS-79/VS-80 scaffolding): a **subdirectory of this repo**
-  (recommended — direct reuse of `tools/*.mjs`, `review-switches`, `dist/analyzer.js`
-  without publishing) vs a separate sibling repo like `hotsheet`/`glassbox`.
-- **Is Claude required or optional?** (the biggest fork): app is **Claude-powered with a
-  manual-only fallback** (recommended — the Auto lane needs Claude, but the Manual lane
-  works with just ffmpeg/whisper/ollama) vs Claude-required vs manual-only.
-- **Node runtime:** require **system Node** (recommended — glassbox spawns system `node`)
-  vs bundle a Node sidecar (self-contained but heavier). Settled at packaging (VS-89).
-- **MVP breadth:** a **narrow Auto-first slice** (recommended) with the existing review UI
-  embedded as the refine step, vs leading with the Manual editor.
-- **External-dependency UX:** guided Homebrew (recommended, like the launcher) vs bundling
-  what we can (e.g. a static ffmpeg). Settled at packaging (VS-89).
+- **Repo location** → a **subdirectory of this repo** (R-APP3) — direct reuse of
+  `tools/*.mjs`, `review-switches`, `dist/analyzer.js` without publishing.
+- **Is the AI agent required or optional?** → **optional**, and the agent backend is
+  **pluggable**: support **Claude, Codex, and Ollama** to start (initial testing is
+  Claude-only). The Manual lane works with no agent. See
+  [`desktop-app-agent-bridge.md`](desktop-app-agent-bridge.md).
+- **MVP breadth** → **build both lanes now** (Auto *and* the Manual editor), not an
+  Auto-first-only slice.
+- **Runtime / dependency UX** → **assume nothing about the machine** (R-APP1a); detect and
+  guide the user for anything missing, including the Node runtime. The bundle-vs-guided-
+  install choice per tool is finalized at packaging (VS-89).
 
 ## 9. Cross-references
 
 - [`investigations/ui-app.md`](investigations/ui-app.md) — the concept, architecture
   options, and phased roadmap (VS-76/78).
-- [`desktop-app-claude-bridge.md`](desktop-app-claude-bridge.md) — the Auto lane's engine
-  (VS-83): headless Claude via the Agent SDK, structured events → UI.
+- [`desktop-app-agent-bridge.md`](desktop-app-agent-bridge.md) — the Auto lane's engine
+  (VS-83): a pluggable AI agent backend (Claude / Codex / Ollama), structured events → UI.
 - [`desktop-app-permissions.md`](desktop-app-permissions.md) — the app-owned safety layer
   (VS-85): category classifier + persisted "always allow" + the Permissions screen.
 - The per-screen requirements (Import VS-81, Analyze VS-82, Design VS-86, Review VS-87,

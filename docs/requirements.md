@@ -142,9 +142,9 @@ Larger features have their own source-of-truth docs (kept in sync the same way):
 - **Desktop app (VS-76 initiative)** *(design only — a native Tauri shell over the
   existing pipeline; nothing built yet)*:
   [`desktop-app.md`](desktop-app.md) (shell, project model, stage navigation + Node sidecar
-  host, R-APP1–R-APP18, VS-80),
-  [`desktop-app-claude-bridge.md`](desktop-app-claude-bridge.md) (Auto lane via the Claude
-  Agent SDK, structured events → UI, R-CB1–R-CB9, VS-83),
+  host, R-APP, VS-80),
+  [`desktop-app-agent-bridge.md`](desktop-app-agent-bridge.md) (Auto lane via a **pluggable**
+  AI agent backend — Claude / Codex / Ollama — structured events → UI, R-CB1–R-CB11, VS-83),
   and [`desktop-app-permissions.md`](desktop-app-permissions.md) (app-owned category-based
   permission & safety layer, R-PERM1–R-PERM12, VS-85). Concept + roadmap:
   [`investigations/ui-app.md`](investigations/ui-app.md).

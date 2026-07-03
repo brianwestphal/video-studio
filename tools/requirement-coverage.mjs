@@ -214,6 +214,7 @@ export const REQUIREMENT_COVERAGE = {
   // in the doc (stage-state derivation, project-state reconcile, sidecar protocol framing,
   // config merge) become status:"unit" with tests; the Rust/webview/subprocess shell is manual.
   "R-APP1": { status: "deferred", note: "Tauri shell + vanilla webview, external engine — design only (VS-80)" },
+  "R-APP1a": { status: "deferred", note: "assume nothing about the machine (incl. Node runtime); detect + guide (VS-80, maintainer decision)" },
   "R-APP2": { status: "deferred", note: "Rust shell spawns long-lived Node sidecar over typed stdio protocol (VS-80)" },
   "R-APP3": { status: "deferred", note: "reuse existing pipeline as-is, no engine fork (VS-80)" },
   "R-APP4": { status: "deferred", note: "macOS-only to start; Tauri leaves cross-platform open (VS-80)" },
@@ -232,18 +233,21 @@ export const REQUIREMENT_COVERAGE = {
   "R-APP17": { status: "deferred", note: "Homebrew install guidance; full first-run dep UX deferred to VS-89 (VS-80)" },
   "R-APP18": { status: "deferred", note: "app-global config (recent projects + VS-85 rules) separate from projects + Claude settings (VS-80)" },
 
-  // Desktop app — Claude Agent SDK control bridge (docs/desktop-app-claude-bridge.md, VS-83).
-  // Design only. When built, the pure event->feed mapping + structured-result validation
-  // become status:"unit"; the SDK run + session I/O is manual.
-  "R-CB1": { status: "deferred", note: "run Claude headless via Agent SDK in the sidecar, not TUI scraping / bare CLI (VS-83)" },
-  "R-CB2": { status: "deferred", note: "version-pin SDK; tolerate unknown event types (VS-83)" },
-  "R-CB3": { status: "deferred", note: "Auto-lane run = a sidecar pipeline step with intent + project context (VS-83)" },
-  "R-CB4": { status: "deferred", note: "stream structured events -> activity feed; pure event->feed mapping unit-tested when built (VS-83)" },
-  "R-CB5": { status: "deferred", note: "prefer JSON-schema structured cut plan over prose; pure schema validation (VS-83)" },
-  "R-CB6": { status: "deferred", note: "capture session_id + resume for multi-turn refinement, scoped per project (VS-83)" },
-  "R-CB7": { status: "deferred", note: "allowedTools pre-approve pipeline tools; misses -> canUseTool -> VS-85 (VS-83)" },
-  "R-CB8": { status: "deferred", note: "AskUserQuestion via same callback -> native picker (VS-83)" },
-  "R-CB9": { status: "deferred", note: "detect auth failure from SDK result -> triggers Connect Claude (VS-84) (VS-83)" },
+  // Desktop app — pluggable AI agent control bridge (docs/desktop-app-agent-bridge.md, VS-83).
+  // Design only. Backends: Claude (Agent SDK, first/reference), Codex, Ollama, behind one
+  // interface. When built, the pure normalized-event->feed mapping + structured-result
+  // validation become status:"unit"; the agent run + session I/O is manual.
+  "R-CB1": { status: "deferred", note: "pluggable agent-backend interface: run/stream/choke-point/capabilities; Claude+Codex+Ollama, user-selectable, Claude first (VS-83)" },
+  "R-CB2": { status: "deferred", note: "permission layer + activity feed sit above the abstraction; backends degrade by capability, never fake (VS-83)" },
+  "R-CB3": { status: "deferred", note: "Claude backend: headless Agent SDK in sidecar, not TUI/bare CLI; version-pin + tolerate unknown events (VS-83)" },
+  "R-CB4": { status: "deferred", note: "Codex backend behind the same interface — separate build ticket (VS-83)" },
+  "R-CB5": { status: "deferred", note: "Ollama backend: local model via app-driven constrained tool loop through the same choke point — separate build ticket (VS-83)" },
+  "R-CB6": { status: "deferred", note: "Auto-lane run = sidecar step; normalize backend events -> activity feed; pure event->feed mapping unit-tested when built (VS-83)" },
+  "R-CB7": { status: "deferred", note: "prefer JSON-schema structured cut plan over prose; pure schema validation; graceful degrade (VS-83)" },
+  "R-CB8": { status: "deferred", note: "capture session handle + resume where supported; emulate/disable, never silently drop (VS-83)" },
+  "R-CB9": { status: "deferred", note: "pre-approve pipeline tools; misses -> backend choke point (canUseTool / Ollama gate) -> VS-85 (VS-83)" },
+  "R-CB10": { status: "deferred", note: "backend question affordance (AskUserQuestion) via same choke point -> native picker (VS-83)" },
+  "R-CB11": { status: "deferred", note: "detect credential failure from backend result -> Connect flow per backend (Claude/Codex auth; Ollama none) (VS-84) (VS-83)" },
 
   // Desktop app — application-level permission & safety layer (docs/desktop-app-permissions.md, VS-85).
   // Design only. When built, the classifier + default-policy lookup + rule matcher + config
