@@ -36,6 +36,7 @@ import {
   importCommand,
   analyzeProjectCommand,
 } from "./steps.mjs";
+import { proposeCutSpec, flatRenderCommand } from "./cutspec.mjs";
 import { DOCTOR_TOOLS, doctorResultFromChecks } from "./doctor.mjs";
 import {
   PROJECT_STATE_DIR,
@@ -250,6 +251,12 @@ function handleConfigStep(id, step, params) {
 // cut only when switches.json exists, streams the tool's output, and returns the out path so
 // the UI can Reveal it in Finder.
 function runExport(id, kind, folder) {
+  // Single-source projects (a cut.json, no multicam.json) export via a flat ffmpeg render /
+  // export-project handoff, not the multi-cam renderer (VS-99).
+  if (!fs.existsSync(path.join(folder, "multicam.json")) && fs.existsSync(path.join(folder, "cut.json"))) {
+    runExportSingle(id, kind, folder);
+    return;
+  }
   let command;
   try {
     const hasSwitches = fs.existsSync(path.join(folder, "switches.json"));
@@ -262,13 +269,46 @@ function runExport(id, kind, folder) {
   runToolCommand(id, command, { kind, outPath: command.outPath });
 }
 
+// Single-source export (VS-99): mp4 / 9:16 are a flat ffmpeg render of the cut spec; fcpxml
+// is the export-project editor handoff. The cut spec is the project's cut.json.
+function runExportSingle(id, kind, folder) {
+  const exportsDir = path.join(folder, "exports");
+  fs.mkdirSync(exportsDir, { recursive: true });
+  if (kind === "fcpxml") {
+    const outDir = path.join(exportsDir, "handoff");
+    runToolCommand(
+      id,
+      { tool: "export-project", args: [path.join(folder, "cut.json"), "--out", outDir] },
+      { kind, outPath: outDir },
+    );
+    return;
+  }
+  let render;
+  try {
+    const cut = JSON.parse(fs.readFileSync(path.join(folder, "cut.json"), "utf8"));
+    const dims = kind === "social" ? { width: 1080, height: 1920 } : {};
+    const outName = kind === "social" ? "cut.9x16.mp4" : "cut.mp4";
+    render = flatRenderCommand(cut, path.join(exportsDir, outName), dims);
+  } catch (err) {
+    send(errorMessage(id, ERROR_CODES.STEP_FAILED, `export failed: ${err.message}`));
+    return;
+  }
+  runToolCommand(id, { bin: "ffmpeg", args: render.args }, { kind, outPath: render.outPath });
+}
+
 const EXPORT_STEPS = { "export-mp4": "mp4", "export-social": "social", "export-fcpxml": "fcpxml" };
 
 // Stream a one-shot tool command (like export/propose): spawn, forward output as progress,
 // return { ...extra, ok } on success. Shared by the export + design-cut steps.
 function runToolCommand(id, command, extra) {
-  const [cmd, entry] = toolArgv(command.tool, REPO_ROOT);
-  const child = spawnTool(cmd, [entry, ...command.args]);
+  // `command.bin` runs a non-Node binary directly (e.g. ffmpeg); otherwise resolve a Node
+  // tool via toolArgv.
+  const child = command.bin
+    ? spawnTool(command.bin, command.args)
+    : (() => {
+        const [cmd, entry] = toolArgv(command.tool, REPO_ROOT);
+        return spawnTool(cmd, [entry, ...command.args]);
+      })();
   inflight.set(id, child);
   const feed = (stream) => {
     let buffer = "";
@@ -292,7 +332,7 @@ function runToolCommand(id, command, extra) {
     inflight.delete(id);
     if (signal) send(errorMessage(id, ERROR_CODES.STEP_FAILED, `cancelled (${signal})`));
     else if (code === 0) send(resultMessage(id, { ...extra, ok: true }));
-    else send(errorMessage(id, ERROR_CODES.STEP_FAILED, `${command.tool} exited with code ${code}`));
+    else send(errorMessage(id, ERROR_CODES.STEP_FAILED, `${command.tool || command.bin} exited with code ${code}`));
   });
 }
 
@@ -323,17 +363,26 @@ function runAnalyzeProject(id, folder) {
   runToolCommand(id, command, { outPath: command.outPath });
 }
 
-// The Manual lane's auto starting point (R-DS2): propose an initial cut into switches.json.
-function runDesignCut(id, folder) {
-  if (!fs.existsSync(path.join(folder, "multicam.json"))) {
-    send(errorMessage(id, ERROR_CODES.STEP_FAILED, "design needs multicam.json (import a multi-cam project first)"));
+// Propose a cut (R-DS2). Multi-cam → propose-switches → switches.json (angle cut). Single
+// source → proposeCutSpec → cut.json (scene-range cut spec, VS-99). `kind` names the style.
+function runDesignCut(id, folder, kind) {
+  if (fs.existsSync(path.join(folder, "multicam.json"))) {
+    const command = proposeCommand(folder, {
+      hasAudioEvents: fs.existsSync(path.join(folder, "audio-events.json")),
+      hasSaliency: fs.existsSync(path.join(folder, "saliency.json")),
+    });
+    runToolCommand(id, command, { outPath: command.outPath, kind: "multicam" });
     return;
   }
-  const command = proposeCommand(folder, {
-    hasAudioEvents: fs.existsSync(path.join(folder, "audio-events.json")),
-    hasSaliency: fs.existsSync(path.join(folder, "saliency.json")),
-  });
-  runToolCommand(id, command, { outPath: command.outPath });
+  // Single-source: proposeCutSpec is pure — read sources.json, write cut.json (no child).
+  try {
+    const sources = JSON.parse(fs.readFileSync(path.join(folder, "sources.json"), "utf8"));
+    const spec = proposeCutSpec(sources, { kind: kind || "highlights" });
+    fs.writeFileSync(path.join(folder, "cut.json"), JSON.stringify(spec, null, 2));
+    send(resultMessage(id, { outPath: path.join(folder, "cut.json"), kind: "single", clips: spec.clips.length }));
+  } catch (err) {
+    send(errorMessage(id, ERROR_CODES.STEP_FAILED, `design failed: ${err.message}`));
+  }
 }
 
 // The review UI is a long-lived local server (tools/review-switches.mjs) the webview iframes
@@ -525,7 +574,7 @@ function handle(decoded) {
     }
     if (decoded.step === "design-cut") {
       if (id !== null) {
-        if (params.folder) runDesignCut(id, params.folder);
+        if (params.folder) runDesignCut(id, params.folder, params.kind);
         else send(errorMessage(id, ERROR_CODES.MISSING_PARAM, "design-cut requires param: folder"));
       }
       return;

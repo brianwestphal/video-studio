@@ -309,14 +309,6 @@ document.getElementById("design-make").addEventListener("click", () => {
     note.textContent = "Describe the cut you want (or pick a preset).";
     return;
   }
-  // The cut flow (Design → Review → Export) is multi-cam only for now: it produces a
-  // switches.json (angle-switch cut). A single-source project can't yet — say so up front,
-  // before spending any agent tokens.
-  if (!currentProject.project.artifacts.includes("multicam")) {
-    note.textContent =
-      "Making a cut currently needs a multi-cam project (a folder of camera angles). Single-video cutting through Review/Export isn't wired yet — it's on the roadmap.";
-    return;
-  }
   feed.innerHTML = "";
   note.textContent = "Working…";
   const btn = document.getElementById("design-make");
@@ -331,21 +323,17 @@ document.getElementById("design-make").addEventListener("click", () => {
   send("agent-run", { prompt: `${prompt}\n\n(Project folder: ${currentProject.folder})`, folder: currentProject.folder }, {
     onProgress: (p) => addFeed(p.label, p.detail),
     onResult: () => {
-      // Turn the run into an actual, editable cut and open Review. (Tailoring the cut
-      // precisely to the prompt is VS-96; this is video-studio's auto-cut baseline.)
+      // Turn the run into an actual, editable cut and move forward. (Tailoring the cut
+      // precisely to the prompt is VS-96; this is video-studio's auto-cut baseline. The
+      // prompt does pick the single-source cut style via cutKindFromPrompt.)
       note.textContent = "Building your cut…";
-      send("design-cut", { folder: currentProject.folder }, {
+      send("design-cut", { folder: currentProject.folder, kind: cutKindFromPrompt(prompt) }, {
         onProgress: (p) => {
           if (p.message) note.textContent = `Building your cut… ${p.message}`.slice(0, 70);
         },
         onResult: () => {
           btn.disabled = false;
-          send("project-open", { folder: currentProject.folder }, {
-            onResult: (snap) => {
-              applyProjectSnapshot(snap);
-              gotoStage("review");
-            },
-          });
+          refreshThen(navigateAfterCut);
         },
         onError: (e) => {
           btn.disabled = false;
@@ -361,6 +349,35 @@ document.getElementById("design-make").addEventListener("click", () => {
   });
 });
 
+// Map a free-text prompt to a single-source cut style (best-effort keyword match).
+function cutKindFromPrompt(prompt) {
+  const p = prompt.toLowerCase();
+  if (/\bfull\b|whole|entire/.test(p)) return "full";
+  if (/teaser/.test(p)) return "teaser";
+  if (/trailer/.test(p)) return "trailer";
+  if (/summary|recap/.test(p)) return "summary";
+  if (/soundbite|quote/.test(p)) return "soundbites";
+  if (/sizzle/.test(p)) return "sizzle";
+  return "highlights";
+}
+
+// Refresh the current project (pick up new artifacts) then run a callback.
+function refreshThen(fn) {
+  send("project-open", { folder: currentProject.folder }, {
+    onResult: (snap) => {
+      applyProjectSnapshot(snap);
+      fn();
+    },
+  });
+}
+
+// After a cut is produced, go where it makes sense: single-source (cut.json) skips the
+// multi-cam review and goes to Export; multi-cam opens the Review timeline.
+function navigateAfterCut() {
+  if (currentProject.project.artifacts.includes("cut")) gotoStage("export");
+  else gotoReview();
+}
+
 // Manual lane: open the timeline. If there's no cut yet, propose an auto starting point
 // (propose-switches) first, then jump to Review.
 document.getElementById("design-open-timeline").addEventListener("click", () => {
@@ -369,14 +386,9 @@ document.getElementById("design-open-timeline").addEventListener("click", () => 
     note.textContent = "Open a project first (New Project).";
     return;
   }
-  const hasCut = currentProject.project.artifacts.includes("switches");
-  if (hasCut) {
-    gotoReview();
-    return;
-  }
-  if (!currentProject.project.artifacts.includes("multicam")) {
-    note.textContent =
-      "The timeline needs a multi-cam project (a folder of camera angles). Single-video editing isn't wired through Review/Export yet — it's on the roadmap.";
+  const artifacts = currentProject.project.artifacts;
+  if (artifacts.includes("switches") || artifacts.includes("cut")) {
+    navigateAfterCut();
     return;
   }
   note.textContent = "Proposing an auto starting cut…";
@@ -385,14 +397,8 @@ document.getElementById("design-open-timeline").addEventListener("click", () => 
       if (p.message) note.textContent = `Proposing… ${p.message}`.slice(0, 70);
     },
     onResult: () => {
-      note.textContent = "Cut ready — opening the timeline.";
-      // Refresh the project so the rail + artifacts pick up switches.json, then review.
-      send("project-open", { folder: currentProject.folder }, {
-        onResult: (snap) => {
-          applyProjectSnapshot(snap);
-          gotoReview();
-        },
-      });
+      note.textContent = "Cut ready.";
+      refreshThen(navigateAfterCut);
     },
     onError: (e) => {
       note.textContent = e.message;
@@ -423,6 +429,14 @@ function startReview() {
     status.hidden = false;
     frame.hidden = true;
     status.textContent = "Open a project first (New Project).";
+    return;
+  }
+  // Single-source cut: the visual multi-angle timeline doesn't apply. Point to Export.
+  if (currentProject.project.artifacts.includes("cut") && !currentProject.project.artifacts.includes("switches")) {
+    frame.hidden = true;
+    status.hidden = false;
+    status.textContent =
+      "Single-source cut is ready. The visual timeline here is for multi-cam angle-picking; a single-source review is coming. Head to Export to render your cut.";
     return;
   }
   status.hidden = false;

@@ -60,3 +60,38 @@ export function proposeCutSpec(sources, { kind = "highlights", targetSeconds, ma
   }
   return { project, clips };
 }
+
+// Build the ffmpeg argv that flat-renders a single-source cut spec into a finished video:
+// trim each clip range off the one source, concat them, (optionally) scale/pad to a target
+// frame (e.g. 1080x1920 for 9:16), and encode H.264/AAC. Pure — the host runs ffmpeg with it.
+// Assumes a single source (VS-99 single-source path); throws on an empty cut.
+export function flatRenderCommand(cutSpec, outPath, { width, height } = {}) {
+  const clips = cutSpec && Array.isArray(cutSpec.clips) ? cutSpec.clips : [];
+  if (clips.length === 0) throw new Error("cut spec has no clips");
+  const source = clips[0].source;
+  const filters = [];
+  const concatInputs = [];
+  clips.forEach((c, i) => {
+    filters.push(`[0:v]trim=start=${c.in}:end=${c.out},setpts=PTS-STARTPTS[v${i}]`);
+    filters.push(`[0:a]atrim=start=${c.in}:end=${c.out},asetpts=PTS-STARTPTS[a${i}]`);
+    concatInputs.push(`[v${i}][a${i}]`);
+  });
+  filters.push(`${concatInputs.join("")}concat=n=${clips.length}:v=1:a=1[cv][ca]`);
+  let vLabel = "[cv]";
+  if (width && height) {
+    filters.push(
+      `[cv]scale=${width}:${height}:force_original_aspect_ratio=decrease,` +
+        `pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2:color=black[vo]`,
+    );
+    vLabel = "[vo]";
+  }
+  const args = [
+    "-y", "-i", source,
+    "-filter_complex", filters.join(";"),
+    "-map", vLabel, "-map", "[ca]",
+    "-c:v", "libx264", "-crf", "23", "-preset", "veryfast",
+    "-c:a", "aac",
+    outPath,
+  ];
+  return { source, args, outPath };
+}

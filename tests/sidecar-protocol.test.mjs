@@ -40,7 +40,7 @@ import {
   validateCutPlan,
   isAuthFailure,
 } from "../desktop/sidecar/agent.mjs";
-import { CUT_TARGETS, proposeCutSpec } from "../desktop/sidecar/cutspec.mjs";
+import { CUT_TARGETS, proposeCutSpec, flatRenderCommand } from "../desktop/sidecar/cutspec.mjs";
 import {
   CATEGORIES,
   DEFAULT_POLICY,
@@ -751,6 +751,34 @@ describe("cutspec — proposeCutSpec", () => {
     ] };
     const fb = proposeCutSpec(zero, { kind: "teaser" });
     expect(fb.clips).toEqual([{ source: "/v.mp4", in: 5, out: 5, audio: "keep" }]);
+  });
+});
+
+describe("cutspec — flatRenderCommand", () => {
+  const spec = { project: { fps: 24 }, clips: [
+    { source: "/v.mp4", in: 1, out: 3, audio: "keep" },
+    { source: "/v.mp4", in: 10, out: 12.5, audio: "keep" },
+  ] };
+  it("throws on an empty cut", () => {
+    expect(() => flatRenderCommand({ clips: [] }, "/out.mp4")).toThrow(/no clips/);
+    expect(() => flatRenderCommand(null, "/out.mp4")).toThrow(/no clips/);
+  });
+  it("trims + concats each clip off the single source, maps [cv]/[ca], encodes to outPath", () => {
+    const c = flatRenderCommand(spec, "/out.mp4");
+    expect(c.source).toBe("/v.mp4");
+    expect(c.outPath).toBe("/out.mp4");
+    const fc = c.args[c.args.indexOf("-filter_complex") + 1];
+    expect(fc).toContain("[0:v]trim=start=1:end=3,setpts=PTS-STARTPTS[v0]");
+    expect(fc).toContain("[0:a]atrim=start=10:end=12.5,asetpts=PTS-STARTPTS[a1]");
+    expect(fc).toContain("[v0][a0][v1][a1]concat=n=2:v=1:a=1[cv][ca]");
+    expect(c.args).toEqual(expect.arrayContaining(["-map", "[cv]", "-map", "[ca]", "/out.mp4"]));
+  });
+  it("scales + pads to a target frame (9:16) and maps the scaled label", () => {
+    const c = flatRenderCommand(spec, "/o.mp4", { width: 1080, height: 1920 });
+    const fc = c.args[c.args.indexOf("-filter_complex") + 1];
+    expect(fc).toContain("[cv]scale=1080:1920:force_original_aspect_ratio=decrease");
+    expect(fc).toContain("pad=1080:1920:(ow-iw)/2:(oh-ih)/2:color=black[vo]");
+    expect(c.args[c.args.indexOf("-map") + 1]).toBe("[vo]");
   });
 });
 

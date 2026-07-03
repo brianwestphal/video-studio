@@ -21,6 +21,7 @@ export const TOOL_PATHS = Object.freeze({
   review: "tools/review-switches.mjs",
   "propose-switches": "tools/propose-switches.mjs",
   sync: "tools/sync-multicam.mjs",
+  "export-project": "tools/export-project.mjs",
 });
 
 // Video file extensions the importer recognizes.
