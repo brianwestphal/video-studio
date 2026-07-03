@@ -34,6 +34,7 @@ import {
   parseReviewUrl,
   proposeCommand,
   importCommand,
+  analyzeProjectCommand,
 } from "./steps.mjs";
 import { DOCTOR_TOOLS, doctorResultFromChecks } from "./doctor.mjs";
 import {
@@ -288,6 +289,19 @@ function runImportFootage(id, folder) {
   runToolCommand(id, command, { outPath: command.outPath, kind: command.kind, count: command.count });
 }
 
+// The Analyze stage (VS-82): the deeper audio-events pass over the project's footage —
+// distinct from import's scene detection; produces audio-events.json for Design.
+function runAnalyzeProject(id, folder) {
+  let command;
+  try {
+    command = analyzeProjectCommand(folder, fs.readdirSync(folder));
+  } catch (err) {
+    send(errorMessage(id, ERROR_CODES.STEP_FAILED, err.message));
+    return;
+  }
+  runToolCommand(id, command, { outPath: command.outPath });
+}
+
 // The Manual lane's auto starting point (R-DS2): propose an initial cut into switches.json.
 function runDesignCut(id, folder) {
   if (!fs.existsSync(path.join(folder, "multicam.json"))) {
@@ -452,6 +466,13 @@ function handle(decoded) {
       if (id !== null) {
         if (params.folder) runImportFootage(id, params.folder);
         else send(errorMessage(id, ERROR_CODES.MISSING_PARAM, "import-footage requires param: folder"));
+      }
+      return;
+    }
+    if (decoded.step === "analyze-project") {
+      if (id !== null) {
+        if (params.folder) runAnalyzeProject(id, params.folder);
+        else send(errorMessage(id, ERROR_CODES.MISSING_PARAM, "analyze-project requires param: folder"));
       }
       return;
     }

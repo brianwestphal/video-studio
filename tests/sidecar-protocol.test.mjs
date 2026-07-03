@@ -23,6 +23,7 @@ import {
   proposeCommand,
   videoFilesIn,
   importCommand,
+  analyzeProjectCommand,
 } from "../desktop/sidecar/steps.mjs";
 import { DOCTOR_TOOLS, doctorResultFromChecks } from "../desktop/sidecar/doctor.mjs";
 import {
@@ -405,6 +406,19 @@ describe("steps — videoFilesIn + importCommand", () => {
   });
   it("no videos → throws", () => {
     expect(() => importCommand("/proj", ["readme.md"])).toThrow(/no video files/);
+  });
+});
+
+describe("steps — analyzeProjectCommand", () => {
+  it("runs audio-events on the project's primary video → audio-events.json", () => {
+    expect(analyzeProjectCommand("/proj", ["b.mp4", "a.mp4", "notes.txt"])).toEqual({
+      tool: "audio-events",
+      args: ["/proj/a.mp4", "--out", "/proj/audio-events.json"],
+      outPath: "/proj/audio-events.json",
+    });
+  });
+  it("no videos → throws", () => {
+    expect(() => analyzeProjectCommand("/proj", [])).toThrow(/no video files/);
   });
 });
 

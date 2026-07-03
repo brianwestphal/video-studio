@@ -49,20 +49,16 @@
         <section class="screen" data-screen="analyze" hidden>
           <header class="screen-head">
             <h1>Analyze</h1>
-            <p class="sub">Open a video and run frame-accurate scene detection with live progress.</p>
+            <p class="sub">The deeper pass over your footage — the musical/edit-awareness data the Design step uses. (Import already identified the scenes/sources.)</p>
           </header>
-          <div class="row">
-            <button class="btn" id="open-video">Open video…</button>
-            <span class="path" id="video-path">No video selected</span>
+          <div class="op-engine" id="analyze-engine"></div>
+          <ol class="op-steps" id="analyze-steps"></ol>
+          <button class="btn primary" id="analyze-run">Run analysis</button>
+          <div class="op-progress" id="analyze-progress" hidden>
+            <div class="op-bar" data-indeterminate><div class="op-bar-fill"></div></div>
+            <div class="op-status" id="analyze-status"></div>
           </div>
-          <div class="row">
-            <button class="btn primary" id="run-analyze" disabled>Analyze scenes</button>
-          </div>
-          <div class="progress" id="analyze-progress" hidden>
-            <div class="bar"><div class="bar-fill" id="analyze-bar"></div></div>
-            <div class="stage-label" id="analyze-stage"></div>
-          </div>
-          <pre class="log" id="analyze-log" aria-live="polite"></pre>
+          <p class="analyze-empty" id="analyze-empty" hidden>Import footage first (New Project) — Analyze needs a project.</p>
         </section>
 
         <!-- Design (two lanes) -->

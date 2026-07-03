@@ -32,6 +32,24 @@ export function videoFilesIn(fileNames) {
   return names.filter((n) => VIDEO_EXTS.includes(("." + String(n).split(".").pop()).toLowerCase())).sort();
 }
 
+// The Analyze stage (VS-82): the *deeper* pass that runs AFTER import — musical/edit-
+// awareness audio events (loudness, onsets, quiet, vocal/instrumental sections) that Design
+// (propose-switches) consumes. Distinct from import's scene detection. Runs on the project's
+// primary video → audio-events.json. Pure; the host does the readdir. (Per-angle visual
+// saliency for multi-cam is a follow-up.)
+export function analyzeProjectCommand(folder, videoNames) {
+  const videos = videoFilesIn(videoNames);
+  if (videos.length === 0) throw new Error("no video files found in the project folder");
+  const outPath = path.join(folder, "audio-events.json");
+  return { tool: "audio-events", args: [path.join(folder, videos[0]), "--out", outPath], outPath };
+}
+
+// The named sub-steps each analysis surfaces to the UI (set expectations), and which engine
+// does the work (local vs an AI). Pure data.
+export const ANALYSIS_PLAN = Object.freeze([
+  { key: "audio-events", label: "Audio events — loudness, onsets, quiet, vocal/instrumental sections", engine: "local (ffmpeg + whisper)" },
+]);
+
 // Detect single-source vs multi-cam and build the import command (R-81): 2+ videos →
 // audio-sync them into multicam.json (sync-multicam); one video → analyze it into
 // sources.json (analyze-sources). Pure; throws when the folder has no video. `videoNames`

@@ -127,8 +127,14 @@ document.getElementById("import-run").addEventListener("click", () => {
       if (p.message) status.textContent = `Analyzing… ${p.message}`.slice(0, 80);
     },
     onResult: (data) => {
-      status.textContent = data.kind === "multicam" ? `Synced ${data.count} angles.` : "Analyzed single source.";
-      send("project-open", { folder: currentProject.folder }, { onResult: applyProjectSnapshot });
+      status.textContent = data.kind === "multicam" ? `Synced ${data.count} angles.` : "Imported single source.";
+      // Refresh so the new artifact registers, then move the user forward to Analyze.
+      send("project-open", { folder: currentProject.folder }, {
+        onResult: (snap) => {
+          applyProjectSnapshot(snap);
+          gotoStage("analyze");
+        },
+      });
     },
     onError: (e) => {
       btn.disabled = false;
@@ -191,46 +197,60 @@ async function openOrCreateProject(step) {
 document.getElementById("open-project").addEventListener("click", () => openOrCreateProject("project-open"));
 document.getElementById("create-project").addEventListener("click", () => openOrCreateProject("project-create"));
 
-// --- Analyze --------------------------------------------------------------
+// --- Analyze (the project's deeper pass — audio events) -------------------
 
-let selectedVideo = null;
+// Mirrors ANALYSIS_PLAN in desktop/sidecar/steps.mjs (the frontend can't import the sidecar
+// module). Sets expectations: what runs + on what engine (local, no AI cost).
+const ANALYZE_STEPS = [
+  { label: "Audio events — loudness, onsets, quiet, vocal/instrumental sections", engine: "runs on your machine (ffmpeg + whisper) — no AI, no cost" },
+];
 
-document.getElementById("open-video").addEventListener("click", async () => {
-  const path = await invoke("open_video");
-  if (!path) return;
-  selectedVideo = path;
-  document.getElementById("video-path").textContent = path;
-  document.getElementById("run-analyze").disabled = false;
-});
+function renderAnalyze() {
+  const hasProject = !!currentProject;
+  document.getElementById("analyze-empty").hidden = hasProject;
+  document.getElementById("analyze-run").hidden = !hasProject;
+  document.getElementById("analyze-engine").textContent = hasProject ? `Engine: ${ANALYZE_STEPS[0].engine}` : "";
+  const steps = document.getElementById("analyze-steps");
+  steps.innerHTML = "";
+  if (!hasProject) return;
+  const done = currentProject.project.artifacts.includes("audioEvents");
+  for (const s of ANALYZE_STEPS) {
+    const li = document.createElement("li");
+    li.className = "op-step" + (done ? " done" : "");
+    li.textContent = s.label;
+    steps.appendChild(li);
+  }
+  document.getElementById("analyze-run").textContent = done ? "Re-run analysis" : "Run analysis";
+}
 
-document.getElementById("run-analyze").addEventListener("click", () => {
-  if (!selectedVideo) return;
-  const log = document.getElementById("analyze-log");
+document.getElementById("analyze-run").addEventListener("click", () => {
+  if (!currentProject) return;
+  const btn = document.getElementById("analyze-run");
   const progress = document.getElementById("analyze-progress");
-  const bar = document.getElementById("analyze-bar");
-  const stageLabel = document.getElementById("analyze-stage");
-  log.textContent = "";
+  const status = document.getElementById("analyze-status");
+  btn.disabled = true;
   progress.hidden = false;
-  bar.style.width = "0%";
-  document.getElementById("run-analyze").disabled = true;
-
-  let total = 0;
-  send("analyze-scenes", { video: selectedVideo }, {
+  status.textContent = "Starting…";
+  send("analyze-project", { folder: currentProject.folder }, {
     onProgress: (p) => {
-      log.textContent += `${p.message || p.stage}\n`;
-      log.scrollTop = log.scrollHeight;
-      stageLabel.textContent = p.stage;
-      if (p.stage === "detected" || p.stage === "resume") total = p.total || 0;
-      if (p.stage === "describe" && total) bar.style.width = `${Math.round((p.current / total) * 100)}%`;
+      if (p.message) status.textContent = p.message.slice(0, 90);
     },
     onResult: () => {
-      bar.style.width = "100%";
-      stageLabel.textContent = "done";
-      document.getElementById("run-analyze").disabled = false;
+      status.textContent = "Analysis complete.";
+      btn.disabled = false;
+      // Refresh so audio-events registers, then move the user forward to Design.
+      send("project-open", { folder: currentProject.folder }, {
+        onResult: (snap) => {
+          applyProjectSnapshot(snap);
+          renderAnalyze();
+          gotoStage("design");
+        },
+      });
     },
     onError: (e) => {
-      stageLabel.textContent = `error: ${e.message}`;
-      document.getElementById("run-analyze").disabled = false;
+      progress.hidden = true;
+      btn.disabled = false;
+      status.textContent = e.message;
     },
   });
 });
@@ -317,10 +337,16 @@ document.getElementById("design-open-timeline").addEventListener("click", () => 
 });
 
 function gotoReview() {
-  selectedStage = "review";
+  gotoStage("review");
+}
+
+// Navigate to a stage: select it, re-render the rail, show its screen, run its enter hook.
+// Used to move the user forward after a step completes (import → Analyze → Design → Review).
+function gotoStage(key) {
+  selectedStage = key;
   renderRail();
-  showScreen("review");
-  startReview();
+  showScreen(key);
+  onEnterScreen(key);
 }
 
 // --- Review ---------------------------------------------------------------
@@ -351,9 +377,10 @@ function startReview() {
   });
 }
 
-// Per-screen entry hook (currently only Review needs one).
+// Per-screen entry hook — refresh a screen's dynamic content when the user lands on it.
 function onEnterScreen(key) {
   if (key === "review") startReview();
+  else if (key === "analyze") renderAnalyze();
 }
 
 // --- Export ---------------------------------------------------------------

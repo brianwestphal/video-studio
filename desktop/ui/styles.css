@@ -56,7 +56,10 @@ body {
   cursor: pointer;
 }
 .stage[data-state="active"] { background: var(--panel); color: var(--text); font-weight: 600; }
-.stage[data-state="idle"]:hover { background: #191c22; color: var(--text); }
+.stage[data-state="idle"] { color: var(--text); }           /* reachable — clearly clickable */
+.stage[data-state="idle"]:hover { background: #191c22; }
+.stage[data-state="done"] { color: var(--ok); }             /* completed */
+.stage[data-state="done"]::after { content: " ✓"; }
 .stage[data-state="locked"] { color: #565c69; cursor: default; }
 
 .panel { padding: 40px 48px; overflow-y: auto; }
@@ -150,6 +153,19 @@ body {
 .feed-item { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; background: #101318; border: 1px solid var(--line); border-radius: 6px; }
 .feed-label { font-size: 12px; font-weight: 600; color: var(--accent); }
 .feed-detail { font-size: 12px; color: var(--muted); }
+
+/* Operation UI (Analyze / long steps): engine label + step list + indeterminate bar */
+.op-engine { color: var(--muted); font-size: 12px; margin: 2px 0 14px; }
+.op-steps { list-style: decimal; padding-left: 22px; margin: 0 0 18px; max-width: 660px; }
+.op-step { padding: 8px 0; color: var(--text); border-bottom: 1px solid var(--line); }
+.op-step.done { color: var(--ok); }
+.op-progress { margin: 18px 0; max-width: 660px; }
+.op-bar { height: 8px; background: #12151b; border-radius: 999px; overflow: hidden; }
+.op-bar-fill { height: 100%; background: var(--accent); border-radius: 999px; }
+.op-bar[data-indeterminate] .op-bar-fill { width: 38%; animation: op-slide 1.15s ease-in-out infinite; }
+@keyframes op-slide { 0% { margin-left: -40%; } 100% { margin-left: 102%; } }
+.op-status { color: var(--muted); font-size: 12px; margin-top: 8px; min-height: 16px; font-family: ui-monospace, Menlo, monospace; }
+.analyze-empty { color: var(--muted); }
 
 .review-screen { display: flex; flex-direction: column; height: 100%; }
 .review-status { color: var(--muted); font-size: 13px; padding: 12px 0; }
