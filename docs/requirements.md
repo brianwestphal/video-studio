@@ -139,3 +139,12 @@ Larger features have their own source-of-truth docs (kept in sync the same way):
   [`multicam-auto-cut.md`](multicam-auto-cut.md) (audio+visual → `switches`, R-AC),
   and [`multicam-review-ui.md`](multicam-review-ui.md) (review low-confidence cuts in a
   local web UI, R-RUI — flag signal shipped R-AC9, UI design only).
+- **Desktop app (VS-76 initiative)** *(design only — a native Tauri shell over the
+  existing pipeline; nothing built yet)*:
+  [`desktop-app.md`](desktop-app.md) (shell, project model, stage navigation + Node sidecar
+  host, R-APP1–R-APP18, VS-80),
+  [`desktop-app-claude-bridge.md`](desktop-app-claude-bridge.md) (Auto lane via the Claude
+  Agent SDK, structured events → UI, R-CB1–R-CB9, VS-83),
+  and [`desktop-app-permissions.md`](desktop-app-permissions.md) (app-owned category-based
+  permission & safety layer, R-PERM1–R-PERM12, VS-85). Concept + roadmap:
+  [`investigations/ui-app.md`](investigations/ui-app.md).

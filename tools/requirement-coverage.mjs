@@ -208,6 +208,58 @@ export const REQUIREMENT_COVERAGE = {
   "R-RUI8": { status: "manual", note: "per-segment synchronized transport, single audio-focus, fullscreen; clips retain audio (VS-71); scrubber section-of-interest band + tick (VS-72) — manual-test-plan §13.9-13.13" },
   "R-RUI9": { status: "manual", note: "whole-video assembled timeline preview — client-side multi-cam player over HTTP-Range /source, /assembled edit, angle-colored bar, live pick updates (VS-73) — manual-test-plan §13.14-13.17" },
   "R-RUI10": { status: "unit", tests: ["review-model.test.ts"], note: "force-add via reviewSegments forceKeys + splitSwitch are unit-tested; the /add-review, /split, and docked-timeline-drawer UI are I/O (manual-test-plan §13.18-13.21) (VS-74)" },
+
+  // Desktop app — shell, project model + sidecar host (docs/desktop-app.md, VS-80).
+  // Design only: the Tauri app is not built yet. When built, the pure pieces called out
+  // in the doc (stage-state derivation, project-state reconcile, sidecar protocol framing,
+  // config merge) become status:"unit" with tests; the Rust/webview/subprocess shell is manual.
+  "R-APP1": { status: "deferred", note: "Tauri shell + vanilla webview, external engine — design only (VS-80)" },
+  "R-APP2": { status: "deferred", note: "Rust shell spawns long-lived Node sidecar over typed stdio protocol (VS-80)" },
+  "R-APP3": { status: "deferred", note: "reuse existing pipeline as-is, no engine fork (VS-80)" },
+  "R-APP4": { status: "deferred", note: "macOS-only to start; Tauri leaves cross-platform open (VS-80)" },
+  "R-APP5": { status: "deferred", note: "left stage rail: Setup/New Project/Analyze/Design/Review/Export (VS-80)" },
+  "R-APP6": { status: "deferred", note: "per-stage done/active/locked state (VS-80)" },
+  "R-APP7": { status: "deferred", note: "stage state = pure fn of project state + artifact presence (VS-80)" },
+  "R-APP8": { status: "deferred", note: "Project = footage folder + per-project state file tracking artifacts (VS-80)" },
+  "R-APP9": { status: "deferred", note: "create/open/recent projects (VS-80)" },
+  "R-APP10": { status: "deferred", note: "filesystem is source of truth; pure reconcile of state vs readdir (VS-80)" },
+  "R-APP11": { status: "deferred", note: "one long-lived Node sidecar host, restarted on death (VS-80)" },
+  "R-APP12": { status: "deferred", note: "typed request/stream protocol; pure framing module unit-tested when built (VS-80)" },
+  "R-APP13": { status: "deferred", note: "host maps steps to analyzer.js / analyze-* / sync / propose-switches / exporters, parsing progress (VS-80)" },
+  "R-APP14": { status: "deferred", note: "cancellable, serialized-per-project mutating steps; atomic-write safe (VS-80)" },
+  "R-APP15": { status: "deferred", note: "observable host lifecycle; in-flight failure surfaces + retryable (VS-80)" },
+  "R-APP16": { status: "deferred", note: "Setup screen reuses launcher checkTools (VS-80)" },
+  "R-APP17": { status: "deferred", note: "Homebrew install guidance; full first-run dep UX deferred to VS-89 (VS-80)" },
+  "R-APP18": { status: "deferred", note: "app-global config (recent projects + VS-85 rules) separate from projects + Claude settings (VS-80)" },
+
+  // Desktop app — Claude Agent SDK control bridge (docs/desktop-app-claude-bridge.md, VS-83).
+  // Design only. When built, the pure event->feed mapping + structured-result validation
+  // become status:"unit"; the SDK run + session I/O is manual.
+  "R-CB1": { status: "deferred", note: "run Claude headless via Agent SDK in the sidecar, not TUI scraping / bare CLI (VS-83)" },
+  "R-CB2": { status: "deferred", note: "version-pin SDK; tolerate unknown event types (VS-83)" },
+  "R-CB3": { status: "deferred", note: "Auto-lane run = a sidecar pipeline step with intent + project context (VS-83)" },
+  "R-CB4": { status: "deferred", note: "stream structured events -> activity feed; pure event->feed mapping unit-tested when built (VS-83)" },
+  "R-CB5": { status: "deferred", note: "prefer JSON-schema structured cut plan over prose; pure schema validation (VS-83)" },
+  "R-CB6": { status: "deferred", note: "capture session_id + resume for multi-turn refinement, scoped per project (VS-83)" },
+  "R-CB7": { status: "deferred", note: "allowedTools pre-approve pipeline tools; misses -> canUseTool -> VS-85 (VS-83)" },
+  "R-CB8": { status: "deferred", note: "AskUserQuestion via same callback -> native picker (VS-83)" },
+  "R-CB9": { status: "deferred", note: "detect auth failure from SDK result -> triggers Connect Claude (VS-84) (VS-83)" },
+
+  // Desktop app — application-level permission & safety layer (docs/desktop-app-permissions.md, VS-85).
+  // Design only. When built, the classifier + default-policy lookup + rule matcher + config
+  // merge are all PURE and held to 100% unit coverage (project convention); the screen UI is manual.
+  "R-PERM1": { status: "deferred", note: "classify tool call into media/read/write/destructive/egress/other-shell (VS-85)" },
+  "R-PERM2": { status: "deferred", note: "classifier is pure over (tool,input,root); 100% unit when built (VS-85)" },
+  "R-PERM3": { status: "deferred", note: "conservative: ambiguous/traversal -> most restrictive category (VS-85)" },
+  "R-PERM4": { status: "deferred", note: "per-category default allow/ask policy tuned so Auto lane rarely prompts (VS-85)" },
+  "R-PERM5": { status: "deferred", note: "Allow once / Deny / Always allow this category -> persisted category rule (VS-85)" },
+  "R-PERM6": { status: "deferred", note: "rule scope this-project vs everywhere; pure matcher with precedence, 100% unit (VS-85)" },
+  "R-PERM7": { status: "deferred", note: "enforce: rules first, prompt only on miss of an ask-default (VS-85)" },
+  "R-PERM8": { status: "deferred", note: "allowedTools derived from allow-by-default categories, kept in sync (VS-85)" },
+  "R-PERM9": { status: "deferred", note: "AskUserQuestion handled by question UI, not gated as risky (VS-85)" },
+  "R-PERM10": { status: "deferred", note: "Permissions screen plain-language toggles over default policy (VS-85)" },
+  "R-PERM11": { status: "deferred", note: "live remembered-approvals list, per-rule revoke + reset-all (VS-85)" },
+  "R-PERM12": { status: "deferred", note: "rules stored in app config (per-project/global), pure load/merge/save (VS-85)" },
 };
 
 // Audit the manifest against the ids actually defined in the docs. Pure: caller
