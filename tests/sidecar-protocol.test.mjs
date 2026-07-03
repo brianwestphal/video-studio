@@ -25,6 +25,13 @@ import {
   newProjectState,
   reconcileProject,
 } from "../desktop/sidecar/project.mjs";
+import {
+  AGENT_EVENT_KINDS,
+  normalizeClaudeEvent,
+  eventToFeedEntry,
+  validateCutPlan,
+  isAuthFailure,
+} from "../desktop/sidecar/agent.mjs";
 
 describe("protocol — framing", () => {
   it("frameMessage produces one NDJSON line", () => {
@@ -406,5 +413,123 @@ describe("project — reconcileProject", () => {
       sources: [],
       artifacts: [],
     });
+  });
+});
+
+describe("agent — normalizeClaudeEvent", () => {
+  it("nullish / non-object → unknown", () => {
+    expect(normalizeClaudeEvent(null)).toEqual({ kind: "unknown", type: "null" });
+    expect(normalizeClaudeEvent("x")).toEqual({ kind: "unknown", type: "x" });
+  });
+  it("system/init → session (id present or null)", () => {
+    expect(normalizeClaudeEvent({ type: "system", subtype: "init", session_id: "s1" })).toEqual({
+      kind: AGENT_EVENT_KINDS.SESSION,
+      sessionId: "s1",
+    });
+    expect(normalizeClaudeEvent({ type: "system", subtype: "init" }).sessionId).toBe(null);
+  });
+  it("other system subtypes → system (subtype or null)", () => {
+    expect(normalizeClaudeEvent({ type: "system", subtype: "compact" })).toEqual({ kind: "system", subtype: "compact" });
+    expect(normalizeClaudeEvent({ type: "system" }).subtype).toBe(null);
+  });
+  it("assistant → text + tools, skipping other/blank content parts", () => {
+    const ev = {
+      type: "assistant",
+      message: {
+        content: [
+          { type: "text", text: "Hello " },
+          { type: "text", text: "world" },
+          { type: "tool_use", name: "analyze-scenes", input: { video: "v" } },
+          { type: "image" },
+          null,
+        ],
+      },
+    };
+    expect(normalizeClaudeEvent(ev)).toEqual({
+      kind: "assistant",
+      text: "Hello world",
+      tools: [{ name: "analyze-scenes", input: { video: "v" } }],
+    });
+  });
+  it("assistant with no/blank content → empty text + tools; tool_use defaults", () => {
+    expect(normalizeClaudeEvent({ type: "assistant" })).toEqual({ kind: "assistant", text: "", tools: [] });
+    expect(normalizeClaudeEvent({ type: "assistant", message: { content: [{ type: "tool_use" }] } })).toEqual({
+      kind: "assistant",
+      text: "",
+      tools: [{ name: "", input: {} }],
+    });
+  });
+  it("user → tool-result; result → ok/text/subtype", () => {
+    expect(normalizeClaudeEvent({ type: "user" })).toEqual({ kind: "tool-result" });
+    expect(normalizeClaudeEvent({ type: "result", subtype: "success", result: "ok", is_error: false })).toEqual({
+      kind: "result",
+      ok: true,
+      text: "ok",
+      subtype: "success",
+    });
+    expect(normalizeClaudeEvent({ type: "result", is_error: true })).toMatchObject({ ok: false, text: "" });
+  });
+  it("unknown types → unknown with a string type or null", () => {
+    expect(normalizeClaudeEvent({ type: "weird" })).toEqual({ kind: "unknown", type: "weird" });
+    expect(normalizeClaudeEvent({ type: 42 })).toEqual({ kind: "unknown", type: null });
+    expect(normalizeClaudeEvent({})).toEqual({ kind: "unknown", type: null });
+  });
+});
+
+describe("agent — eventToFeedEntry", () => {
+  it("session / system", () => {
+    expect(eventToFeedEntry({ kind: "session", sessionId: "s1" })).toEqual({ label: "Session started", detail: "s1" });
+    expect(eventToFeedEntry({ kind: "session" })).toEqual({ label: "Session started", detail: "" });
+    expect(eventToFeedEntry({ kind: "system", subtype: "compact" })).toEqual({ label: "System", detail: "compact" });
+    expect(eventToFeedEntry({ kind: "system" })).toEqual({ label: "System", detail: "" });
+  });
+  it("assistant: friendly tool label, raw tool label, text, or skip", () => {
+    expect(eventToFeedEntry({ kind: "assistant", tools: [{ name: "analyze-scenes" }], text: "" }).label).toBe(
+      "Analyzing scenes",
+    );
+    expect(eventToFeedEntry({ kind: "assistant", tools: [{ name: "mystery" }], text: "" }).label).toBe("Using mystery");
+    expect(eventToFeedEntry({ kind: "assistant", tools: [], text: "hi" })).toEqual({ label: "Claude", detail: "hi" });
+    expect(eventToFeedEntry({ kind: "assistant", tools: [], text: "" })).toBe(null);
+  });
+  it("tool-result → null; result → Done/Failed; unknown → null; null → null", () => {
+    expect(eventToFeedEntry({ kind: "tool-result" })).toBe(null);
+    expect(eventToFeedEntry({ kind: "result", ok: true, text: "d" })).toEqual({ label: "Done", detail: "d" });
+    expect(eventToFeedEntry({ kind: "result", ok: false })).toEqual({ label: "Failed", detail: "" });
+    expect(eventToFeedEntry({ kind: "unknown" })).toBe(null);
+    expect(eventToFeedEntry(null)).toBe(null);
+  });
+});
+
+describe("agent — validateCutPlan", () => {
+  it("rejects non-objects + a missing switches array", () => {
+    expect(validateCutPlan(null).ok).toBe(false);
+    expect(validateCutPlan([]).ok).toBe(false);
+    expect(validateCutPlan(5).ok).toBe(false);
+    expect(validateCutPlan({}).error).toMatch(/switches array/);
+  });
+  it("rejects malformed switches", () => {
+    expect(validateCutPlan({ switches: [null] }).error).toMatch(/switch 0 is not an object/);
+    expect(validateCutPlan({ switches: [{ atSeconds: "x", memberId: "a" }] }).error).toMatch(/atSeconds/);
+    expect(validateCutPlan({ switches: [{ atSeconds: -1, memberId: "a" }] }).error).toMatch(/atSeconds/);
+    expect(validateCutPlan({ switches: [{ atSeconds: Number.NaN, memberId: "a" }] }).error).toMatch(/atSeconds/);
+    expect(validateCutPlan({ switches: [{ atSeconds: 1 }] }).error).toMatch(/memberId/);
+    expect(validateCutPlan({ switches: [{ atSeconds: 1, memberId: "" }] }).error).toMatch(/memberId/);
+  });
+  it("accepts + normalizes (sorted by atSeconds)", () => {
+    expect(
+      validateCutPlan({ switches: [{ atSeconds: 5, memberId: "b" }, { atSeconds: 1, memberId: "a" }], extra: 1 }),
+    ).toEqual({ ok: true, plan: { switches: [{ atSeconds: 1, memberId: "a" }, { atSeconds: 5, memberId: "b" }] } });
+  });
+});
+
+describe("agent — isAuthFailure", () => {
+  it("true only for a failed result whose text names an auth problem", () => {
+    expect(isAuthFailure({ kind: "result", ok: false, text: "Not logged in — run setup-token" })).toBe(true);
+    expect(isAuthFailure({ kind: "result", ok: false, text: "401 Unauthorized" })).toBe(true);
+    expect(isAuthFailure({ kind: "result", ok: false, text: "ffmpeg not found" })).toBe(false);
+    expect(isAuthFailure({ kind: "result", ok: false })).toBe(false); // no text
+    expect(isAuthFailure({ kind: "result", ok: true, text: "auth ok" })).toBe(false);
+    expect(isAuthFailure({ kind: "assistant" })).toBe(false);
+    expect(isAuthFailure(null)).toBe(false);
   });
 });

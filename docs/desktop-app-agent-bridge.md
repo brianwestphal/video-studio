@@ -18,8 +18,12 @@ Part of the desktop-app initiative — see the umbrella [`desktop-app.md`](deskt
 backend's tool-permission choke point defined here). Design rationale:
 [`investigations/ui-app.md`](investigations/ui-app.md) §9.
 
-Status: **Design only** — nothing built yet. Depends on VS-80 (sidecar host); pairs with
-the auth flow (VS-84) and the permission layer (VS-85).
+Status: **Partial** — the **backend-agnostic pure core is built** (`desktop/sidecar/agent.mjs`,
+unit-tested to 100%): event normalization (R-CB2), the event→activity-feed mapping (R-CB6),
+structured cut-plan validation (R-CB7), and auth-failure detection (R-CB11). **Remaining:** the
+live headless Claude run via `@anthropic-ai/claude-agent-sdk` in the host (R-CB3), session
+resume (R-CB8), the `canUseTool` choke point (R-CB9/10, consumed by VS-92), and the Codex/Ollama
+backends (R-CB4/5). Depends on VS-90 (sidecar host); pairs with VS-84 (auth) + VS-92 (permissions).
 
 ## 1. Why structured events, not TUI scraping
 

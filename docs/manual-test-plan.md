@@ -303,6 +303,10 @@ Covered by unit tests (do **not** re-test by hand):
   `newProjectState`, `reconcileProject` (filesystem-wins) (`tests/sidecar-protocol.test.mjs`).
   100% coverage. Only the `host.mjs` readdir/read/write (§14.8/14.9) + the rail/New Project
   rendering (§15.6/15.7) are manual.
+- **`desktop/sidecar/agent.mjs`** — `normalizeClaudeEvent` (tolerates unknown types),
+  `eventToFeedEntry`, `validateCutPlan`, `isAuthFailure` (`tests/sidecar-protocol.test.mjs`).
+  100% coverage. The live `@anthropic-ai/claude-agent-sdk` run + session resume + the
+  `canUseTool` choke point are the I/O edge (not yet built — VS-91 tail / VS-92).
 
 - **`src/scene-math.ts`** — `parseFps`, `buildScenes`, `formatTimecode`
   (`tests/scene-math.test.ts`). 100% coverage.
