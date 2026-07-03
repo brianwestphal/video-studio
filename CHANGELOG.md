@@ -95,6 +95,46 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - **Hardened toolkit** — ESLint + Vitest with **100% coverage enforced on all ten pure modules** (scene/timecode math, analyzer CLI/state, error classification, caption assembly, the export manifest + FCPXML, source/multicam manifests, and the multi-cam DSP), and a tag-driven release flow with CI publishing to npm with provenance.
 - **Internal** — the scene analyzer was split into focused modules (CLI, state, ffmpeg, ollama, error classification) with no change to its behavior or output. The multi-cam logic was likewise split: the signal DSP (FFT cross-correlation, drift fit) now lives in `tools/multicam-dsp.mjs`, with `tools/multicam.mjs` keeping the group-manifest + angle-cut assembly (no behavior change).
 
+## [0.2.0] - 2026-07-03
+
+
+
+- Sync several clips of one event by their audio into a group manifest with per-angle offsets and confidence — sub-sample precision, an optional GCC-PHAT method, and drift correction for long takes.
+- Automatically propose camera groups from a pool of sources, by folder, overlapping recording time, or filename.
+- Automatic angle selection: propose angle switches by correlating audio events with per-angle visual saliency (riff → instrument angle, vocals → the active singer), with shot-length limits (max 8s / min 0.5s), an instrumental long-take exception, and shot-type variety so two similar shots don't run back to back.
+- Turn synced groups into a switching cut end to end, from angle switches through the editor handoff.
+
+
+- New review page to inspect and edit low-confidence angle switches: synchronized per-segment playback with a single audio focus, per-clip transport, and fullscreen.
+- Each preview marks its section-of-interest (the actual shot vs. lead-in/out) with a scrubber band and time range.
+- Load a whole-video assembled timeline preview that plays the full multi-cam edit and live-updates as picks change.
+- Force-add any cut to review even if unflagged, split at the playhead, dock the timeline, and opt-in to re-propose downstream switches around your locked picks.
+
+
+- Export the edit as a live, re-cuttable Final Cut Pro multicam clip (angle viewer + master audio) or a Final Cut Pro X project (.fcpxml) alongside the rendered segments and overlays.
+- Suggest FCP transitions at chosen cuts, drawing on the full 16-transition built-in palette.
+- Opt-in `--fcp-normalize-audio` re-encodes Pro Tools / BWF WAVs that FCP can't import into a sidecar so the timeline imports with sound; without the flag, such files now raise a warning instead of importing silently.
+
+
+- Bake real transitions into the finished video with ffmpeg — no NLE required. The default windowed renderer re-encodes only each transition window (~4x faster than a full-timeline pass) and renders native Tier A/B/C transitions, including feathered inset edges.
+
+
+- Export a designed cut as an NLE-ready project folder: individual ProRes segments, alpha overlays, a JSON manifest of target time ranges, and a `rebuild.sh`.
+- Build a cut from a pool of source videos and folders instead of a single recording.
+
+
+- Non-speech audio-events pass: loudness envelope, onset detection, and quiet/vocal/instrumental sectioning gated by the transcript, plus Tier-2 spectral descriptors and structural boundaries.
+- Per-angle visual saliency scoring (performer, instrument-in-use, motion, framing, presence) for the angle selector, with a cheap motion pre-pass that gates the costly vision calls.
+
+
+- Multi-cam FCPXML now imports into Final Cut Pro with audio in sync — frame-exact spine placement, sample-exact audio-asset duration, black-fill of each angle's leading gap, and correct handling of audio-only assets.
+- Refined saliency so a head-down instrumentalist is no longer read as the active singer, fixing wrong-angle holds during vocals.
+- Drop a sub-frame runt shot that could land at the very end of the timeline.
+
+
+- Per-vision-call progress during the long saliency pass (angle, call count, average time, ETA).
+- The launcher now pauses on its getting-started splash until you press Enter, so it isn't wiped the moment Claude starts.
+
 ## [0.1.0] - 2026-06-27
 
 
