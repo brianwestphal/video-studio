@@ -10,6 +10,7 @@
 // child. The host stays up across many requests (one per pipeline step the UI runs).
 
 import { spawn } from "node:child_process";
+import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -25,6 +26,13 @@ import {
 } from "./protocol.mjs";
 import { STEP_REGISTRY, toolArgv } from "./steps.mjs";
 import { DOCTOR_TOOLS, doctorResultFromChecks } from "./doctor.mjs";
+import {
+  PROJECT_STATE_DIR,
+  PROJECT_STATE_FILE,
+  deriveStages,
+  newProjectState,
+  reconcileProject,
+} from "./project.mjs";
 
 // The repo root is two levels up from desktop/sidecar/. The app lives in a subdir
 // of this repo (settled), so the pipeline tools sit alongside at ../../.
@@ -96,14 +104,74 @@ function runDoctor(id) {
   }
 }
 
-function handle(decoded) {
-  // The doctor step is handled here (not via the registry) — it's a fan-out of
-  // probes, not one child process.
-  if (decoded && typeof decoded === "object" && decoded.type === MESSAGE_TYPES.REQUEST && decoded.step === "doctor") {
-    const id = typeof decoded.id === "string" || Number.isFinite(decoded.id) ? decoded.id : null;
-    if (id === null) return;
-    runDoctor(id);
+// Project steps read/write the filesystem (the I/O edge) around the pure project
+// model in project.mjs. `project-open` re-derives artifacts + stage state from what's
+// actually on disk (filesystem wins); `project-create` writes a fresh state file.
+function readProjectState(folder) {
+  try {
+    const raw = fs.readFileSync(path.join(folder, PROJECT_STATE_DIR, PROJECT_STATE_FILE), "utf8");
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+function projectSnapshot(folder, project) {
+  // project.artifacts is a list of artifact *keys*; deriveStages takes a Set of keys
+  // (an array would be treated as raw filenames).
+  return { folder, project, stages: deriveStages(new Set(project.artifacts)) };
+}
+
+function runProjectOpen(id, folder) {
+  let entries = [];
+  try {
+    entries = fs.readdirSync(folder);
+  } catch (err) {
+    send(errorMessage(id, ERROR_CODES.STEP_FAILED, `cannot open ${folder}: ${err.message}`));
     return;
+  }
+  const project = reconcileProject(readProjectState(folder), entries, path.basename(folder));
+  send(resultMessage(id, projectSnapshot(folder, project)));
+}
+
+function runProjectCreate(id, folder, name) {
+  try {
+    fs.mkdirSync(path.join(folder, PROJECT_STATE_DIR), { recursive: true });
+    const project = newProjectState(name || path.basename(folder));
+    fs.writeFileSync(
+      path.join(folder, PROJECT_STATE_DIR, PROJECT_STATE_FILE),
+      JSON.stringify(project, null, 2),
+    );
+    send(resultMessage(id, projectSnapshot(folder, project)));
+  } catch (err) {
+    send(errorMessage(id, ERROR_CODES.STEP_FAILED, `cannot create project in ${folder}: ${err.message}`));
+  }
+}
+
+function handle(decoded) {
+  // The doctor + project steps are handled here (not via the registry): doctor is a
+  // fan-out of probes; the project steps are filesystem reads/writes, not a tool spawn.
+  if (decoded && typeof decoded === "object" && decoded.type === MESSAGE_TYPES.REQUEST) {
+    const id = typeof decoded.id === "string" || Number.isFinite(decoded.id) ? decoded.id : null;
+    const params = decoded.params && typeof decoded.params === "object" ? decoded.params : {};
+    if (decoded.step === "doctor") {
+      if (id !== null) runDoctor(id);
+      return;
+    }
+    if (decoded.step === "project-open") {
+      if (id !== null) {
+        if (params.folder) runProjectOpen(id, params.folder);
+        else send(errorMessage(id, ERROR_CODES.MISSING_PARAM, "project-open requires param: folder"));
+      }
+      return;
+    }
+    if (decoded.step === "project-create") {
+      if (id !== null) {
+        if (params.folder) runProjectCreate(id, params.folder, params.name);
+        else send(errorMessage(id, ERROR_CODES.MISSING_PARAM, "project-create requires param: folder"));
+      }
+      return;
+    }
   }
   const v = validateRequest(decoded, STEP_REGISTRY);
   if (!v.ok) {

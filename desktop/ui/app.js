@@ -7,18 +7,18 @@
 const { invoke } = window.__TAURI__.core;
 const { listen } = window.__TAURI__.event;
 
-// The pipeline stages (R-APP5). `locked` stages aren't wired yet (R-APP6) — the
-// spike ships Setup + Analyze; the rest are shown locked, not as placeholders.
-const STAGES = [
-  { key: "setup", label: "Setup", locked: false },
-  { key: "new-project", label: "New Project", locked: true },
-  { key: "analyze", label: "Analyze", locked: false },
-  { key: "design", label: "Design", locked: true },
-  { key: "review", label: "Review", locked: true },
-  { key: "export", label: "Export", locked: true },
+// The pipeline stage rail (R-APP5/6). State (key/label/state) is sourced from the
+// sidecar's pure deriveStages once a project is open, else this no-project default
+// (which matches deriveStages([])): Setup + New Project reachable, the rest locked.
+let railStages = [
+  { key: "setup", label: "Setup", state: "active" },
+  { key: "new-project", label: "New Project", state: "idle" },
+  { key: "analyze", label: "Analyze", state: "locked" },
+  { key: "design", label: "Design", state: "locked" },
+  { key: "review", label: "Review", state: "locked" },
+  { key: "export", label: "Export", state: "locked" },
 ];
-
-let activeStage = "setup";
+let selectedStage = "setup";
 let nextId = 1;
 const pending = new Map(); // request id -> { onProgress, onResult, onError }
 
@@ -52,22 +52,55 @@ listen("sidecar", (event) => {
 
 // --- stage rail -----------------------------------------------------------
 
+// Map a stage's underlying (sidecar-derived) state + the current selection to the
+// rail's display state: locked wins; the selected stage is active; done stays done;
+// everything else is idle.
+function displayState(stage) {
+  if (stage.state === "locked") return "locked";
+  if (stage.key === selectedStage) return "active";
+  if (stage.state === "done") return "done";
+  return "idle";
+}
+
 function renderRail() {
   const rail = document.getElementById("rail");
   rail.innerHTML = "";
-  for (const stage of STAGES) {
+  for (const stage of railStages) {
+    const state = displayState(stage);
     const el = document.createElement("button");
     el.className = "stage";
     el.textContent = stage.label;
-    el.dataset.state = stage.locked ? "locked" : stage.key === activeStage ? "active" : "idle";
-    el.disabled = stage.locked;
+    el.dataset.state = state;
+    el.disabled = state === "locked";
     el.addEventListener("click", () => {
-      if (stage.locked) return;
-      activeStage = stage.key;
+      if (state === "locked") return;
+      selectedStage = stage.key;
       renderRail();
       showScreen(stage.key);
     });
     rail.appendChild(el);
+  }
+}
+
+// Apply a project snapshot from the sidecar (project-open / project-create result).
+function applyProjectSnapshot(snapshot) {
+  railStages = snapshot.stages;
+  renderRail();
+  const info = document.getElementById("project-info");
+  info.hidden = false;
+  document.getElementById("project-name").textContent = snapshot.project.name;
+  document.getElementById("project-folder").textContent = snapshot.folder;
+  const list = document.getElementById("project-artifacts");
+  list.innerHTML = "";
+  if (snapshot.project.artifacts.length === 0) {
+    list.innerHTML = "<li class='artifact none'>No pipeline artifacts yet — run Analyze.</li>";
+  } else {
+    for (const a of snapshot.project.artifacts) {
+      const li = document.createElement("li");
+      li.className = "artifact";
+      li.textContent = a;
+      list.appendChild(li);
+    }
   }
 }
 
@@ -105,6 +138,25 @@ document.getElementById("run-doctor").addEventListener("click", () => {
     },
   });
 });
+
+// --- New Project ----------------------------------------------------------
+
+async function openOrCreateProject(step) {
+  const folder = await invoke("open_folder");
+  if (!folder) return;
+  send(step, { folder }, {
+    onResult: applyProjectSnapshot,
+    onError: (e) => {
+      document.getElementById("project-info").hidden = false;
+      document.getElementById("project-name").textContent = `Error: ${e.message}`;
+      document.getElementById("project-folder").textContent = "";
+      document.getElementById("project-artifacts").innerHTML = "";
+    },
+  });
+}
+
+document.getElementById("open-project").addEventListener("click", () => openOrCreateProject("project-open"));
+document.getElementById("create-project").addEventListener("click", () => openOrCreateProject("project-create"));
 
 // --- Analyze --------------------------------------------------------------
 

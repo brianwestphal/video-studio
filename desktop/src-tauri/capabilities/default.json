@@ -9,6 +9,7 @@
     "dialog:default",
     "dialog:allow-open",
     "allow-sidecar-send",
-    "allow-open-video"
+    "allow-open-video",
+    "allow-open-folder"
   ]
 }

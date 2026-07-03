@@ -84,6 +84,20 @@ body {
 .doctor-row .tag { color: var(--muted); font-size: 12px; }
 .doctor-row .hint { color: var(--muted); font-size: 12px; font-family: ui-monospace, Menlo, monospace; }
 
+.project-info { margin-top: 24px; max-width: 640px; }
+.project-name { font-size: 18px; font-weight: 600; }
+.project-folder { color: var(--muted); font-family: ui-monospace, Menlo, monospace; font-size: 12px; margin-top: 2px; }
+.artifacts { list-style: none; padding: 0; margin: 16px 0 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.artifact {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 4px 10px;
+  font: 12px ui-monospace, Menlo, monospace;
+  color: var(--text);
+}
+.artifact.none { color: var(--muted); font-family: inherit; }
+
 .progress { margin: 18px 0; max-width: 640px; }
 .bar { height: 8px; background: #12151b; border-radius: 999px; overflow: hidden; }
 .bar-fill { height: 100%; width: 0; background: var(--accent); transition: width 0.2s ease; }

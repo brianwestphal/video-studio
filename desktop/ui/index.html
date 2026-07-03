@@ -21,6 +21,23 @@
           <ul class="doctor" id="doctor-rows"></ul>
         </section>
 
+        <!-- New Project -->
+        <section class="screen" data-screen="new-project" hidden>
+          <header class="screen-head">
+            <h1>New Project</h1>
+            <p class="sub">Open a folder of footage. The app reads what's on disk — the filesystem is the source of truth.</p>
+          </header>
+          <div class="row">
+            <button class="btn" id="open-project">Open project folder…</button>
+            <button class="btn" id="create-project">Create here…</button>
+          </div>
+          <div class="project-info" id="project-info" hidden>
+            <div class="project-name" id="project-name"></div>
+            <div class="project-folder" id="project-folder"></div>
+            <ul class="artifacts" id="project-artifacts"></ul>
+          </div>
+        </section>
+
         <!-- Analyze -->
         <section class="screen" data-screen="analyze" hidden>
           <header class="screen-head">

@@ -61,7 +61,8 @@ and [`requirements-summary.md`](requirements-summary.md) for status.
 │   │   ├── protocol.mjs        # pure: NDJSON request/stream protocol — framing + validateRequest + constructors (R-APP12, 100% unit)
 │   │   ├── steps.mjs           # pure: step registry — buildCommand descriptors + analyzer progress parser (R-APP13, 100% unit)
 │   │   ├── doctor.mjs          # pure: tool list + doctorResultFromChecks for the Setup screen (R-APP16/17, 100% unit)
-│   │   └── host.mjs            # I/O edge: stdin loop → spawn tool / `which` probes → stream progress → result/error (manual, test-plan §14)
+│   │   ├── project.mjs         # pure: project model — ARTIFACTS map, deriveStages, reconcileProject (filesystem-wins) (R-APP7/8/10, 100% unit)
+│   │   └── host.mjs            # I/O edge: stdin loop → spawn tool / `which` probes / project readdir → stream progress → result/error (manual, test-plan §14)
 │   ├── src-tauri/              # native Rust shell: lib.rs spawns host.mjs, streams stdout as `sidecar` events, sidecar_send + open_video commands
 │   │   ├── src/{main,lib}.rs   #   (Cargo.toml, build.rs, tauri.conf.json, capabilities/default.json, icons/)
 │   └── ui/                     # vanilla webview frontend (frontendDist): index.html + app.js + styles.css — stage rail + Setup/Analyze screens (R-APP5/6)

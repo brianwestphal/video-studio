@@ -268,6 +268,8 @@ from the repo root after `npm run build`.
 | 14.5 | Start a long `analyze-scenes`, then send `{"type":"cancel","id":1}` | The child is killed; a terminal `{"type":"error",...,"message":"cancelled (SIGTERM)"}` for id 1. |
 | 14.6 | Close stdin (Ctrl-D) mid-run | Any in-flight child is terminated and the host exits. |
 | 14.7 | Send `{"type":"request","id":3,"step":"doctor"}` | A single `{"type":"result","id":3,"data":{"ready":...,"rows":[...]}}` — one row per tool (node/ffmpeg/ffprobe/whisper/ollama/claude) with `found` + `status` (`ok`/`missing-required`/`missing-optional`); `ready` true iff all required tools resolve. |
+| 14.8 | In a folder containing `multicam.json` + `audio-events.json`, send `{"type":"request","id":4,"step":"project-open","params":{"folder":"<dir>"}}` | `result` with `data.project.artifacts` = `["audioEvents","multicam"]` (re-derived from disk) and `data.stages` showing new-project + analyze `done`, design `idle`, review/export `locked`. |
+| 14.9 | `project-create` in an empty folder | Writes `.video-studio/project.json`; `result` snapshot has no artifacts and the rail shows only Setup active / New Project reachable. |
 
 ## 15. Desktop app window (`desktop/src-tauri`, VS-79/VS-90)
 
@@ -278,6 +280,8 @@ Launch with `npm run desktop:dev` (= `cargo run --manifest-path desktop/src-taur
 |---|--------|--------|
 | 15.1 | `npm run desktop:dev` | The "Video Studio" window opens on the **Setup** screen; the left **stage rail** shows Setup + Analyze active, and New Project/Design/Review/Export **locked** (greyed, not clickable). |
 | 15.2 | On Setup, click **Check tools** | A row per tool appears with a green dot (found) / red (missing required) / amber (missing optional) and, for missing ones, a plain-language install hint. Values match `bin/video-studio.mjs --check`. |
+| 15.6 | Click **New Project**, then **Open project folder…**, choose a folder that already has pipeline artifacts | The project name + folder + an artifact chip list appear; the **stage rail lights up** — stages whose artifacts exist read `done`, the next reachable one is selectable, later ones stay `locked`. |
+| 15.7 | **Create here…** in an empty folder | `.video-studio/project.json` is written; the rail shows Setup active + New Project reachable, the rest locked. |
 | 15.3 | Click **Analyze** in the rail, then **Open video…** | A native macOS file dialog opens filtered to video extensions; the chosen path shows and **Analyze scenes** enables. |
 | 15.4 | Click **Analyze scenes** | The progress bar + a live log fill as `dist/analyzer.js` runs (stages detect → detected → extract → describe), driven entirely by the streamed sidecar events; the bar reaches 100% and the stage reads `done`. |
 | 15.5 | Quit the window mid-analyze | The Node sidecar (and its analyzer child) are killed — no lingering `node` process. |
@@ -295,6 +299,10 @@ Covered by unit tests (do **not** re-test by hand):
 - **`desktop/sidecar/doctor.mjs`** — `doctorResultFromChecks` (rows + readiness verdict from
   probe results) (`tests/sidecar-protocol.test.mjs`). 100% coverage. Only the `which` probes
   in `host.mjs` (§14.7) + the Setup screen rendering (§15.2) are manual.
+- **`desktop/sidecar/project.mjs`** — `presentArtifacts`, `deriveStages` (done/active/locked),
+  `newProjectState`, `reconcileProject` (filesystem-wins) (`tests/sidecar-protocol.test.mjs`).
+  100% coverage. Only the `host.mjs` readdir/read/write (§14.8/14.9) + the rail/New Project
+  rendering (§15.6/15.7) are manual.
 
 - **`src/scene-math.ts`** — `parseFps`, `buildScenes`, `formatTimecode`
   (`tests/scene-math.test.ts`). 100% coverage.

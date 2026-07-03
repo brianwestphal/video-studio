@@ -53,6 +53,12 @@ fn open_video(app: tauri::AppHandle) -> Option<String> {
         .map(|p| p.to_string())
 }
 
+// Native "choose a project folder" dialog. Returns the chosen directory, or None.
+#[tauri::command]
+fn open_folder(app: tauri::AppHandle) -> Option<String> {
+    app.dialog().file().blocking_pick_folder().map(|p| p.to_string())
+}
+
 fn start_sidecar(app: &tauri::AppHandle) {
     let script = host_script_path();
     let mut child = match Command::new("node")
@@ -98,7 +104,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .manage(Sidecar::default())
-        .invoke_handler(tauri::generate_handler![sidecar_send, open_video])
+        .invoke_handler(tauri::generate_handler![sidecar_send, open_video, open_folder])
         .setup(|app| {
             start_sidecar(&app.handle().clone());
             Ok(())

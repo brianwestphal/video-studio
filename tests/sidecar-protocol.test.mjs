@@ -18,6 +18,13 @@ import {
   STEP_REGISTRY,
 } from "../desktop/sidecar/steps.mjs";
 import { DOCTOR_TOOLS, doctorResultFromChecks } from "../desktop/sidecar/doctor.mjs";
+import {
+  ARTIFACTS,
+  presentArtifacts,
+  deriveStages,
+  newProjectState,
+  reconcileProject,
+} from "../desktop/sidecar/project.mjs";
 
 describe("protocol — framing", () => {
   it("frameMessage produces one NDJSON line", () => {
@@ -307,6 +314,97 @@ describe("doctor — doctorResultFromChecks", () => {
       ready: true,
       missingRequired: [],
       rows: [{ key: "x", label: "X", required: true, hint: "h", found: true, status: "ok" }],
+    });
+  });
+});
+
+describe("project — presentArtifacts", () => {
+  it("maps filenames to artifact keys", () => {
+    const present = presentArtifacts([ARTIFACTS.sources, ARTIFACTS.switches, "unrelated.txt"]);
+    expect(present.has("sources")).toBe(true);
+    expect(present.has("switches")).toBe(true);
+    expect(present.has("multicam")).toBe(false);
+  });
+  it("tolerates a non-array listing", () => {
+    expect(presentArtifacts(null).size).toBe(0);
+  });
+});
+
+describe("project — deriveStages", () => {
+  const byKey = (stages) => Object.fromEntries(stages.map((s) => [s.key, s.state]));
+
+  it("empty project: setup active, new-project idle, downstream locked", () => {
+    const st = byKey(deriveStages([]));
+    expect(st.setup).toBe("active");
+    expect(st["new-project"]).toBe("idle");
+    expect(st.analyze).toBe("locked");
+    expect(st.design).toBe("locked");
+  });
+
+  it("footage present completes new-project and unlocks analyze (setup stays the default active)", () => {
+    const st = byKey(deriveStages([ARTIFACTS.multicam]));
+    expect(st.setup).toBe("active"); // never-done setup is the default active
+    expect(st["new-project"]).toBe("done");
+    expect(st.analyze).toBe("idle"); // unlocked (new-project done), not active, not done
+  });
+
+  it("accepts a Set of artifact keys directly", () => {
+    const st = byKey(deriveStages(new Set(["sources"])));
+    expect(st["new-project"]).toBe("done");
+    expect(st.analyze).toBe("idle");
+    expect(st.design).toBe("locked"); // analyze not done
+  });
+
+  it("a selected reachable stage becomes active; done stages show done", () => {
+    const st = byKey(deriveStages(new Set(["sources", "audioEvents"]), "setup"));
+    expect(st.setup).toBe("active");
+    expect(st["new-project"]).toBe("done");
+    expect(st.analyze).toBe("done");
+    expect(st.design).toBe("idle"); // reachable (analyze done), not active, not done
+    expect(st.review).toBe("locked");
+  });
+
+  it("a selected but locked stage is ignored (falls back to first actionable)", () => {
+    const st = byKey(deriveStages(new Set([]), "export")); // export is locked
+    expect(st.export).toBe("locked");
+    expect(st.setup).toBe("active"); // fell back
+  });
+
+  it("full pipeline: every stage done except the never-done setup", () => {
+    const all = new Set(["sources", "audioEvents", "switches", "switchesHistory", "exports"]);
+    const st = byKey(deriveStages(all, null));
+    expect(st.setup).toBe("active"); // setup is never done → first actionable
+    expect(st.design).toBe("done");
+    expect(st.review).toBe("done");
+    expect(st.export).toBe("done");
+  });
+});
+
+describe("project — newProjectState", () => {
+  it("builds a fresh state, defaulting name + sources", () => {
+    expect(newProjectState("My Show", ["a.mp4"])).toEqual({ name: "My Show", sources: ["a.mp4"], artifacts: [] });
+    expect(newProjectState()).toEqual({ name: "Untitled", sources: [], artifacts: [] });
+    expect(newProjectState("X", "not-array")).toEqual({ name: "X", sources: [], artifacts: [] });
+  });
+});
+
+describe("project — reconcileProject", () => {
+  it("re-derives artifacts from disk (filesystem wins) + keeps saved name/sources", () => {
+    const saved = { name: "Gig", sources: ["cam1.mp4"], artifacts: ["stale"] };
+    const r = reconcileProject(saved, [ARTIFACTS.sources, ARTIFACTS.audioEvents]);
+    expect(r).toEqual({ name: "Gig", sources: ["cam1.mp4"], artifacts: ["audioEvents", "sources"] });
+  });
+
+  it("missing/corrupt saved state degrades to the folder name", () => {
+    expect(reconcileProject(null, [], "MyFolder")).toEqual({ name: "MyFolder", sources: [], artifacts: [] });
+    expect(reconcileProject([1, 2], [], "F")).toEqual({ name: "F", sources: [], artifacts: [] });
+  });
+
+  it("empty saved name falls back to the folder name; non-array sources → []", () => {
+    expect(reconcileProject({ name: "", sources: "x" }, [], "Fallback")).toEqual({
+      name: "Fallback",
+      sources: [],
+      artifacts: [],
     });
   });
 });

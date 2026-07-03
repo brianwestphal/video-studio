@@ -69,27 +69,29 @@ works with no agent at all. **Both lanes ship in the MVP** (maintainer decision,
   (current) or `locked` (not wired yet — not selectable); the full `done` (artifact present +
   valid) derivation lands with the project model (R-APP7–10). Selecting an available stage
   swaps the main panel to that screen.
-- **R-APP7** Stage state is **derived from the project's artifacts** (§4), not stored
-  independently — e.g. Analyze is `done` when the scene timeline + audio-events artifacts
-  exist for the current sources, Review is `locked` until a cut (`switches.json`) exists.
-  The derivation is a **pure function** of the project state file + artifact presence, so
-  it is unit-testable in isolation.
+- **R-APP7** *(built — `desktop/sidecar/project.mjs` `deriveStages`)* Stage state is
+  **derived from the project's artifacts** (§4), not stored independently — e.g. Analyze is
+  `done` when the audio-events artifact exists, Review is `locked` until a cut
+  (`switches.json`) exists. The derivation is a **pure function** of artifact presence + the
+  selected stage, unit-tested to 100%.
 
 ## 4. Project model
 
-- **R-APP8** A **Project** is a folder of source footage (one clip, or many for
-  multi-cam) plus a **per-project state file** the app owns (e.g. `.video-studio/project.json`
-  inside the project folder). The state file records project name, the source set, and
-  **which pipeline artifacts exist** (`sources.json`, `multicam.json`, `audio-events.json`,
-  `saliency.json`, `switches.json`, exports).
-- **R-APP9** The app can **create** a project (from a picked video or a folder of angles),
-  **open** an existing project folder, and list **recent projects**. Recent-projects state
-  is app-global config (§6), distinct from per-project state.
-- **R-APP10** The state file is **advisory over the filesystem** — artifacts on disk are
-  the source of truth; the app re-derives artifact presence on open and reconciles the
-  state file, so a project stays valid even if a user edits/deletes an artifact outside
-  the app. Reading + reconciling the state is a **pure function** over a directory listing
-  (unit-testable; the actual `readdir` is the thin I/O edge).
+- **R-APP8** *(built — `desktop/sidecar/project.mjs`)* A **Project** is a folder of source
+  footage (one clip, or many for multi-cam) plus a **per-project state file** the app owns
+  (`.video-studio/project.json` inside the project folder). The state file records project
+  name, the source set, and **which pipeline artifacts exist** (`sources.json`,
+  `multicam.json`, `audio-events.json`, `saliency.json`, `switches.json`, exports — the
+  `ARTIFACTS` map). The state shape + `newProjectState` are pure + unit-tested; the file
+  read/write is host I/O (`project-open`/`project-create` steps).
+- **R-APP9** *(partial)* The app can **create** a project and **open** an existing project
+  folder (the New Project screen + the `open_folder` dialog + the host steps). **Recent
+  projects** (app-global config, §6/R-APP18) is not yet persisted.
+- **R-APP10** *(built — `reconcileProject`)* The state file is **advisory over the
+  filesystem** — artifacts on disk are the source of truth; the app re-derives artifact
+  presence on open and reconciles the state file, so a project stays valid even if a user
+  edits/deletes an artifact outside the app. Reconciliation is a **pure function** over a
+  directory listing (100% unit-tested; the actual `readdir` is the thin I/O edge).
 
 ## 5. Node sidecar host
 
