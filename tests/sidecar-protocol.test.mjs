@@ -21,6 +21,8 @@ import {
   reviewCommand,
   parseReviewUrl,
   proposeCommand,
+  videoFilesIn,
+  importCommand,
 } from "../desktop/sidecar/steps.mjs";
 import { DOCTOR_TOOLS, doctorResultFromChecks } from "../desktop/sidecar/doctor.mjs";
 import {
@@ -374,6 +376,35 @@ describe("steps — reviewCommand + parseReviewUrl", () => {
     );
     expect(parseReviewUrl("some other line")).toBe(null);
     expect(parseReviewUrl(null)).toBe(null);
+  });
+});
+
+describe("steps — videoFilesIn + importCommand", () => {
+  it("videoFilesIn filters + sorts video files (case-insensitive), ignoring the rest", () => {
+    expect(videoFilesIn(["b.MOV", "notes.txt", "a.mp4", "multicam.json", "c.mkv"])).toEqual([
+      "a.mp4",
+      "b.MOV",
+      "c.mkv",
+    ]);
+    expect(videoFilesIn(null)).toEqual([]);
+  });
+  it("one video → analyze-sources → sources.json (single)", () => {
+    expect(importCommand("/proj", ["clip.mp4", "readme.md"])).toEqual({
+      tool: "sources",
+      args: ["/proj/clip.mp4", "--out", "/proj/sources.json"],
+      outPath: "/proj/sources.json",
+      kind: "single",
+      count: 1,
+    });
+  });
+  it("two+ videos → sync-multicam → multicam.json (multi-cam)", () => {
+    const c = importCommand("/proj", ["cam2.mov", "cam1.mp4", "cam3.mkv"]);
+    expect(c).toMatchObject({ tool: "sync", outPath: "/proj/multicam.json", kind: "multicam", count: 3 });
+    // sorted, absolute, with --out last
+    expect(c.args).toEqual(["/proj/cam1.mp4", "/proj/cam2.mov", "/proj/cam3.mkv", "--out", "/proj/multicam.json"]);
+  });
+  it("no videos → throws", () => {
+    expect(() => importCommand("/proj", ["readme.md"])).toThrow(/no video files/);
   });
 });
 

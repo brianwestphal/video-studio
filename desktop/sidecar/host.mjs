@@ -33,6 +33,7 @@ import {
   reviewCommand,
   parseReviewUrl,
   proposeCommand,
+  importCommand,
 } from "./steps.mjs";
 import { DOCTOR_TOOLS, doctorResultFromChecks } from "./doctor.mjs";
 import {
@@ -273,6 +274,20 @@ function runToolCommand(id, command, extra) {
   });
 }
 
+// New Project import (VS-81): turn a folder of raw footage into the project's first artifact —
+// one video → sources.json (analyze-sources); 2+ → multicam.json (audio-sync). This is what
+// unlocks the rest of the rail. The pure importCommand picks the tool; the host does readdir.
+function runImportFootage(id, folder) {
+  let command;
+  try {
+    command = importCommand(folder, fs.readdirSync(folder));
+  } catch (err) {
+    send(errorMessage(id, ERROR_CODES.STEP_FAILED, err.message));
+    return;
+  }
+  runToolCommand(id, command, { outPath: command.outPath, kind: command.kind, count: command.count });
+}
+
 // The Manual lane's auto starting point (R-DS2): propose an initial cut into switches.json.
 function runDesignCut(id, folder) {
   if (!fs.existsSync(path.join(folder, "multicam.json"))) {
@@ -430,6 +445,13 @@ function handle(decoded) {
       if (id !== null) {
         if (params.folder) runExport(id, EXPORT_STEPS[decoded.step], params.folder);
         else send(errorMessage(id, ERROR_CODES.MISSING_PARAM, `${decoded.step} requires param: folder`));
+      }
+      return;
+    }
+    if (decoded.step === "import-footage") {
+      if (id !== null) {
+        if (params.folder) runImportFootage(id, params.folder);
+        else send(errorMessage(id, ERROR_CODES.MISSING_PARAM, "import-footage requires param: folder"));
       }
       return;
     }

@@ -96,17 +96,46 @@ function applyProjectSnapshot(snapshot) {
   document.getElementById("project-folder").textContent = snapshot.folder;
   const list = document.getElementById("project-artifacts");
   list.innerHTML = "";
-  if (snapshot.project.artifacts.length === 0) {
-    list.innerHTML = "<li class='artifact none'>No pipeline artifacts yet — run Analyze.</li>";
-  } else {
-    for (const a of snapshot.project.artifacts) {
-      const li = document.createElement("li");
-      li.className = "artifact";
-      li.textContent = a;
-      list.appendChild(li);
-    }
+  for (const a of snapshot.project.artifacts) {
+    const li = document.createElement("li");
+    li.className = "artifact";
+    li.textContent = a;
+    list.appendChild(li);
+  }
+
+  // Has the footage been imported yet? (sources.json single-source, or multicam.json).
+  const imported =
+    snapshot.project.artifacts.includes("sources") || snapshot.project.artifacts.includes("multicam");
+  const importBox = document.getElementById("import-box");
+  importBox.hidden = imported;
+  if (!imported) {
+    list.innerHTML = "<li class='artifact none'>No footage imported yet. Analyze this folder's video(s) to begin — that detects single vs multi-cam and unlocks the pipeline.</li>";
+    document.getElementById("import-status").textContent = "";
   }
 }
+
+// Import: turn the opened folder's raw footage into the first artifact (sources/multicam.json),
+// then refresh so the rail unlocks. This can take a while (audio sync / scene analysis).
+document.getElementById("import-run").addEventListener("click", () => {
+  if (!currentProject) return;
+  const btn = document.getElementById("import-run");
+  const status = document.getElementById("import-status");
+  btn.disabled = true;
+  status.textContent = "Analyzing footage… (this can take a while)";
+  send("import-footage", { folder: currentProject.folder }, {
+    onProgress: (p) => {
+      if (p.message) status.textContent = `Analyzing… ${p.message}`.slice(0, 80);
+    },
+    onResult: (data) => {
+      status.textContent = data.kind === "multicam" ? `Synced ${data.count} angles.` : "Analyzed single source.";
+      send("project-open", { folder: currentProject.folder }, { onResult: applyProjectSnapshot });
+    },
+    onError: (e) => {
+      btn.disabled = false;
+      status.textContent = e.message;
+    },
+  });
+});
 
 function showScreen(key) {
   for (const s of document.querySelectorAll(".screen")) {

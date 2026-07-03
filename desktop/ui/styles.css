@@ -110,6 +110,8 @@ body {
   color: var(--text);
 }
 .artifact.none { color: var(--muted); font-family: inherit; }
+.import-box { margin-top: 16px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.import-status { color: var(--muted); font-size: 12px; }
 
 .lanes { display: flex; gap: 20px; flex-wrap: wrap; margin-top: 8px; }
 .lane {

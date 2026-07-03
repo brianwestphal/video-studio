@@ -20,7 +20,33 @@ export const TOOL_PATHS = Object.freeze({
   fcpxml: "tools/export-multicam-fcpxml.mjs",
   review: "tools/review-switches.mjs",
   "propose-switches": "tools/propose-switches.mjs",
+  sync: "tools/sync-multicam.mjs",
 });
+
+// Video file extensions the importer recognizes.
+export const VIDEO_EXTS = Object.freeze([".mp4", ".mov", ".m4v", ".mkv", ".webm", ".avi"]);
+
+// The video files in a directory listing (case-insensitive extension match), sorted. Pure.
+export function videoFilesIn(fileNames) {
+  const names = Array.isArray(fileNames) ? fileNames : [];
+  return names.filter((n) => VIDEO_EXTS.includes(("." + String(n).split(".").pop()).toLowerCase())).sort();
+}
+
+// Detect single-source vs multi-cam and build the import command (R-81): 2+ videos →
+// audio-sync them into multicam.json (sync-multicam); one video → analyze it into
+// sources.json (analyze-sources). Pure; throws when the folder has no video. `videoNames`
+// are folder-relative filenames (from the host's readdir).
+export function importCommand(folder, videoNames) {
+  const videos = videoFilesIn(videoNames);
+  if (videos.length === 0) throw new Error("no video files found in the project folder");
+  const abs = videos.map((v) => path.join(folder, v));
+  if (videos.length === 1) {
+    const outPath = path.join(folder, "sources.json");
+    return { tool: "sources", args: [abs[0], "--out", outPath], outPath, kind: "single", count: 1 };
+  }
+  const outPath = path.join(folder, "multicam.json");
+  return { tool: "sync", args: [...abs, "--out", outPath], outPath, kind: "multicam", count: videos.length };
+}
 
 // Build the argv + output path for the Manual lane's "auto starting point" — an initial
 // auto cut via propose-switches (R-DS2). Pure. audio-events/saliency sharpen the cut when
