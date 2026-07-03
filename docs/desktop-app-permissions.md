@@ -84,6 +84,12 @@ category/pattern rules (not exact strings), stored in the app's own config.
 
 ## 5. Map down to the backend
 
+- **R-PERM7a** *(built — VS-97)* The choke point is enforced at **two points** for defense in
+  depth: the backend's `canUseTool` callback **and** a **`PreToolUse` hook**. The hook is
+  load-bearing because an agent SDK may **auto-approve its own sandboxed commands** (which
+  never reach `canUseTool`) — the hook fires for *every* tool call, so `decide` gates even
+  those. Adversarially verified: an agent-issued `curl`/egress command is blocked *before
+  execution* by our policy, not merely by the SDK's sandbox (manual-test-plan §15.16).
 - **R-PERM8** The always-safe categories are **pre-approved via the backend's allow-list**
   (Claude's `allowedTools`; the equivalent for other backends) so they never hit the choke
   point; everything else flows through it, where this layer runs R-PERM7. Because

@@ -389,17 +389,43 @@ async function runAgentRun(id, { prompt, folder, resume }) {
   const projectRoot = folder || REPO_ROOT;
   const rules = loadConfig().rules;
 
+  // The reason string for a decision our policy won't allow.
+  const denyReason = (d) =>
+    d === "deny"
+      ? "Blocked by video-studio's safety policy."
+      : "Needs your approval — interactive permission prompts are coming soon.";
+
   // Every non-pre-approved tool the agent wants flows through OUR safety layer (R-CB9): allow
   // silently, deny, or — since the interactive native prompt isn't wired through the sidecar
   // yet — deny an "ask" with an explanation (the run continues; that one action is blocked).
   const canUseTool = async (toolName, input) => {
     const d = decide(toolName, input, projectRoot, rules);
     if (d === "allow") return { behavior: "allow", updatedInput: input };
-    if (d === "deny") return { behavior: "deny", message: "Blocked by video-studio's safety policy." };
-    return { behavior: "deny", message: "Needs your approval — interactive permission prompts are coming soon." };
+    return { behavior: "deny", message: denyReason(d) };
   };
 
-  const options = { cwd: projectRoot, permissionMode: "default", canUseTool };
+  // Defense-in-depth (VS-97): a PreToolUse hook fires for EVERY tool call — including the ones
+  // the SDK auto-approves in its own bash sandbox, which never reach canUseTool. Running our
+  // policy here makes video-studio the authoritative gate: our layer can block any tool
+  // (prompt-injection or model mistake) even when the SDK would have sandboxed-and-allowed it.
+  const preToolUse = async (input) => {
+    const d = decide(input.tool_name, input.tool_input, projectRoot, rules);
+    if (d === "allow") return {}; // no objection — let the normal flow proceed
+    return {
+      hookSpecificOutput: {
+        hookEventName: "PreToolUse",
+        permissionDecision: "deny",
+        permissionDecisionReason: denyReason(d),
+      },
+    };
+  };
+
+  const options = {
+    cwd: projectRoot,
+    permissionMode: "default",
+    canUseTool,
+    hooks: { PreToolUse: [{ hooks: [preToolUse] }] },
+  };
   if (resume) options.resume = resume;
 
   let sessionId = null;
