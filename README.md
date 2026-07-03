@@ -97,7 +97,6 @@ The pipeline isn't limited to a single file or a flat render:
   a **Final Cut Pro `.fcpxml`** — for a flat timeline or a live, re-cuttable
   **multicam clip**. Add your own transitions and grade in FCP.
 
-<!-- TODO(prep-major-release): capture docs/media/editor-handoff-fcp.png — the exported .fcpxml imported into Final Cut Pro, showing segments on the primary storyline with alpha overlays as connected clips. PNG, ≤1280px wide, ≤~600KB. (VS-38) -->
 <p align="center">
   <img src="docs/media/multicam-fcp-timeline.png" alt="A video-studio multicam cut on the Final Cut Pro timeline, switching camera angles over the shared master audio" width="760">
   <br><em>An audio-synced multicam cut handed off to Final Cut Pro — angle switches laid over the shared master audio.</em>

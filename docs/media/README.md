@@ -37,13 +37,12 @@ nature (fallback only). Stills are ≲ ~760px wide to match the README layout.
 | `teaser-hero.gif` | The same teaser (hero fallback) | animated GIF, ~760px wide (large) |
 | `scene-analysis.png` | A per-scene contact sheet (one frame per detected scene) | PNG, ~760px wide |
 | `caption-overlay.png` | A caption / lower-third / CTA composited onto a frame | PNG, ~760px wide |
-| `editor-handoff-fcp.png` | The exported `.fcpxml` imported into Final Cut Pro — segments on the primary storyline, alpha overlays as connected clips | PNG, ≤1280px wide, ≲ 600 KB |
 | `multicam-fcp.png` | A video-studio multicam `.fcpxml` open in FCP's angle viewer — several synced angles + master audio, mid angle-switch | PNG, ≤1280px wide, ≲ 600 KB |
 | `multicam-fcp-timeline.png` | The same multicam `.fcpxml` as an FCP timeline — angle switches over the shared master audio | PNG, ≤1280px wide, ≲ 600 KB |
 
 `multicam-fcp.png` + `multicam-fcp-timeline.png` are **captured and wired in** (VS-38,
-from a real BYAM multi-cam sync → `export-multicam-fcpxml` → Final Cut Pro). Still
-outstanding: **`editor-handoff-fcp.png`** — the `export-project` `.fcpxml` in FCP showing
-the single-source cut with caption/overlay **alpha clips as connected clips** (a different
-feature from multi-cam) — needs a Mac with Final Cut Pro. Until then the README keeps its
-`<!-- TODO(prep-major-release) … editor-handoff-fcp.png … -->` placeholder.
+from a real BYAM multi-cam sync → `export-multicam-fcpxml` → Final Cut Pro). The two
+multicam stills cover the Final Cut Pro handoff for this release; a separate
+`editor-handoff-fcp.png` (the `export-project` single-source cut with caption/overlay alpha
+clips as connected clips) was considered and **dropped** as redundant (VS-38) — revisit if
+a future release wants to showcase the overlay-compositing handoff specifically.
