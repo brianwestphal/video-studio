@@ -25,6 +25,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, resolve, join } from "node:path";
 import { homedir } from "node:os";
 import { createInterface } from "node:readline/promises";
+import { analyzerPrepPlan } from "../tools/launcher-plan.mjs";
 
 const TOOLKIT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const SKILLS_SRC = join(TOOLKIT, "skills");
@@ -122,14 +123,30 @@ async function checkTools() {
 }
 
 // ── node deps + analyzer build ───────────────────────────────────────────
+// The npm package ships a prebuilt dist/ (package.json `files`), so an installed user has a
+// working analyzer WITHOUT the TS toolchain (typescript + @types/* are devDependencies npm
+// omits for consumers). Only recompile when there's no prebuilt dist — i.e. a source
+// checkout. Rebuilding unconditionally is what made `tsc` fail with a wall of type errors
+// for globally-installed users (VS-77). The decision is the pure `analyzerPrepPlan`.
 function ensureNodeDeps() {
-  console.log(C.bold + "Installing npm deps + building analyzer" + C.reset);
-  if (!existsSync(join(TOOLKIT, "node_modules", "domotion-svg"))) {
-    info("npm install …");
-    run("npm", ["install"], { cwd: TOOLKIT });
-  } else ok("npm deps present");
-  info("npm run build …");
-  if (run("npm", ["run", "build"], { cwd: TOOLKIT })) ok("analyzer built (dist/analyzer.js)");
+  console.log(C.bold + "Preparing analyzer" + C.reset);
+  const distEntry = join(TOOLKIT, "dist", "analyzer.js");
+  const plan = analyzerPrepPlan({
+    hasDist: existsSync(distEntry),
+    hasRuntimeDeps: existsSync(join(TOOLKIT, "node_modules", "domotion-svg")),
+    hasToolchain: existsSync(join(TOOLKIT, "node_modules", "typescript")),
+  });
+  if (plan.npmInstall) { info("npm install …"); run("npm", ["install"], { cwd: TOOLKIT }); }
+  else ok("npm deps present");
+  if (plan.build) {
+    info("npm run build …");
+    if (run("npm", ["run", "build"], { cwd: TOOLKIT }) && existsSync(distEntry)) ok("analyzer built (dist/analyzer.js)");
+    else bad("analyzer build failed — see errors above");
+  } else if (existsSync(distEntry)) {
+    ok("analyzer ready (dist/analyzer.js)");
+  } else {
+    warn("no dist/analyzer.js and no build performed — reinstall video-studio");
+  }
 }
 
 // ── install the Claude skill(s) ──────────────────────────────────────────

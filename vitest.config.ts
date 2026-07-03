@@ -31,6 +31,7 @@ export default defineConfig({
         "tools/multicam-autocut.mjs",
         "tools/review-model.mjs",
         "tools/requirement-coverage.mjs",
+        "tools/launcher-plan.mjs",
       ],
       thresholds: {
         lines: 100,

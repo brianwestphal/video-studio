@@ -16,7 +16,7 @@ and [`requirements-summary.md`](requirements-summary.md) for status.
 ```
 .
 ├── bin/
-│   └── video-studio.mjs        # launcher / doctor / skill installer (the `video-studio` bin)
+│   └── video-studio.mjs        # launcher / doctor / skill installer (the `video-studio` bin); analyzer prep uses the prebuilt dist/ and only rebuilds in a dev checkout (via tools/launcher-plan.mjs, VS-77)
 ├── src/
 │   ├── analyzer.ts             # scene analyzer entry + orchestration (compiled → dist/analyzer.js, the `video-scene-analyzer` bin)
 │   ├── analyzer-cli.ts         # pure CLI arg parsing + usage + Config (unit-tested)
@@ -53,6 +53,7 @@ and [`requirements-summary.md`](requirements-summary.md) for status.
 │   ├── review-model.mjs        # pure: review-UI core — flagged-segment derivation (+ forceKeys force-add) + candidate angles + preview windows + apply-choice/history + splitSwitch (unit-tested, VS-65/74)
 │   ├── review-switches.mjs     # I/O: local server + page + ffmpeg ±2s previews to review flagged cuts, write picks back to switches.json + history; opt-in re-propose (autoCut locks) with --audio-events/--saliency; synced per-segment playback + section band (VS-71/72); whole-video assembled timeline preview via /source (HTTP Range) + /assembled, client-side multi-cam player (VS-73); force-add cuts (/add-review) + split at playhead (/split) + timeline docked as a nav-bar drawer (VS-74) (over review-model.mjs + multicam-autocut.mjs, VS-65/67)
 │   ├── requirement-coverage.mjs # pure: requirement-index extraction + the feature-coverage manifest + audit (unit-tested, VS-58)
+│   ├── launcher-plan.mjs       # pure: analyzerPrepPlan — decide whether the launcher npm-installs / rebuilds from {hasDist,hasRuntimeDeps,hasToolchain}; never rebuild for an installed consumer (prebuilt dist, no TS devDeps) (unit-tested, VS-77)
 │   └── check-features.mjs      # feature/requirement coverage report + gate (I/O over requirement-coverage.mjs); `npm run check:features`
 ├── skills/
 │   └── video-studio/SKILL.md   # the pipeline Claude follows — primary interface

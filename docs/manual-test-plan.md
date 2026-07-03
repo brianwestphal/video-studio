@@ -27,9 +27,10 @@ re-test those by hand; this doc is only for what crosses a process/tool boundary
 | 1.2 | `node bin/video-studio.mjs --check` with a required tool removed from PATH | That tool shows as missing with its `brew install …` / manual hint; exit message flags the missing required tool. |
 | 1.3 | `node bin/video-studio.mjs --help` | Prints the splash and the usage block (lines parsed from the file header). |
 | 1.4 | `node bin/video-studio.mjs --skills-only` | Copies `skills/*` into `~/.claude/skills/`, substitutes `{{TOOLKIT_DIR}}` in each `SKILL.md`, prints one `/name → …` line per skill, exits. |
-| 1.5 | `node bin/video-studio.mjs --no-launch <dir>` | Runs tool checks + `npm install`/build + installs skills, prints "Ready", but does **not** start `claude`. |
+| 1.5 | `node bin/video-studio.mjs --no-launch <dir>` | Runs tool checks + the analyzer prep + installs skills, prints "Ready", but does **not** start `claude`. |
 | 1.6 | On a non-macOS host (or simulate) | Exits early with "video-studio currently supports macOS only." |
 | 1.7 | `node bin/video-studio.mjs <dir>` in a real terminal | After the "Ready" how-to, it **pauses on "Press Enter to launch Claude…"** so the how-to is readable; Claude launches only after Enter. With `--yes`, or when stdin isn't a TTY, it skips the pause. (VS-22) |
+| 1.8 | **Global/npx install** — `npm i -g video-studio && video-studio --no-launch <dir>` (or from the packed tarball) | Under "Preparing analyzer" it prints **"analyzer ready (dist/analyzer.js)"** and does **NOT** run `npm run build` / `tsc` — the prebuilt `dist/` ships in the package and consumers lack the TS devDependencies. **No `tsc` type-error wall** (the VS-77 regression). The build only runs in a dev checkout (toolchain present) or when `dist/` is absent — decided by the pure `analyzerPrepPlan` in `tools/launcher-plan.mjs`. |
 
 ## 2. Scene analyzer (`dist/analyzer.js`)
 
