@@ -4,6 +4,10 @@ Status: **investigation / brainstorm** — no implementation yet. This proposes 
 a phased plan; the maintainer reviews before we build. Follow-up tickets are filed for the
 proposed work (see the end).
 
+**Phase-0 wireframe:** [`ui-app-wireframe.html`](ui-app-wireframe.html) — a visual deck of the
+seven screens (Setup, New Project, Analyze, the two-lane Design, Review/Edit, Export, and the
+app-level permission model), built to the assumed decisions below (VS-78).
+
 ## 1. Why
 
 Everything we've built is a CLI pipeline plus a Claude Code skill. That's excellent for
