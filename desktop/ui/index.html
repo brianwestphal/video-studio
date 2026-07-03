@@ -40,6 +40,7 @@
             <ul class="artifacts" id="project-artifacts"></ul>
             <div class="import-box" id="import-box" hidden>
               <button class="btn primary" id="import-run">Analyze this footage</button>
+              <button class="btn small" id="import-cancel" hidden>Cancel</button>
               <div class="import-status" id="import-status"></div>
             </div>
           </div>
@@ -53,7 +54,10 @@
           </header>
           <div class="op-engine" id="analyze-engine"></div>
           <ol class="op-steps" id="analyze-steps"></ol>
-          <button class="btn primary" id="analyze-run">Run analysis</button>
+          <div class="row">
+            <button class="btn primary" id="analyze-run">Run analysis</button>
+            <button class="btn small" id="analyze-cancel" hidden>Cancel</button>
+          </div>
           <div class="op-progress" id="analyze-progress" hidden>
             <div class="op-bar" data-indeterminate><div class="op-bar-fill"></div></div>
             <div class="op-status" id="analyze-status"></div>
@@ -116,6 +120,7 @@
               <div class="export-title">MP4</div>
               <div class="export-desc">Finished 16:9 video (1280×720)</div>
               <button class="btn export-run">Export</button>
+              <button class="btn small export-cancel" hidden>Cancel</button>
               <div class="export-status" data-status>ready</div>
               <button class="btn small export-reveal" hidden>Reveal in Finder</button>
             </div>
@@ -123,6 +128,7 @@
               <div class="export-title">9:16 Social</div>
               <div class="export-desc">Vertical reel (1080×1920)</div>
               <button class="btn export-run">Export</button>
+              <button class="btn small export-cancel" hidden>Cancel</button>
               <div class="export-status" data-status>ready</div>
               <button class="btn small export-reveal" hidden>Reveal in Finder</button>
             </div>
@@ -130,6 +136,7 @@
               <div class="export-title">Final Cut Pro</div>
               <div class="export-desc">FCPXML handoff (re-cuttable)</div>
               <button class="btn export-run">Export</button>
+              <button class="btn small export-cancel" hidden>Cancel</button>
               <div class="export-status" data-status>ready</div>
               <button class="btn small export-reveal" hidden>Reveal in Finder</button>
             </div>

@@ -29,6 +29,40 @@ function send(step, params, handlers) {
   return id;
 }
 
+// Cancel an in-flight request — the sidecar kills the child (host.mjs) and the request's
+// onError fires with a "cancelled (SIGTERM)" message, which the run's reset handler catches.
+function cancel(id) {
+  invoke("sidecar_send", { payload: JSON.stringify({ type: "cancel", id }) });
+}
+
+// Run a long, cancellable op: toggles a run/cancel button pair and resets both on any terminal
+// outcome. onResult/onError still fire for the caller's own UI. Returns the request id.
+function runCancellable(step, params, { runBtn, cancelBtn, onProgress, onResult, onError }) {
+  runBtn.disabled = true;
+  cancelBtn.hidden = false;
+  const reset = () => {
+    runBtn.disabled = false;
+    cancelBtn.hidden = true;
+  };
+  const id = send(step, params, {
+    onProgress,
+    onResult: (d) => {
+      reset();
+      onResult && onResult(d);
+    },
+    onError: (e) => {
+      reset();
+      onError && onError(e);
+    },
+  });
+  cancelBtn.onclick = () => {
+    cancelBtn.disabled = true;
+    cancel(id);
+  };
+  cancelBtn.disabled = false;
+  return id;
+}
+
 // Route each NDJSON line from the sidecar to its request's handlers.
 listen("sidecar", (event) => {
   let msg;
@@ -118,11 +152,11 @@ function applyProjectSnapshot(snapshot) {
 // then refresh so the rail unlocks. This can take a while (audio sync / scene analysis).
 document.getElementById("import-run").addEventListener("click", () => {
   if (!currentProject) return;
-  const btn = document.getElementById("import-run");
   const status = document.getElementById("import-status");
-  btn.disabled = true;
   status.textContent = "Analyzing footage… (this can take a while)";
-  send("import-footage", { folder: currentProject.folder }, {
+  runCancellable("import-footage", { folder: currentProject.folder }, {
+    runBtn: document.getElementById("import-run"),
+    cancelBtn: document.getElementById("import-cancel"),
     onProgress: (p) => {
       if (p.message) status.textContent = `Analyzing… ${p.message}`.slice(0, 80);
     },
@@ -137,7 +171,6 @@ document.getElementById("import-run").addEventListener("click", () => {
       });
     },
     onError: (e) => {
-      btn.disabled = false;
       status.textContent = e.message;
     },
   });
@@ -225,19 +258,18 @@ function renderAnalyze() {
 
 document.getElementById("analyze-run").addEventListener("click", () => {
   if (!currentProject) return;
-  const btn = document.getElementById("analyze-run");
   const progress = document.getElementById("analyze-progress");
   const status = document.getElementById("analyze-status");
-  btn.disabled = true;
   progress.hidden = false;
   status.textContent = "Starting…";
-  send("analyze-project", { folder: currentProject.folder }, {
+  runCancellable("analyze-project", { folder: currentProject.folder }, {
+    runBtn: document.getElementById("analyze-run"),
+    cancelBtn: document.getElementById("analyze-cancel"),
     onProgress: (p) => {
       if (p.message) status.textContent = p.message.slice(0, 90);
     },
     onResult: () => {
       status.textContent = "Analysis complete.";
-      btn.disabled = false;
       // Refresh so audio-events registers, then move the user forward to Design.
       send("project-open", { folder: currentProject.folder }, {
         onResult: (snap) => {
@@ -249,7 +281,6 @@ document.getElementById("analyze-run").addEventListener("click", () => {
     },
     onError: (e) => {
       progress.hidden = true;
-      btn.disabled = false;
       status.textContent = e.message;
     },
   });
@@ -389,6 +420,7 @@ for (const card of document.querySelectorAll(".export-card")) {
   const kind = card.dataset.kind;
   const status = card.querySelector("[data-status]");
   const runBtn = card.querySelector(".export-run");
+  const cancelBtn = card.querySelector(".export-cancel");
   const revealBtn = card.querySelector(".export-reveal");
 
   runBtn.addEventListener("click", () => {
@@ -396,21 +428,20 @@ for (const card of document.querySelectorAll(".export-card")) {
       status.textContent = "open a project first";
       return;
     }
-    runBtn.disabled = true;
     revealBtn.hidden = true;
     status.textContent = "rendering…";
-    send(`export-${kind}`, { folder: currentProject.folder }, {
+    runCancellable(`export-${kind}`, { folder: currentProject.folder }, {
+      runBtn,
+      cancelBtn,
       onProgress: (p) => {
         status.textContent = p.message ? `rendering… ${p.message}`.slice(0, 60) : "rendering…";
       },
       onResult: (data) => {
-        runBtn.disabled = false;
         status.textContent = "done";
         revealBtn.hidden = false;
         revealBtn.onclick = () => invoke("reveal_in_finder", { path: data.outPath });
       },
       onError: (e) => {
-        runBtn.disabled = false;
         status.textContent = `error: ${e.message}`;
       },
     });

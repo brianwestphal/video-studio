@@ -66,11 +66,32 @@ function send(obj) {
   process.stdout.write(frameMessage(obj));
 }
 
+// Spawn a pipeline tool in its OWN process group (detached) so a cancel can tear down the
+// whole tree — the tool typically spawns ffmpeg/whisper/the analyzer, and signalling only the
+// direct child would orphan those. Not unref'd: we still want its stdio + close event.
+function spawnTool(cmd, args) {
+  return spawn(cmd, args, { cwd: REPO_ROOT, detached: true });
+}
+
+// Terminate a child and its descendants by signalling its process group (negative pid).
+function killTree(child) {
+  if (!child || !child.pid) return;
+  try {
+    process.kill(-child.pid, "SIGTERM");
+  } catch {
+    try {
+      child.kill("SIGTERM");
+    } catch {
+      /* already exited */
+    }
+  }
+}
+
 function runStep({ id, step, params }) {
   const descriptor = STEP_REGISTRY[step];
   const { tool, args } = descriptor.buildCommand(params);
   const [cmd, entry] = toolArgv(tool, REPO_ROOT);
-  const child = spawn(cmd, [entry, ...args], { cwd: REPO_ROOT });
+  const child = spawnTool(cmd, [entry, ...args]);
   inflight.set(id, child);
 
   // Split each stream into lines and run the step's progress parser over each.
@@ -247,7 +268,7 @@ const EXPORT_STEPS = { "export-mp4": "mp4", "export-social": "social", "export-f
 // return { ...extra, ok } on success. Shared by the export + design-cut steps.
 function runToolCommand(id, command, extra) {
   const [cmd, entry] = toolArgv(command.tool, REPO_ROOT);
-  const child = spawn(cmd, [entry, ...command.args], { cwd: REPO_ROOT });
+  const child = spawnTool(cmd, [entry, ...command.args]);
   inflight.set(id, child);
   const feed = (stream) => {
     let buffer = "";
@@ -334,7 +355,7 @@ function runReviewStart(id, folder) {
     hasSaliency: fs.existsSync(path.join(folder, "saliency.json")),
   });
   const [cmd, entry] = toolArgv(tool, REPO_ROOT);
-  const child = spawn(cmd, [entry, ...args], { cwd: REPO_ROOT });
+  const child = spawnTool(cmd, [entry, ...args]);
   let answered = false;
 
   let buffer = "";
@@ -368,7 +389,7 @@ function runReviewStart(id, folder) {
 
 function runReviewStop(id) {
   if (reviewServer) {
-    reviewServer.child.kill("SIGTERM");
+    killTree(reviewServer.child);
     reviewServer = null;
   }
   send(resultMessage(id, { stopped: true }));
@@ -535,7 +556,7 @@ function handle(decoded) {
   }
   if (v.kind === MESSAGE_TYPES.CANCEL) {
     const child = inflight.get(v.id);
-    if (child) child.kill("SIGTERM");
+    if (child) killTree(child);
     return;
   }
   runStep(v);
@@ -553,8 +574,8 @@ process.stdin.on("data", (chunk) => {
   }
 });
 process.stdin.on("end", () => {
-  for (const child of inflight.values()) child.kill("SIGTERM");
-  if (reviewServer) reviewServer.child.kill("SIGTERM");
+  for (const child of inflight.values()) killTree(child);
+  if (reviewServer) killTree(reviewServer.child);
 });
 
 send(readyMessage());
