@@ -192,3 +192,37 @@ betting the UX on TUI scraping.
   agent that returns a structured cut plan (fewer prompts, more legible) — the latter is friendlier
   for non-technical users.
 - **Version-pin** the SDK/CLI and tolerate unknown event types (the event schema evolves).
+
+## 10. Application-level permission & safety layer
+
+Permission prompts matter, but (a) a non-technical user must not face a wall of them, and (b) we
+should **not rely solely on Claude Code's own permission system** — the app owns a
+**defense-in-depth safety layer**, independent of the model, so that even a prompt-injection or a
+model mistake is gated by *our* policy. It lives at the `canUseTool` choke point (plus `allowedTools`
+pre-approval, and optionally a `PreToolUse` hook as a second enforcement point).
+
+Design:
+
+- **Classify every tool call into a human-meaningful category**, not a raw command string. For
+  video-studio: *media processing* (our ffmpeg / whisper / ollama + pipeline tools), *read within the
+  project*, *write results into the project*, *destructive* (`rm` / overwrite a source file / write
+  outside the project), *network egress* (anything beyond localhost Ollama + the Anthropic API), and
+  *other shell*.
+- **Policy per category, with safe defaults:** media processing + read/write **inside the project** →
+  allow silently; destructive + egress + unknown shell → **ask** (or deny). Defaults tuned so the Auto
+  lane rarely prompts for normal work.
+- **"Always allow this kind" is first-class.** Every prompt offers **Allow once / Deny / Always allow
+  this category** (optionally scoped: "in this project" vs "everywhere"). Choosing *Always* **persists
+  a rule** remembered across runs, so approvals accrue and the user is asked less over time. Rules are
+  category/pattern-based, not exact-string — "always allow ffmpeg" covers every future ffmpeg call.
+- **Rules are user-visible + resettable.** A Permissions screen: a few plain-language toggles ("Let
+  video-studio: process video · read this project · write results here · run other commands (ask)")
+  plus a live list of remembered approvals with per-rule revoke and a "reset all." Stored in the app's
+  own config (per-project and/or global), not buried in Claude's settings.
+- **Map down to the SDK:** pre-approve the always-safe categories via `allowedTools` (they never hit
+  the callback); everything else flows through `canUseTool`, where the app applies the persisted
+  rules first and only prompts on a miss.
+
+Net: **the model proposes, the app decides** — with easy, remembered "always allow" so friction drops
+to near-zero for routine work while genuinely risky actions still surface. This is a distinct build
+piece; it gets its own ticket once the Phase-0 design settles the category set + default policy.
