@@ -8,6 +8,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## Unreleased
 
+- **Dependency: `domotion-svg` 0.15.0 → 0.20.0** — bumped the overlay/animation
+  renderer. The `render-caption.mjs` call sites (`captureElementTree`,
+  `embedRemoteImages`, `elementTreeToSvgInner`, `generateAnimatedSvg`, `optimizeSvg`)
+  are API-compatible with 0.20 (verified against the shipped type defs — same
+  signatures + `AnimationConfig`/`AnimationFrame` shapes), so no code changes were
+  needed. Generated demo media (`docs/media/`) rebuilt with the new renderer.
 - **Editor handoff (Final Cut Pro)** — `export-project` turns a cut spec into a
   project folder of edit-grade pieces instead of a flat render: ProRes 422 HQ
   segments, ProRes 4444 alpha overlays, a `manifest.json` of frame-accurate target
