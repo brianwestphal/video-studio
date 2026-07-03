@@ -3,7 +3,12 @@
 // capabilities/default.json.
 fn main() {
     tauri_build::try_build(tauri_build::Attributes::new().app_manifest(
-        tauri_build::AppManifest::new().commands(&["sidecar_send", "open_video", "open_folder"]),
+        tauri_build::AppManifest::new().commands(&[
+            "sidecar_send",
+            "open_video",
+            "open_folder",
+            "reveal_in_finder",
+        ]),
     ))
     .expect("failed to run tauri-build");
 }

@@ -111,6 +111,22 @@ body {
 }
 .artifact.none { color: var(--muted); font-family: inherit; }
 
+.export-cards { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 8px; }
+.export-card {
+  flex: 1 1 200px;
+  max-width: 240px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.export-title { font-size: 16px; font-weight: 600; }
+.export-desc { color: var(--muted); font-size: 12px; }
+.export-run { margin-top: 6px; }
+.export-status { color: var(--muted); font-size: 12px; min-height: 16px; }
+
 .perm-toggles { list-style: none; padding: 0; margin: 8px 0 0; max-width: 680px; }
 .perm-toggle {
   display: flex;

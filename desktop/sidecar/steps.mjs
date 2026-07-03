@@ -16,6 +16,8 @@ export const TOOL_PATHS = Object.freeze({
   analyzer: "dist/analyzer.js",
   "audio-events": "tools/analyze-audio-events.mjs",
   sources: "tools/analyze-sources.mjs",
+  "render-preview": "tools/render-multicam-preview.mjs",
+  fcpxml: "tools/export-multicam-fcpxml.mjs",
 });
 
 // Resolve a logical tool key to a concrete `["node", <abs entry>]` argv prefix.
@@ -56,6 +58,29 @@ export function parseAnalyzerProgress(line) {
 export function genericProgress(line) {
   const text = String(line ?? "").trim();
   return text === "" ? null : { stage: "log", message: text };
+}
+
+// The Export lane's three outcomes (R-EX1). Each reuses a shipped tool with the same
+// `<multicam.json> --width --height [--switches] --out` shape. `render-preview` renders an
+// mp4 (heavy, ffmpeg); `fcpxml` writes a re-cuttable FCP handoff (fast).
+export const EXPORT_KINDS = Object.freeze({
+  mp4: { tool: "render-preview", width: 1280, height: 720, outName: "cut.mp4" },
+  social: { tool: "render-preview", width: 1080, height: 1920, outName: "cut.9x16.mp4" },
+  fcpxml: { tool: "fcpxml", width: 1280, height: 720, outName: "cut.fcpxml" },
+});
+
+// Build the argv + output path for an export outcome over the current project folder.
+// Pure (path.join only): the host resolves the tool, creates `exports/`, and spawns. The
+// reviewed cut is included only when it exists (`hasSwitches`) — a single-angle export
+// omits it. Throws on an unknown kind.
+export function exportCommand(kind, folder, { hasSwitches = false } = {}) {
+  const spec = EXPORT_KINDS[kind];
+  if (!spec) throw new Error(`unknown export kind: ${kind}`);
+  const outPath = path.join(folder, "exports", spec.outName);
+  const args = [path.join(folder, "multicam.json"), "--width", String(spec.width), "--height", String(spec.height)];
+  if (hasSwitches) args.push("--switches", path.join(folder, "switches.json"));
+  args.push("--out", outPath);
+  return { tool: spec.tool, args, outPath };
 }
 
 export const STEP_REGISTRY = Object.freeze({

@@ -285,6 +285,8 @@ Launch with `npm run desktop:dev` (= `cargo run --manifest-path desktop/src-taur
 | 15.7 | **Create here…** in an empty folder | `.video-studio/project.json` is written; the rail shows Setup active + New Project reachable, the rest locked. |
 | 15.8 | Click **Permissions** (rail footer), toggle "Access the network" on/off | A row per category with an allowed/asks state; toggling persists via `config-set-policy` (survives reopening the screen / relaunching). "Delete / write outside the project" is shown but locked (always asks). |
 | 15.9 | With a remembered rule present, use **Revoke** on it and **Reset all** | Revoke removes that one rule; Reset all clears the list (the empty-state hint returns). Both persist to the config file. |
+| 15.10 | Open a multi-cam project, go to **Export**, click **Export** on the MP4 card | Status → rendering… (live tool output) → done; `<project>/exports/cut.mp4` is written (`render-multicam-preview` over `multicam.json` + `switches.json` when present). 9:16 writes `cut.9x16.mp4` (1080×1920); FCPXML writes `cut.fcpxml` (fast, no render). |
+| 15.11 | After an export completes, click **Reveal in Finder** | Finder opens with the output file selected (`open -R`). |
 | 15.3 | Click **Analyze** in the rail, then **Open video…** | A native macOS file dialog opens filtered to video extensions; the chosen path shows and **Analyze scenes** enables. |
 | 15.4 | Click **Analyze scenes** | The progress bar + a live log fill as `dist/analyzer.js` runs (stages detect → detected → extract → describe), driven entirely by the streamed sidecar events; the bar reaches 100% and the stage reads `done`. |
 | 15.5 | Quit the window mid-analyze | The Node sidecar (and its analyzer child) are killed — no lingering `node` process. |

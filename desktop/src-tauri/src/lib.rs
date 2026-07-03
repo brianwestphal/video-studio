@@ -59,6 +59,16 @@ fn open_folder(app: tauri::AppHandle) -> Option<String> {
     app.dialog().file().blocking_pick_folder().map(|p| p.to_string())
 }
 
+// Reveal a finished file in Finder (select it), the macOS `open -R <path>`.
+#[tauri::command]
+fn reveal_in_finder(path: String) -> Result<(), String> {
+    Command::new("open")
+        .args(["-R", &path])
+        .spawn()
+        .map(|_| ())
+        .map_err(|e| e.to_string())
+}
+
 fn start_sidecar(app: &tauri::AppHandle) {
     let script = host_script_path();
     let mut child = match Command::new("node")
@@ -104,7 +114,12 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .manage(Sidecar::default())
-        .invoke_handler(tauri::generate_handler![sidecar_send, open_video, open_folder])
+        .invoke_handler(tauri::generate_handler![
+            sidecar_send,
+            open_video,
+            open_folder,
+            reveal_in_finder
+        ])
         .setup(|app| {
             start_sidecar(&app.handle().clone());
             Ok(())

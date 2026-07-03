@@ -25,7 +25,7 @@ import {
   validateRequest,
   MESSAGE_TYPES,
 } from "./protocol.mjs";
-import { STEP_REGISTRY, toolArgv } from "./steps.mjs";
+import { STEP_REGISTRY, toolArgv, exportCommand, genericProgress } from "./steps.mjs";
 import { DOCTOR_TOOLS, doctorResultFromChecks } from "./doctor.mjs";
 import {
   PROJECT_STATE_DIR,
@@ -212,9 +212,55 @@ function handleConfigStep(id, step, params) {
   }
 }
 
+// Export steps (R-EX) reuse the shipped exporters over the project folder. The output path
+// + argv come from the pure exportCommand; the host creates exports/, includes the reviewed
+// cut only when switches.json exists, streams the tool's output, and returns the out path so
+// the UI can Reveal it in Finder.
+function runExport(id, kind, folder) {
+  let command;
+  try {
+    const hasSwitches = fs.existsSync(path.join(folder, "switches.json"));
+    command = exportCommand(kind, folder, { hasSwitches });
+    fs.mkdirSync(path.dirname(command.outPath), { recursive: true });
+  } catch (err) {
+    send(errorMessage(id, ERROR_CODES.STEP_FAILED, `export setup failed: ${err.message}`));
+    return;
+  }
+  const [cmd, entry] = toolArgv(command.tool, REPO_ROOT);
+  const child = spawn(cmd, [entry, ...command.args], { cwd: REPO_ROOT });
+  inflight.set(id, child);
+  const feed = (stream) => {
+    let buffer = "";
+    stream.on("data", (chunk) => {
+      buffer += chunk.toString();
+      const parts = buffer.split("\n");
+      buffer = parts.pop() ?? "";
+      for (const line of parts) {
+        const p = genericProgress(line);
+        if (p) send(progressMessage(id, p));
+      }
+    });
+  };
+  feed(child.stdout);
+  feed(child.stderr);
+  child.on("error", (err) => {
+    inflight.delete(id);
+    send(errorMessage(id, ERROR_CODES.STEP_FAILED, String(err && err.message ? err.message : err)));
+  });
+  child.on("close", (code, signal) => {
+    inflight.delete(id);
+    if (signal) send(errorMessage(id, ERROR_CODES.STEP_FAILED, `cancelled (${signal})`));
+    else if (code === 0) send(resultMessage(id, { kind, outPath: command.outPath }));
+    else send(errorMessage(id, ERROR_CODES.STEP_FAILED, `export ${kind} exited with code ${code}`));
+  });
+}
+
+const EXPORT_STEPS = { "export-mp4": "mp4", "export-social": "social", "export-fcpxml": "fcpxml" };
+
 function handle(decoded) {
-  // The doctor + project + config steps are handled here (not via the registry): doctor is a
-  // fan-out of probes; the project + config steps are filesystem reads/writes, not a tool spawn.
+  // The doctor + project + config + export steps are handled here (not via the registry):
+  // doctor is a fan-out of probes; the others are filesystem/tool orchestration around the
+  // pure cores, not a plain registry spawn.
   if (decoded && typeof decoded === "object" && decoded.type === MESSAGE_TYPES.REQUEST) {
     const id = typeof decoded.id === "string" || Number.isFinite(decoded.id) ? decoded.id : null;
     const params = decoded.params && typeof decoded.params === "object" ? decoded.params : {};
@@ -239,6 +285,13 @@ function handle(decoded) {
     if (typeof decoded.step === "string" && decoded.step.startsWith("config-")) {
       if (id !== null && !handleConfigStep(id, decoded.step, params)) {
         send(errorMessage(id, ERROR_CODES.UNKNOWN_STEP, `unknown step: ${decoded.step}`));
+      }
+      return;
+    }
+    if (typeof decoded.step === "string" && decoded.step in EXPORT_STEPS) {
+      if (id !== null) {
+        if (params.folder) runExport(id, EXPORT_STEPS[decoded.step], params.folder);
+        else send(errorMessage(id, ERROR_CODES.MISSING_PARAM, `${decoded.step} requires param: folder`));
       }
       return;
     }

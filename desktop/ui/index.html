@@ -61,6 +61,37 @@
           <pre class="log" id="analyze-log" aria-live="polite"></pre>
         </section>
 
+        <!-- Export -->
+        <section class="screen" data-screen="export" hidden>
+          <header class="screen-head">
+            <h1>Export</h1>
+            <p class="sub">Turn the reviewed cut into a finished file. Open a project first (New Project).</p>
+          </header>
+          <div class="export-cards" id="export-cards">
+            <div class="export-card" data-kind="mp4">
+              <div class="export-title">MP4</div>
+              <div class="export-desc">Finished 16:9 video (1280×720)</div>
+              <button class="btn export-run">Export</button>
+              <div class="export-status" data-status>ready</div>
+              <button class="btn small export-reveal" hidden>Reveal in Finder</button>
+            </div>
+            <div class="export-card" data-kind="social">
+              <div class="export-title">9:16 Social</div>
+              <div class="export-desc">Vertical reel (1080×1920)</div>
+              <button class="btn export-run">Export</button>
+              <div class="export-status" data-status>ready</div>
+              <button class="btn small export-reveal" hidden>Reveal in Finder</button>
+            </div>
+            <div class="export-card" data-kind="fcpxml">
+              <div class="export-title">Final Cut Pro</div>
+              <div class="export-desc">FCPXML handoff (re-cuttable)</div>
+              <button class="btn export-run">Export</button>
+              <div class="export-status" data-status>ready</div>
+              <button class="btn small export-reveal" hidden>Reveal in Finder</button>
+            </div>
+          </div>
+        </section>
+
         <!-- Permissions (app settings, not a pipeline stage) -->
         <section class="screen" data-screen="permissions" hidden>
           <header class="screen-head">

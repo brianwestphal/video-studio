@@ -233,6 +233,14 @@ export const REQUIREMENT_COVERAGE = {
   "R-APP17": { status: "manual", note: "Setup shows missing-tool install hints (§15.2); stage-gating + one-click install deferred to project model + VS-89 (VS-90)" },
   "R-APP18": { status: "unit", tests: ["sidecar-protocol.test.mjs"], note: "app-global config shape + tolerant parseConfig + transforms — desktop/sidecar/config.mjs (VS-90/92); the file read/write under Application Support is host I/O" },
 
+  // Desktop app — Export lane (docs/desktop-app-export.md, VS-88). exportCommand is pure +
+  // unit-tested; the ffmpeg render + Reveal-in-Finder + the screen are manual.
+  "R-EX1": { status: "manual", note: "3 outcomes (mp4/social/fcpxml) over shipped exporters via export-* host steps + Export screen (manual-test-plan §15.10) (VS-88)" },
+  "R-EX2": { status: "unit", tests: ["sidecar-protocol.test.mjs"], note: "exportCommand — pure argv + output-path builder over the project folder (desktop/sidecar/steps.mjs); mkdir + spawn is host I/O (VS-88)" },
+  "R-EX3": { status: "manual", note: "per-outcome streamed progress + ready/rendering/done status in the Export screen (§15.10) (VS-88)" },
+  "R-EX4": { status: "manual", note: "Reveal in Finder (open -R) via the reveal_in_finder Rust command (§15.11) (VS-88)" },
+  "R-EX5": { status: "review", note: "no new engine — glue over render-multicam-preview / export-multicam-fcpxml, which keep their own coverage (VS-88)" },
+
   // Desktop app — pluggable AI agent control bridge (docs/desktop-app-agent-bridge.md, VS-83).
   // Design only. Backends: Claude (Agent SDK, first/reference), Codex, Ollama, behind one
   // interface. When built, the pure normalized-event->feed mapping + structured-result

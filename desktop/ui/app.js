@@ -82,8 +82,11 @@ function renderRail() {
   }
 }
 
+let currentProject = null;
+
 // Apply a project snapshot from the sidecar (project-open / project-create result).
 function applyProjectSnapshot(snapshot) {
+  currentProject = snapshot;
   railStages = snapshot.stages;
   renderRail();
   const info = document.getElementById("project-info");
@@ -201,6 +204,40 @@ document.getElementById("run-analyze").addEventListener("click", () => {
     },
   });
 });
+
+// --- Export ---------------------------------------------------------------
+
+for (const card of document.querySelectorAll(".export-card")) {
+  const kind = card.dataset.kind;
+  const status = card.querySelector("[data-status]");
+  const runBtn = card.querySelector(".export-run");
+  const revealBtn = card.querySelector(".export-reveal");
+
+  runBtn.addEventListener("click", () => {
+    if (!currentProject) {
+      status.textContent = "open a project first";
+      return;
+    }
+    runBtn.disabled = true;
+    revealBtn.hidden = true;
+    status.textContent = "rendering…";
+    send(`export-${kind}`, { folder: currentProject.folder }, {
+      onProgress: (p) => {
+        status.textContent = p.message ? `rendering… ${p.message}`.slice(0, 60) : "rendering…";
+      },
+      onResult: (data) => {
+        runBtn.disabled = false;
+        status.textContent = "done";
+        revealBtn.hidden = false;
+        revealBtn.onclick = () => invoke("reveal_in_finder", { path: data.outPath });
+      },
+      onError: (e) => {
+        runBtn.disabled = false;
+        status.textContent = `error: ${e.message}`;
+      },
+    });
+  });
+}
 
 // --- Permissions (app settings) -------------------------------------------
 

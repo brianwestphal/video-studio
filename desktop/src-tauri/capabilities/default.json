@@ -10,6 +10,7 @@
     "dialog:allow-open",
     "allow-sidecar-send",
     "allow-open-video",
-    "allow-open-folder"
+    "allow-open-folder",
+    "allow-reveal-in-finder"
   ]
 }

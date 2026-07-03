@@ -16,6 +16,8 @@ import {
   parseAnalyzerProgress,
   genericProgress,
   STEP_REGISTRY,
+  EXPORT_KINDS,
+  exportCommand,
 } from "../desktop/sidecar/steps.mjs";
 import { DOCTOR_TOOLS, doctorResultFromChecks } from "../desktop/sidecar/doctor.mjs";
 import {
@@ -299,6 +301,45 @@ describe("steps — buildCommand descriptors", () => {
   it("each step exposes a progress parser", () => {
     expect(STEP_REGISTRY["analyze-scenes"].parseProgress).toBe(parseAnalyzerProgress);
     expect(STEP_REGISTRY["analyze-audio-events"].parseProgress).toBe(genericProgress);
+  });
+});
+
+describe("steps — exportCommand", () => {
+  it("mp4: 16:9 render over multicam + switches, into exports/", () => {
+    expect(exportCommand("mp4", "/proj", { hasSwitches: true })).toEqual({
+      tool: "render-preview",
+      args: [
+        "/proj/multicam.json",
+        "--width",
+        "1280",
+        "--height",
+        "720",
+        "--switches",
+        "/proj/switches.json",
+        "--out",
+        "/proj/exports/cut.mp4",
+      ],
+      outPath: "/proj/exports/cut.mp4",
+    });
+  });
+  it("social: vertical 1080x1920 on the same renderer", () => {
+    const c = exportCommand("social", "/proj");
+    expect(c.tool).toBe("render-preview");
+    expect(c.args).toContain("1080");
+    expect(c.args).toContain("1920");
+    expect(c.outPath).toBe("/proj/exports/cut.9x16.mp4");
+  });
+  it("fcpxml: the FCP handoff tool; omits --switches when absent", () => {
+    const c = exportCommand("fcpxml", "/proj", { hasSwitches: false });
+    expect(c.tool).toBe("fcpxml");
+    expect(c.args).not.toContain("--switches");
+    expect(c.outPath).toBe("/proj/exports/cut.fcpxml");
+  });
+  it("every EXPORT_KINDS entry resolves; unknown kind throws", () => {
+    for (const kind of Object.keys(EXPORT_KINDS)) {
+      expect(exportCommand(kind, "/p").outPath).toContain("/p/exports/");
+    }
+    expect(() => exportCommand("nope", "/p")).toThrow(/unknown export kind/);
   });
 });
 
