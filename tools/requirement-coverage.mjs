@@ -240,7 +240,7 @@ export const REQUIREMENT_COVERAGE = {
   "R-IM2": { status: "unit", tests: ["sidecar-protocol.test.mjs"], note: "videoFilesIn — recognize video files by extension (case-insensitive), sort, ignore the rest; empty folder throws 'no video files' (desktop/sidecar/steps.mjs) (VS-81)" },
   "R-IM3": { status: "unit", tests: ["sidecar-protocol.test.mjs"], note: "importCommand — detect single vs multi-cam + build argv: 1 video -> analyze-sources -> sources.json (kind single); 2+ -> sync-multicam -> multicam.json (kind multicam, count) (VS-81)" },
   "R-IM4": { status: "manual", note: "import-footage host step: readdir -> importCommand -> spawn writes the first artifact, then refresh unlocks the rail (New Project done -> Analyze/Design reachable) — GUI/I/O (§15.15) (VS-81)" },
-  "R-IM5": { status: "deferred", note: "group proposal for a multi-group folder (propose-groups/multicam-groups) + detected-shape confirmation before syncing; today every video is synced as one group — follow-up (VS-81)" },
+  "R-IM5": { status: "deferred", note: "group proposal for a multi-group folder + detected-shape confirmation before syncing. Pure describeImportShape core built + unit-tested (desktop/sidecar/import-shape.mjs, tests/import-shape.test.mjs) — detects single/multicam/multi-group + the 'N angles, M:SS' summary via proposeGroups; the analyze-first flow + confirm-then-sync-per-group host/UI wiring remain (VS-81/100)" },
   "R-IM6": { status: "deferred", note: "recent-projects list on the New Project screen; the config store already persists them (addRecentProject, R-APP9/R-APP18, unit) but the clickable list UI is not built — follow-up (VS-81)" },
 
   // Desktop app — Analyze stage (docs/desktop-app-analyze.md, VS-82). analyzeProjectCommand is

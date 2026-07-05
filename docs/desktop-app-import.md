@@ -56,11 +56,14 @@ model + sidecar host).
 
 ## 5. Follow-ups (documented, not yet built)
 
-- **R-IM5** *(deferred)* **Group proposal** for a folder that is **not** a single group: reuse
+- **R-IM5** *(partial)* **Group proposal** for a folder that is **not** a single group: reuse
   `propose-groups` / [`multicam-groups`](multicam.md) to detect multiple angle groups, and show
   the **detected shape** ("4 angles, 3:59, multi-cam") for the user to **confirm before syncing**.
   Today every video in the folder is synced as one group (R-IM3), which is correct for the common
-  single-group case but does not split a folder that holds several shoots.
+  single-group case but does not split a folder that holds several shoots. The pure detection
+  core (`describeImportShape` — single / multicam / multi-group + the human summary, unit-tested)
+  is now in place; the analyze-first flow and the confirm-then-sync-per-group host/UI wiring are
+  the remaining tail (VS-100).
 - **R-IM6** *(deferred)* A **recent-projects list** on the New Project screen. The app-global
   config store already **persists** recent projects (`addRecentProject`, dedupe + cap —
   R-APP9 / R-APP18, unit-tested); surfacing them as a clickable list in the UI is not built.
