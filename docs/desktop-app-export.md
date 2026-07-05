@@ -37,9 +37,13 @@ project model) and a cut (`switches.json`, VS-87); works on a single angle witho
 ## 3. Defaults + reuse
 
 - **R-EX5** Sensible **defaults** (resolution per outcome, x264 CRF) apply with no
-  configuration; an advanced disclosure for width/height/quality is a follow-up. The lane
-  adds **no engine** — it is glue over `render-multicam-preview` / `export-multicam-fcpxml`,
-  which keep their own tests + manual coverage.
+  configuration. The pure `exportCommand` now also accepts **width / height / crf** overrides
+  (unit-tested): a finite value overrides the per-kind default, and `crf` is honored only by
+  the mp4 renderer (the FCPXML exporter has no encode pass) — `fps` is intentionally not
+  exposed because neither exporter accepts it. The **UI advanced disclosure** that surfaces
+  these controls is still a follow-up (VS-95). The lane adds **no engine** — it is glue over
+  `render-multicam-preview` / `export-multicam-fcpxml`, which keep their own tests + manual
+  coverage.
 
 ## 4. Cross-references
 

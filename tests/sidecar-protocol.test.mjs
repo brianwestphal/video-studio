@@ -348,6 +348,23 @@ describe("steps — exportCommand", () => {
     }
     expect(() => exportCommand("nope", "/p")).toThrow(/unknown export kind/);
   });
+  it("advanced (R-EX5): width/height/crf override the per-kind defaults on the mp4 renderer", () => {
+    const c = exportCommand("mp4", "/proj", { width: 1920, height: 1080, crf: 18 });
+    expect(c.args).toContain("1920");
+    expect(c.args).toContain("1080");
+    expect(c.args).not.toContain("1280");
+    const ci = c.args.indexOf("--crf");
+    expect(ci).toBeGreaterThan(-1);
+    expect(c.args[ci + 1]).toBe("18");
+  });
+  it("advanced: a non-finite override falls back to the kind default; crf is ignored on fcpxml", () => {
+    const c = exportCommand("social", "/proj", { width: NaN, height: undefined, crf: 20 });
+    expect(c.args).toContain("1080"); // default width kept
+    expect(c.args).toContain("1920"); // default height kept
+    expect(c.args).toContain("--crf"); // social uses the render-preview tool
+    const f = exportCommand("fcpxml", "/proj", { crf: 20 });
+    expect(f.args).not.toContain("--crf"); // fcpxml has no encode pass
+  });
 });
 
 describe("steps — reviewCommand + parseReviewUrl", () => {

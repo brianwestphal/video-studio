@@ -159,11 +159,20 @@ export const EXPORT_KINDS = Object.freeze({
 // Pure (path.join only): the host resolves the tool, creates `exports/`, and spawns. The
 // reviewed cut is included only when it exists (`hasSwitches`) — a single-angle export
 // omits it. Throws on an unknown kind.
-export function exportCommand(kind, folder, { hasSwitches = false } = {}) {
+//
+// Advanced disclosure (R-EX5): `width`/`height`/`crf` override the per-kind defaults when a
+// finite number is supplied. `crf` (x264 quality) is only honored by the mp4 renderer
+// (render-multicam-preview); the FCPXML exporter has no encode pass, so a crf on `fcpxml`
+// is ignored rather than passed as a flag the tool would reject. (fps is intentionally not
+// exposed — neither exporter accepts a --fps flag; the project fps drives it.)
+export function exportCommand(kind, folder, { hasSwitches = false, width, height, crf } = {}) {
   const spec = EXPORT_KINDS[kind];
   if (!spec) throw new Error(`unknown export kind: ${kind}`);
+  const w = Number.isFinite(width) ? width : spec.width;
+  const h = Number.isFinite(height) ? height : spec.height;
   const outPath = path.join(folder, "exports", spec.outName);
-  const args = [path.join(folder, "multicam.json"), "--width", String(spec.width), "--height", String(spec.height)];
+  const args = [path.join(folder, "multicam.json"), "--width", String(w), "--height", String(h)];
+  if (spec.tool === "render-preview" && Number.isFinite(crf)) args.push("--crf", String(crf));
   if (hasSwitches) args.push("--switches", path.join(folder, "switches.json"));
   args.push("--out", outPath);
   return { tool: spec.tool, args, outPath };

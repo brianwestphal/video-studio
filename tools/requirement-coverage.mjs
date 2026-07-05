@@ -282,7 +282,7 @@ export const REQUIREMENT_COVERAGE = {
   "R-EX2": { status: "unit", tests: ["sidecar-protocol.test.mjs"], note: "exportCommand — pure argv + output-path builder over the project folder (desktop/sidecar/steps.mjs); mkdir + spawn is host I/O (VS-88)" },
   "R-EX3": { status: "manual", note: "per-outcome streamed progress + ready/rendering/done status in the Export screen (§15.10) (VS-88)" },
   "R-EX4": { status: "manual", note: "Reveal in Finder (open -R) via the reveal_in_finder Rust command (§15.11) (VS-88)" },
-  "R-EX5": { status: "review", note: "no new engine — glue over render-multicam-preview / export-multicam-fcpxml, which keep their own coverage (VS-88)" },
+  "R-EX5": { status: "unit", tests: ["sidecar-protocol.test.mjs"], note: "defaults + advanced width/height/crf overrides in the pure exportCommand (crf only on the mp4 renderer; no fps) — desktop/sidecar/steps.mjs; the UI advanced-disclosure toggle is a follow-up (VS-88/95)" },
 
   // Desktop app — pluggable AI agent control bridge (docs/desktop-app-agent-bridge.md, VS-83).
   // Design only. Backends: Claude (Agent SDK, first/reference), Codex, Ollama, behind one
