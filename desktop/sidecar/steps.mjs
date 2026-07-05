@@ -22,6 +22,7 @@ export const TOOL_PATHS = Object.freeze({
   "propose-switches": "tools/propose-switches.mjs",
   sync: "tools/sync-multicam.mjs",
   "export-project": "tools/export-project.mjs",
+  saliency: "tools/analyze-visual-saliency.mjs",
 });
 
 // Video file extensions the importer recognizes.
@@ -50,6 +51,19 @@ export function analyzeProjectCommand(folder, videoNames) {
 export const ANALYSIS_PLAN = Object.freeze([
   { key: "audio-events", label: "Audio events — loudness, onsets, quiet, vocal/instrumental sections", engine: "local (ffmpeg + whisper)" },
 ]);
+
+// Per-angle visual saliency for a MULTI-CAM project (R-AN4): analyze-visual-saliency runs
+// over the group's multicam.json (it reads each angle internally) → saliency.json, which
+// sharpens the auto-cut (propose-switches passes it via --saliency). audio-events.json, when
+// present, aligns the saliency windows to the musical grid. Pure; the host does the spawn.
+// This is only meaningful for multi-cam projects — a single-source project has no angles.
+export function saliencyCommand(folder, { hasAudioEvents = false } = {}) {
+  const outPath = path.join(folder, "saliency.json");
+  const args = [path.join(folder, "multicam.json")];
+  if (hasAudioEvents) args.push("--audio-events", path.join(folder, "audio-events.json"));
+  args.push("--out", outPath);
+  return { tool: "saliency", args, outPath };
+}
 
 // Detect single-source vs multi-cam and build the import command (R-81): 2+ videos →
 // audio-sync them into multicam.json (sync-multicam); one video → analyze it into

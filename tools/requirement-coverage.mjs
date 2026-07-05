@@ -249,7 +249,7 @@ export const REQUIREMENT_COVERAGE = {
   "R-AN1": { status: "unit", tests: ["sidecar-protocol.test.mjs"], note: "analyzeProjectCommand — audio-events over the primary video -> audio-events.json; throws with no video (desktop/sidecar/steps.mjs); analyze-project host spawn is I/O (VS-82)" },
   "R-AN2": { status: "manual", note: "Analyze screen sets expectations: engine label (local, no AI cost) + ANALYSIS_PLAN step list — GUI (manual-test-plan §15.3-15.4) (VS-82)" },
   "R-AN3": { status: "manual", note: "live status on an indeterminate bar, cancellable (runCancellable), writes audio-events.json + auto-advances import->Analyze->Design — GUI/I-O (§15.3-15.4) (VS-82)" },
-  "R-AN4": { status: "deferred", note: "per-angle visual saliency for multi-cam (analyze-visual-saliency -> saliency.json); the app reads saliency.json when present but does not yet produce it — follow-up (VS-82)" },
+  "R-AN4": { status: "deferred", note: "per-angle visual saliency for multi-cam (analyze-visual-saliency -> saliency.json). Pure saliencyCommand argv builder built + unit-tested (desktop/sidecar/steps.mjs, sidecar-protocol.test.mjs); the host analyze-saliency step (spawn) + Analyze-screen wiring remain the I/O tail (VS-82/103)" },
   "R-AN5": { status: "deferred", note: "scene contact-sheet thumbnail wall filling as scenes are detected — follow-up (VS-82)" },
   "R-AN6": { status: "deferred", note: "determinate progress where the tool emits a percentage (today indeterminate) — follow-up (VS-82)" },
 

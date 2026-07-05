@@ -24,6 +24,7 @@ import {
   videoFilesIn,
   importCommand,
   analyzeProjectCommand,
+  saliencyCommand,
 } from "../desktop/sidecar/steps.mjs";
 import { DOCTOR_TOOLS, doctorResultFromChecks } from "../desktop/sidecar/doctor.mjs";
 import {
@@ -437,6 +438,29 @@ describe("steps — analyzeProjectCommand", () => {
   });
   it("no videos → throws", () => {
     expect(() => analyzeProjectCommand("/proj", [])).toThrow(/no video files/);
+  });
+});
+
+describe("steps — saliencyCommand", () => {
+  it("runs analyze-visual-saliency over the group's multicam.json → saliency.json", () => {
+    expect(saliencyCommand("/proj")).toEqual({
+      tool: "saliency",
+      args: ["/proj/multicam.json", "--out", "/proj/saliency.json"],
+      outPath: "/proj/saliency.json",
+    });
+  });
+  it("passes --audio-events when the project has them", () => {
+    const c = saliencyCommand("/proj", { hasAudioEvents: true });
+    expect(c.args).toEqual([
+      "/proj/multicam.json",
+      "--audio-events",
+      "/proj/audio-events.json",
+      "--out",
+      "/proj/saliency.json",
+    ]);
+  });
+  it("resolves to a known tool path", () => {
+    expect(TOOL_PATHS.saliency).toBe("tools/analyze-visual-saliency.mjs");
   });
 });
 

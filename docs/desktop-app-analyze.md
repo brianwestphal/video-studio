@@ -40,10 +40,12 @@ host + project model) and VS-81 (import writing the source artifact).
 
 ## 4. Follow-ups (documented, not yet built)
 
-- **R-AN4** *(deferred)* Per-angle **visual saliency** for multi-cam projects
+- **R-AN4** *(partial)* Per-angle **visual saliency** for multi-cam projects
   (`analyze-visual-saliency` → `saliency.json`), which sharpens the auto-cut. The app already
-  **reads** `saliency.json` when present (the Design proposal passes `--saliency`) but does not
-  yet **produce** it from the Analyze stage.
+  **reads** `saliency.json` when present (the Design proposal passes `--saliency`). The pure
+  argv builder (`saliencyCommand`, unit-tested) is now in place — it runs the tool over the
+  group's `multicam.json`, passing `--audio-events` when present; the host `analyze-saliency`
+  step (spawn) + Analyze-screen wiring that actually **produces** it are the remaining tail.
 - **R-AN5** *(deferred)* A scene **contact-sheet thumbnail wall** that fills as scenes are
   detected, giving a visual read of the footage during analysis.
 - **R-AN6** *(deferred)* **Determinate** progress where the underlying tool emits a percentage
