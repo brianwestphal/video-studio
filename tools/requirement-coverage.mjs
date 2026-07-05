@@ -243,6 +243,16 @@ export const REQUIREMENT_COVERAGE = {
   "R-IM5": { status: "deferred", note: "group proposal for a multi-group folder (propose-groups/multicam-groups) + detected-shape confirmation before syncing; today every video is synced as one group — follow-up (VS-81)" },
   "R-IM6": { status: "deferred", note: "recent-projects list on the New Project screen; the config store already persists them (addRecentProject, R-APP9/R-APP18, unit) but the clickable list UI is not built — follow-up (VS-81)" },
 
+  // Desktop app — Analyze stage (docs/desktop-app-analyze.md, VS-82). analyzeProjectCommand is
+  // pure + unit-tested; the screen + spawn are GUI/I-O; saliency/contact-sheet/determinate
+  // progress are documented follow-ups (not built).
+  "R-AN1": { status: "unit", tests: ["sidecar-protocol.test.mjs"], note: "analyzeProjectCommand — audio-events over the primary video -> audio-events.json; throws with no video (desktop/sidecar/steps.mjs); analyze-project host spawn is I/O (VS-82)" },
+  "R-AN2": { status: "manual", note: "Analyze screen sets expectations: engine label (local, no AI cost) + ANALYSIS_PLAN step list — GUI (manual-test-plan §15.3-15.4) (VS-82)" },
+  "R-AN3": { status: "manual", note: "live status on an indeterminate bar, cancellable (runCancellable), writes audio-events.json + auto-advances import->Analyze->Design — GUI/I-O (§15.3-15.4) (VS-82)" },
+  "R-AN4": { status: "deferred", note: "per-angle visual saliency for multi-cam (analyze-visual-saliency -> saliency.json); the app reads saliency.json when present but does not yet produce it — follow-up (VS-82)" },
+  "R-AN5": { status: "deferred", note: "scene contact-sheet thumbnail wall filling as scenes are detected — follow-up (VS-82)" },
+  "R-AN6": { status: "deferred", note: "determinate progress where the tool emits a percentage (today indeterminate) — follow-up (VS-82)" },
+
   // Desktop app — single-source cutting flow (docs/desktop-app-single-source.md, VS-99).
   // proposeCutSpec + audio-aware selection + flatRenderCommand are pure + 100% unit-tested;
   // the design-cut / export host branches are I/O; the Review UI is a follow-up.

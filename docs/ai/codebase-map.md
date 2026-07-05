@@ -112,6 +112,7 @@ and [`requirements-summary.md`](requirements-summary.md) for status.
 │   ├── desktop-app-permissions.md    # DESIGN: app-owned category permission & safety layer (R-PERM, VS-85)
 │   ├── desktop-app-export.md   # Export lane — MP4/9:16/FCPXML over shipped exporters + Reveal in Finder (R-EX, VS-88)
 │   ├── desktop-app-import.md   # New Project + import — single-source vs multi-cam detection (R-IM, VS-81)
+│   ├── desktop-app-analyze.md  # Analyze stage — deeper local audio-events pass (R-AN, VS-82)
 │   ├── desktop-app-single-source.md # Single-source cutting — scene-range cut spec -> flat render/FCPXML (R-SS, VS-99)
 │   ├── desktop-app-design.md   # Design stage — two lanes (Auto prompt + Manual open-timeline) (R-DS, VS-86)
 │   ├── desktop-app-review.md   # Review stage — embed the shipped review-switches UI via iframe (R-RV, VS-87)
