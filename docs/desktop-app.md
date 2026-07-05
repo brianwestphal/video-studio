@@ -177,6 +177,8 @@ resolved by the maintainer on VS-80; the requirements above reflect these:
   (VS-85): category classifier + persisted "always allow" + the Permissions screen.
 - [`desktop-app-import.md`](desktop-app-import.md) — the New Project + import stage (VS-81):
   single-source-vs-multi-cam detection writing the first artifact (R-IM).
+- [`desktop-app-single-source.md`](desktop-app-single-source.md) — the single-source cutting
+  flow (VS-99): scene-range cut spec → flat render / FCPXML for a single video (R-SS).
 - [`desktop-app-design.md`](desktop-app-design.md) — the Design stage's two lanes (VS-86).
 - [`desktop-app-review.md`](desktop-app-review.md) — the Review stage (VS-87).
 - [`desktop-app-export.md`](desktop-app-export.md) — the Export lane (VS-88).

@@ -243,6 +243,16 @@ export const REQUIREMENT_COVERAGE = {
   "R-IM5": { status: "deferred", note: "group proposal for a multi-group folder (propose-groups/multicam-groups) + detected-shape confirmation before syncing; today every video is synced as one group — follow-up (VS-81)" },
   "R-IM6": { status: "deferred", note: "recent-projects list on the New Project screen; the config store already persists them (addRecentProject, R-APP9/R-APP18, unit) but the clickable list UI is not built — follow-up (VS-81)" },
 
+  // Desktop app — single-source cutting flow (docs/desktop-app-single-source.md, VS-99).
+  // proposeCutSpec + audio-aware selection + flatRenderCommand are pure + 100% unit-tested;
+  // the design-cut / export host branches are I/O; the Review UI is a follow-up.
+  "R-SS1": { status: "unit", tests: ["sidecar-protocol.test.mjs"], note: "proposeCutSpec — sources.json + cut kind -> cut spec {project,clips}; CUT_TARGETS + targetSeconds + full; throws with no scenes (desktop/sidecar/cutspec.mjs) (VS-99)" },
+  "R-SS2": { status: "unit", tests: ["sidecar-protocol.test.mjs"], note: "audio-aware selection: loudness+onset (soundbites -> vocal overlap), per-clip cap, chronological restore; spread fallback with no audio; degenerate/zero-length safe (cutspec.mjs) (VS-99)" },
+  "R-SS3": { status: "manual", note: "design-cut host step branches multicam -> propose-switches / single -> proposeCutSpec -> cut.json; Auto prompt picks the kind — GUI/I-O (§15.17) (VS-99)" },
+  "R-SS4": { status: "unit", tests: ["sidecar-protocol.test.mjs"], note: "a single-source cut.json satisfies both Design and Review; Export unlocks — deriveStages doneWhen accepts 'cut' (desktop/sidecar/project.mjs) (VS-99)" },
+  "R-SS5": { status: "unit", tests: ["sidecar-protocol.test.mjs"], note: "flatRenderCommand — ffmpeg trim+concat argv over one source, H.264/AAC, optional 9:16 scale+pad; throws on empty cut (cutspec.mjs) (VS-99)" },
+  "R-SS6": { status: "manual", note: "export host branch: single-source (cut.json, no multicam.json) -> flat render (mp4/9:16) or export-project (fcpxml) — GUI/I-O (§15.17) (VS-99)" },
+
   // Desktop app — Design stage (docs/desktop-app-design.md, VS-86). proposeCommand is pure +
   // unit-tested; the two-lane screen + design-cut spawn + the Auto-lane bridge are GUI/I/O.
   "R-DS1": { status: "manual", note: "two-lane Design screen (Auto prompt+presets / Manual open-timeline) — GUI (manual-test-plan §15.13) (VS-86)" },
