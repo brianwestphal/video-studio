@@ -1,7 +1,6 @@
 ---
 name: hotsheet
 description: Read the Hot Sheet worklist and work through the current priority items
-allowed-tools: Read, Grep, Glob, Edit, Write, Bash
 ---
 <!-- hotsheet-skill-version: 22 -->
 
