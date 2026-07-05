@@ -121,7 +121,10 @@ works with no agent at all. **Both lanes ship in the MVP** (maintainer decision,
 - **R-APP14** Requests are **cancellable** and **serialized per project** where a step
   mutates shared artifacts; independent read-only steps may run concurrently. A cancelled
   or failed step must leave artifacts in a consistent state (the tools already write
-  atomically — the host must not defeat that).
+  atomically — the host must not defeat that). *(Partial: cancellation works via the host's
+  inflight map + `killTree`; the per-project serializer is the pure `mutation-queue.mjs`
+  core — `MUTATING_STEPS` + a FIFO scheduler, 100% unit-tested. Host wiring — enqueue each
+  mutating step, advance on child exit — is the remaining I/O tail.)*
 - **R-APP15** Sidecar **lifecycle is observable**: the app surfaces host-down / restarting
   state rather than hanging a screen; an in-flight request whose host dies fails with a
   clear error the screen can retry.

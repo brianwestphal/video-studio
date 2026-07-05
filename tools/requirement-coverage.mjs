@@ -227,7 +227,7 @@ export const REQUIREMENT_COVERAGE = {
   "R-APP11": { status: "manual", note: "one long-lived Node sidecar host spawned by the shell, restarted on death — built (host.mjs + lib.rs) (VS-90)" },
   "R-APP12": { status: "unit", tests: ["sidecar-protocol.test.mjs"], note: "sidecar protocol framing + request validation — desktop/sidecar/protocol.mjs (VS-90); host stdio wiring in host.mjs is manual" },
   "R-APP13": { status: "unit", tests: ["sidecar-protocol.test.mjs"], note: "pure step registry: buildCommand descriptors + analyzer progress parser — desktop/sidecar/steps.mjs (VS-90); child-process spawn in host.mjs is manual" },
-  "R-APP14": { status: "deferred", note: "cancellable, serialized-per-project mutating steps; atomic-write safe (VS-80)" },
+  "R-APP14": { status: "deferred", note: "cancellable, serialized-per-project mutating steps; atomic-write safe. Pure per-project serializer core built + 100% unit-tested (desktop/sidecar/mutation-queue.mjs, tests/mutation-queue.test.mjs); cancel already works (host inflight+killTree). Host wiring (enqueue mutating steps, advance on child exit) + atomic-write remain (VS-80/90)" },
   "R-APP15": { status: "deferred", note: "observable host lifecycle; in-flight failure surfaces + retryable (VS-80)" },
   "R-APP16": { status: "unit", tests: ["sidecar-protocol.test.mjs"], note: "doctorResultFromChecks (rows + readiness) in desktop/sidecar/doctor.mjs (VS-79/90); the `which` probes + Setup rendering are manual (§14.7/§15.2)" },
   "R-APP17": { status: "manual", note: "Setup shows missing-tool install hints (§15.2); stage-gating + one-click install deferred to project model + VS-89 (VS-90)" },
