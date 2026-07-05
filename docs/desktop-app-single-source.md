@@ -68,14 +68,23 @@ Depends on VS-90 (shell + project model) and VS-81 (import writing `sources.json
   the **FCPXML** editor handoff — not the multi-cam renderer. *(host I/O; manual-test-plan
   §15.17.)*
 
-## 4. Follow-ups
+## 4. Editing the cut (single-source Review)
 
-- A real single-source **Review UI** (trim / reorder / drop clips before export) — GUI, a UX
-  pass. Today Review shows an honest "head to Export" message for single-source.
+- **R-SS7** *(partial)* Before export, the cut is **editable**: clips can be **trimmed**
+  (adjust in/out), **reordered**, or **dropped**. These are pure, immutable transforms over
+  `cut.json` (`desktop/sidecar/cut-edit.mjs`: `trimClip` / `reorderClip` / `dropClip` /
+  `cutDuration` — each returns a new cut and no-ops when the operation doesn't apply),
+  unit-tested. The **Review UI surface** that calls them is the remaining tail (VS-102);
+  today Review shows an honest "head to Export" message for single-source.
+
+## 5. Follow-ups
+
+- The single-source **Review UI** (the surface wiring the R-SS7 transforms to a timeline /
+  clip list) — GUI, a UX pass (VS-102).
 - **Prompt-tailored selection** — the AI Auto lane tailoring the cut to the prompt (rather than
   the deterministic audio-scored baseline) is **VS-96**.
 
-## 5. Cross-references
+## 6. Cross-references
 
 - [`editor-handoff.md`](editor-handoff.md) — the cut-spec shape + `export-project` (segments /
   overlays / FCPXML) this flow feeds.

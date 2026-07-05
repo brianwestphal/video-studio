@@ -42,6 +42,7 @@ export default defineConfig({
         "desktop/sidecar/cutspec.mjs",
         "desktop/sidecar/mutation-queue.mjs",
         "desktop/sidecar/import-shape.mjs",
+        "desktop/sidecar/cut-edit.mjs",
       ],
       thresholds: {
         lines: 100,

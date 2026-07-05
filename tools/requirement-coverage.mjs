@@ -262,6 +262,7 @@ export const REQUIREMENT_COVERAGE = {
   "R-SS4": { status: "unit", tests: ["sidecar-protocol.test.mjs"], note: "a single-source cut.json satisfies both Design and Review; Export unlocks — deriveStages doneWhen accepts 'cut' (desktop/sidecar/project.mjs) (VS-99)" },
   "R-SS5": { status: "unit", tests: ["sidecar-protocol.test.mjs"], note: "flatRenderCommand — ffmpeg trim+concat argv over one source, H.264/AAC, optional 9:16 scale+pad; throws on empty cut (cutspec.mjs) (VS-99)" },
   "R-SS6": { status: "manual", note: "export host branch: single-source (cut.json, no multicam.json) -> flat render (mp4/9:16) or export-project (fcpxml) — GUI/I-O (§15.17) (VS-99)" },
+  "R-SS7": { status: "unit", tests: ["cut-edit.test.mjs"], note: "single-source cut edits — pure trimClip/reorderClip/dropClip/cutDuration transforms over cut.json (desktop/sidecar/cut-edit.mjs); the Review UI surface that calls them is the tail (VS-102)" },
 
   // Desktop app — Design stage (docs/desktop-app-design.md, VS-86). proposeCommand is pure +
   // unit-tested; the two-lane screen + design-cut spawn + the Auto-lane bridge are GUI/I/O.
