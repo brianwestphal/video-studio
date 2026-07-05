@@ -120,6 +120,29 @@ export function validateCutPlan(obj) {
   return { ok: true, plan: { switches } };
 }
 
+// The switches.json schema version the pipeline writes/reads.
+export const SWITCHES_VERSION = 1;
+
+// Turn a validated cut plan (from validateCutPlan) into a switches.json **document** the
+// project can write — the review UI + exporters read `{ version, groupId, switches }`
+// (rationale optional). The plan carries only the switches; the groupId comes from the
+// project's multicam.json. Pure. Throws on a missing/empty groupId so a bad handoff fails
+// loudly rather than writing an unusable cut. This is the R-CB7 Auto-lane -> Review bridge:
+// the agent returns a plan; this makes it the same artifact the Manual lane produces.
+export function cutPlanToSwitches(plan, groupId, { rationale } = {}) {
+  if (typeof groupId !== "string" || groupId === "") {
+    throw new Error("cutPlanToSwitches requires a non-empty groupId");
+  }
+  const switches = plan && Array.isArray(plan.switches) ? plan.switches : [];
+  const doc = {
+    version: SWITCHES_VERSION,
+    groupId,
+    switches: switches.map((s) => ({ atSeconds: s.atSeconds, memberId: s.memberId })),
+  };
+  if (typeof rationale === "string" && rationale !== "") doc.rationale = rationale;
+  return doc;
+}
+
 // Detect a credential/auth failure from a normalized result event (R-CB11) so the app
 // can trigger the Connect flow rather than showing a generic error. Pure.
 const AUTH_RE = /\b(auth|authenticat|credential|unauthor|not logged in|log ?in|setup-token|api[- ]?key|401)\b/i;

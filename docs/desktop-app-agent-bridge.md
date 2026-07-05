@@ -92,9 +92,14 @@ flow (VS-84) — the one thing headless can't do.
 - **R-CB7** Since we own the prompt, the bridge **prefers a JSON-schema structured result**
   — a **cut plan** (a `switches.json`/cut-spec-shaped object) the app renders and hands to
   Review — over parsing prose out of assistant text. Validating the structured result
-  against its schema is pure and unit-tested; an invalid/missing result degrades gracefully
-  (surface the run's text + let the user open Review on whatever artifacts were written).
-  Backends whose structured-output support is weaker (R-CB5) fall back to this path.
+  against its schema is pure and unit-tested (`validateCutPlan`); turning a validated plan
+  into a **writable `switches.json` document** (adding `version` + the project's `groupId`,
+  optional `rationale`) is the pure `cutPlanToSwitches` — the Auto-lane → Review bridge, so
+  the agent's result becomes the *same* artifact the Manual lane produces. An invalid/missing
+  result degrades gracefully (surface the run's text + let the user open Review on whatever
+  artifacts were written). Backends whose structured-output support is weaker (R-CB5) fall
+  back to this path. *(Driving the live agent to emit the plan + writing the file is the I/O
+  tail — VS-96.)*
 
 ## 6. Session lifecycle
 

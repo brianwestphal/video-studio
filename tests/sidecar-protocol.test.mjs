@@ -39,6 +39,8 @@ import {
   normalizeClaudeEvent,
   eventToFeedEntry,
   validateCutPlan,
+  cutPlanToSwitches,
+  SWITCHES_VERSION,
   isAuthFailure,
 } from "../desktop/sidecar/agent.mjs";
 import { CUT_TARGETS, proposeCutSpec, flatRenderCommand } from "../desktop/sidecar/cutspec.mjs";
@@ -729,6 +731,28 @@ describe("agent — validateCutPlan", () => {
     expect(
       validateCutPlan({ switches: [{ atSeconds: 5, memberId: "b" }, { atSeconds: 1, memberId: "a" }], extra: 1 }),
     ).toEqual({ ok: true, plan: { switches: [{ atSeconds: 1, memberId: "a" }, { atSeconds: 5, memberId: "b" }] } });
+  });
+});
+
+describe("agent — cutPlanToSwitches", () => {
+  it("wraps a validated plan into a writable switches.json doc (version + groupId)", () => {
+    const { plan } = validateCutPlan({ switches: [{ atSeconds: 0, memberId: "cam1" }, { atSeconds: 3, memberId: "cam2" }] });
+    expect(cutPlanToSwitches(plan, "byam")).toEqual({
+      version: SWITCHES_VERSION,
+      groupId: "byam",
+      switches: [{ atSeconds: 0, memberId: "cam1" }, { atSeconds: 3, memberId: "cam2" }],
+    });
+  });
+  it("includes a non-empty rationale, drops an empty/absent one", () => {
+    const plan = { switches: [{ atSeconds: 1, memberId: "a" }] };
+    expect(cutPlanToSwitches(plan, "g", { rationale: "punchy" }).rationale).toBe("punchy");
+    expect(cutPlanToSwitches(plan, "g", { rationale: "" })).not.toHaveProperty("rationale");
+    expect(cutPlanToSwitches(plan, "g")).not.toHaveProperty("rationale");
+  });
+  it("tolerates a plan with no switches array; throws on a missing groupId", () => {
+    expect(cutPlanToSwitches({}, "g").switches).toEqual([]);
+    expect(() => cutPlanToSwitches({ switches: [] }, "")).toThrow(/groupId/);
+    expect(() => cutPlanToSwitches({ switches: [] }, null)).toThrow(/groupId/);
   });
 });
 
