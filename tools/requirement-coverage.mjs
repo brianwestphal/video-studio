@@ -233,6 +233,16 @@ export const REQUIREMENT_COVERAGE = {
   "R-APP17": { status: "manual", note: "Setup shows missing-tool install hints (§15.2); stage-gating + one-click install deferred to project model + VS-89 (VS-90)" },
   "R-APP18": { status: "unit", tests: ["sidecar-protocol.test.mjs"], note: "app-global config shape + tolerant parseConfig + transforms — desktop/sidecar/config.mjs (VS-90/92); the file read/write under Application Support is host I/O" },
 
+  // Desktop app — New Project + import (docs/desktop-app-import.md, VS-81). videoFilesIn +
+  // importCommand are pure + unit-tested; the New Project screen + import-footage spawn are
+  // GUI/I/O; group proposal + the recents list are documented follow-ups (not built).
+  "R-IM1": { status: "manual", note: "New Project screen: Open/Create a project over a footage folder (single video or folder of angles) — GUI (manual-test-plan §15.6-15.7, §15.15) (VS-81)" },
+  "R-IM2": { status: "unit", tests: ["sidecar-protocol.test.mjs"], note: "videoFilesIn — recognize video files by extension (case-insensitive), sort, ignore the rest; empty folder throws 'no video files' (desktop/sidecar/steps.mjs) (VS-81)" },
+  "R-IM3": { status: "unit", tests: ["sidecar-protocol.test.mjs"], note: "importCommand — detect single vs multi-cam + build argv: 1 video -> analyze-sources -> sources.json (kind single); 2+ -> sync-multicam -> multicam.json (kind multicam, count) (VS-81)" },
+  "R-IM4": { status: "manual", note: "import-footage host step: readdir -> importCommand -> spawn writes the first artifact, then refresh unlocks the rail (New Project done -> Analyze/Design reachable) — GUI/I/O (§15.15) (VS-81)" },
+  "R-IM5": { status: "deferred", note: "group proposal for a multi-group folder (propose-groups/multicam-groups) + detected-shape confirmation before syncing; today every video is synced as one group — follow-up (VS-81)" },
+  "R-IM6": { status: "deferred", note: "recent-projects list on the New Project screen; the config store already persists them (addRecentProject, R-APP9/R-APP18, unit) but the clickable list UI is not built — follow-up (VS-81)" },
+
   // Desktop app — Design stage (docs/desktop-app-design.md, VS-86). proposeCommand is pure +
   // unit-tested; the two-lane screen + design-cut spawn + the Auto-lane bridge are GUI/I/O.
   "R-DS1": { status: "manual", note: "two-lane Design screen (Auto prompt+presets / Manual open-timeline) — GUI (manual-test-plan §15.13) (VS-86)" },

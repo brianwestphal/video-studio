@@ -175,5 +175,10 @@ resolved by the maintainer on VS-80; the requirements above reflect these:
   (VS-83): a pluggable AI agent backend (Claude / Codex / Ollama), structured events → UI.
 - [`desktop-app-permissions.md`](desktop-app-permissions.md) — the app-owned safety layer
   (VS-85): category classifier + persisted "always allow" + the Permissions screen.
-- The per-screen requirements (Import VS-81, Analyze VS-82, Design VS-86, Review VS-87,
-  Export VS-88) and packaging (VS-89) get their own docs as those tickets are worked.
+- [`desktop-app-import.md`](desktop-app-import.md) — the New Project + import stage (VS-81):
+  single-source-vs-multi-cam detection writing the first artifact (R-IM).
+- [`desktop-app-design.md`](desktop-app-design.md) — the Design stage's two lanes (VS-86).
+- [`desktop-app-review.md`](desktop-app-review.md) — the Review stage (VS-87).
+- [`desktop-app-export.md`](desktop-app-export.md) — the Export lane (VS-88).
+- The remaining per-screen requirements (Analyze VS-82) and packaging (VS-89) get their own
+  docs as those tickets are worked.

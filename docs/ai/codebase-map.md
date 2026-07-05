@@ -111,6 +111,7 @@ and [`requirements-summary.md`](requirements-summary.md) for status.
 │   ├── desktop-app-agent-bridge.md   # DESIGN: Auto lane via a pluggable AI agent (Claude/Codex/Ollama) — structured events → UI (R-CB, VS-83)
 │   ├── desktop-app-permissions.md    # DESIGN: app-owned category permission & safety layer (R-PERM, VS-85)
 │   ├── desktop-app-export.md   # Export lane — MP4/9:16/FCPXML over shipped exporters + Reveal in Finder (R-EX, VS-88)
+│   ├── desktop-app-import.md   # New Project + import — single-source vs multi-cam detection (R-IM, VS-81)
 │   ├── desktop-app-design.md   # Design stage — two lanes (Auto prompt + Manual open-timeline) (R-DS, VS-86)
 │   ├── desktop-app-review.md   # Review stage — embed the shipped review-switches UI via iframe (R-RV, VS-87)
 │   ├── releasing.md            # release + npm trusted-publisher setup
