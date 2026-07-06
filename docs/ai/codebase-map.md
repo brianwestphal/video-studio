@@ -83,6 +83,7 @@ and [`requirements-summary.md`](requirements-summary.md) for status.
 │   ├── multicam-dsp.test.ts    # unit tests for tools/multicam-dsp.mjs
 │   ├── multicam.test.ts        # unit tests for tools/multicam.mjs
 │   ├── multicam-groups.test.ts # unit tests for tools/multicam-groups.mjs
+│   ├── ollama-backend.test.mjs  # unit tests for desktop/sidecar/ollama-backend.mjs (VS-94 pure core)
 │   ├── sidecar-protocol.test.mjs # unit tests for desktop/sidecar/{protocol,steps}.mjs
 │   ├── audio-events.test.ts   # unit tests for tools/audio-events.mjs
 │   ├── wav-compat.test.ts     # unit tests for tools/wav-compat.mjs

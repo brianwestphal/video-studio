@@ -43,6 +43,7 @@ export default defineConfig({
         "desktop/sidecar/mutation-queue.mjs",
         "desktop/sidecar/import-shape.mjs",
         "desktop/sidecar/cut-edit.mjs",
+        "desktop/sidecar/ollama-backend.mjs",
       ],
       thresholds: {
         lines: 100,

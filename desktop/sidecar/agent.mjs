@@ -159,12 +159,11 @@ export function unknownPlanMembers(plan, validIds) {
   return unknown;
 }
 
-// Extract a cut-plan object from an agent's free-text result (R-CB7). We ask the model to end
-// its reply with the plan as JSON, but it may wrap it in a ```json fence, emit a bare {…}
-// object, or bury it in prose. Returns the parsed object (UNVALIDATED — pass to
-// validateCutPlan) or null when no JSON object is found. Pure. Prefers a fenced block (the
-// asked-for shape), then falls back to the first brace-delimited span.
-export function extractCutPlan(text) {
+// Pull the first JSON OBJECT out of free-text model output. Models wrap JSON in a ```json
+// fence, emit a bare {…} object, or bury it in prose; this prefers a fenced block, then falls
+// back to the first brace-delimited span, and returns the parsed object or null (arrays and
+// non-objects are rejected). Pure — shared by the cut-plan reader and the Ollama tool loop.
+export function firstJsonObject(text) {
   const s = typeof text === "string" ? text : "";
   const candidates = [];
   const fence = /```(?:json)?\s*([\s\S]*?)```/i.exec(s);
@@ -181,6 +180,12 @@ export function extractCutPlan(text) {
     if (obj && typeof obj === "object" && !Array.isArray(obj)) return obj;
   }
   return null;
+}
+
+// Extract a cut-plan object from an agent's free-text result (R-CB7) — the first JSON object,
+// UNVALIDATED (pass to validateCutPlan). Pure.
+export function extractCutPlan(text) {
+  return firstJsonObject(text);
 }
 
 // Detect a credential/auth failure from a normalized result event (R-CB11) so the app
