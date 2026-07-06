@@ -64,7 +64,8 @@ import {
   cutPlanToSwitches,
   unknownPlanMembers,
 } from "./agent.mjs";
-import { decide } from "./permissions.mjs";
+import { decide, isInProject } from "./permissions.mjs";
+import { buildOllamaMessages, parseModelReply, nextLoopAction, toolResultMessage } from "./ollama-backend.mjs";
 
 // The repo root is two levels up from desktop/sidecar/. The app lives in a subdir
 // of this repo (settled), so the pipeline tools sit alongside at ../../.
@@ -495,6 +496,138 @@ function tryLandCutPlan(folder, text) {
   return { landedCut: true, outPath };
 }
 
+// ---- Ollama (local model) backend (R-CB5) --------------------------------------------------
+// Local chat models have no agentic tool SDK, so we run an app-driven constrained tool loop:
+// the pure ollama-backend.mjs decides the protocol (prompt/parse/step); this is the I/O edge —
+// the HTTP call to Ollama + the tool execution, each tool gated through OUR decide() choke
+// point (R-CB9), identical to the Claude backend's canUseTool.
+const OLLAMA_BASE = process.env.OLLAMA_HOST || "http://localhost:11434";
+
+// One chat completion from Ollama (non-streaming). Returns the assistant message content.
+async function ollamaChat(model, messages) {
+  const res = await fetch(`${OLLAMA_BASE}/api/chat`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ model, messages, stream: false }),
+  });
+  if (!res.ok) throw new Error(`Ollama HTTP ${res.status}`);
+  const data = await res.json();
+  return data && data.message && typeof data.message.content === "string" ? data.message.content : "";
+}
+
+// Pick the model: an explicit param/config wins, else the first model Ollama has installed.
+async function pickOllamaModel(preferred) {
+  if (typeof preferred === "string" && preferred !== "") return preferred;
+  try {
+    const res = await fetch(`${OLLAMA_BASE}/api/tags`);
+    const data = await res.json();
+    return data && Array.isArray(data.models) && data.models[0] ? data.models[0].name : null;
+  } catch {
+    return null;
+  }
+}
+
+// Map an Ollama tool request onto our permission choke point so decide() gates it exactly like
+// a Claude tool call: read_file -> a Read; propose_baseline -> our pipeline (Bash/media).
+function ollamaToolDecision(tool, input, projectRoot, rules) {
+  if (tool === "read_file") {
+    const abs = path.resolve(projectRoot, String(input.path || ""));
+    return decide("Read", { file_path: abs }, projectRoot, rules);
+  }
+  if (tool === "propose_baseline") {
+    return decide("Bash", { command: `node ${path.join(REPO_ROOT, "tools/propose-switches.mjs")}` }, projectRoot, rules);
+  }
+  return "ask";
+}
+
+// Spawn one of our pipeline tools and capture its combined output (for feeding back to the
+// model). Distinct from runToolCommand, which streams a step result to the shell.
+function execToolCapture(command) {
+  return new Promise((resolve) => {
+    let argv;
+    try {
+      argv = toolArgv(command.tool, REPO_ROOT);
+    } catch (err) {
+      resolve({ ok: false, output: err.message });
+      return;
+    }
+    const child = spawn(argv[0], [...argv.slice(1), ...command.args], { cwd: REPO_ROOT });
+    let out = "";
+    child.stdout.on("data", (d) => (out += d));
+    child.stderr.on("data", (d) => (out += d));
+    child.on("error", (err) => resolve({ ok: false, output: err.message }));
+    child.on("close", (code) => resolve({ ok: code === 0, output: out }));
+  });
+}
+
+// Execute an (already permission-approved) Ollama tool and return a string result for the model.
+async function execOllamaTool(tool, input, projectRoot) {
+  if (tool === "read_file") {
+    const abs = path.resolve(projectRoot, String(input.path || ""));
+    if (!isInProject(abs, projectRoot)) return "Error: path is outside the project folder.";
+    if (!fs.existsSync(abs)) return `Error: file not found: ${input.path}`;
+    try {
+      return fs.readFileSync(abs, "utf8").slice(0, 4000);
+    } catch (err) {
+      return `Error reading file: ${err.message}`;
+    }
+  }
+  if (tool === "propose_baseline") {
+    if (!fs.existsSync(path.join(projectRoot, "multicam.json"))) return "Error: no multicam.json in the project.";
+    const command = proposeCommand(projectRoot, {
+      hasAudioEvents: fs.existsSync(path.join(projectRoot, "audio-events.json")),
+      hasSaliency: fs.existsSync(path.join(projectRoot, "saliency.json")),
+    });
+    const res = await execToolCapture(command);
+    const sw = path.join(projectRoot, "switches.json");
+    if (fs.existsSync(sw)) return fs.readFileSync(sw, "utf8").slice(0, 4000);
+    return res.ok ? "Baseline ran but wrote no switches.json." : `Error running baseline: ${res.output.slice(0, 400)}`;
+  }
+  return `Error: unknown tool ${tool}`;
+}
+
+// Drive a local model through the constrained tool loop until it produces a cut plan (R-CB5).
+// Reuses tryLandCutPlan so a valid plan lands exactly like the Claude backend's.
+async function runOllamaAgent(id, { prompt, folder, model }) {
+  const projectRoot = folder || REPO_ROOT;
+  const rules = loadConfig().rules;
+  const chosen = await pickOllamaModel(model);
+  if (!chosen) {
+    send(errorMessage(id, "not_connected", "No Ollama model available — install one with `ollama pull <model>`."));
+    return;
+  }
+  send(progressMessage(id, { label: "Local model", detail: chosen }));
+  const messages = buildOllamaMessages(prompt, projectRoot);
+  try {
+    let step = 0;
+    for (;;) {
+      const content = await ollamaChat(chosen, messages);
+      const reply = parseModelReply(content);
+      const action = nextLoopAction(reply, { step });
+      if (action.action === "final") {
+        const landed = tryLandCutPlan(projectRoot, action.text);
+        send(resultMessage(id, { ok: true, text: action.text, ...landed }));
+        return;
+      }
+      if (action.action === "stop") {
+        send(resultMessage(id, { ok: true, text: reply.text || "", landedCut: false }));
+        return;
+      }
+      send(progressMessage(id, { label: `Tool: ${action.tool}`, detail: JSON.stringify(action.input).slice(0, 80) }));
+      const decision = ollamaToolDecision(action.tool, action.input, projectRoot, rules);
+      const result =
+        decision === "allow"
+          ? await execOllamaTool(action.tool, action.input, projectRoot)
+          : `Denied by video-studio's safety policy (${action.tool}).`;
+      messages.push({ role: "assistant", content });
+      messages.push(toolResultMessage(action.tool, result));
+      step += 1;
+    }
+  } catch (err) {
+    send(errorMessage(id, ERROR_CODES.STEP_FAILED, `Ollama run failed: ${err.message}`));
+  }
+}
+
 // The Auto lane's live engine (R-CB3): drive Claude headless via @anthropic-ai/claude-agent-sdk.
 // The pure normalize/feed/auth logic (agent.mjs) + the permission decision (permissions.mjs)
 // are unit-tested; this is the I/O edge that runs the SDK and streams its events. The SDK is
@@ -651,8 +784,15 @@ function handle(decoded) {
     }
     if (decoded.step === "agent-run") {
       if (id !== null) {
-        if (params.prompt) runAgentRun(id, params);
-        else send(errorMessage(id, ERROR_CODES.MISSING_PARAM, "agent-run requires param: prompt"));
+        if (!params.prompt) {
+          send(errorMessage(id, ERROR_CODES.MISSING_PARAM, "agent-run requires param: prompt"));
+        } else {
+          // Select the backend (R-CB1): explicit param wins, else the app-global config, else
+          // Claude. The permission choke point (decide) + tryLandCutPlan are shared.
+          const backend = params.backend || loadConfig().agentBackend || "claude";
+          if (backend === "ollama") runOllamaAgent(id, params);
+          else runAgentRun(id, params);
+        }
       }
       return;
     }

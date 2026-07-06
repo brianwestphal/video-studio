@@ -70,13 +70,17 @@ flow (VS-84) — the one thing headless can't do.
   mode behind the same interface (R-CB1): map its events to the normalized event shape
   (R-CB6) and its tool-approval mechanism to the common choke point (R-CB9). Auth is its own
   credential path (R-CB11). *(Build ticket; not in the Claude-first slice.)*
-- **R-CB5** **Ollama backend** — drive a **local model** via Ollama behind the same
-  interface. Local chat models generally lack a full agentic tool-use SDK, so this backend
-  runs an **app-driven constrained tool loop**: the app offers the pipeline tools, parses
-  the model's tool requests, and routes each through the **same permission choke point**
-  (R-CB9) before executing — so the safety layer (VS-85) applies identically. Capability
-  flags (R-CB1) advertise its reduced feature set (e.g. no native session; structured-output
-  support is model-dependent). Ollama is **local — no auth** (R-CB11). *(Build ticket.)*
+- **R-CB5** **Ollama backend** *(built — VS-94)* — drive a **local model** via Ollama behind
+  the same interface. Local chat models generally lack a full agentic tool-use SDK, so this
+  backend runs an **app-driven constrained tool loop**: the app offers the pipeline tools
+  (`read_file`, `propose_baseline`), parses the model's tool requests, and routes each through
+  the **same permission choke point** (R-CB9, `decide()`) before executing — so the safety
+  layer (VS-85) applies identically. Capability flags (R-CB1, `OLLAMA_CAPABILITIES`) advertise
+  its reduced feature set (no native session; structured-output model-dependent). Ollama is
+  **local — no auth** (R-CB11). The pure loop core is `desktop/sidecar/ollama-backend.mjs`
+  (100% unit); the I/O loop is `runOllamaAgent` in host.mjs, dispatched on `config.agentBackend`.
+  Verified live against `gemma4:12b` (manual-test §15.19). The in-app backend-selector UI is a
+  follow-up.
 
 ## 5. Driving a run + structured events → UI
 
