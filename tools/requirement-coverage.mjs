@@ -268,7 +268,7 @@ export const REQUIREMENT_COVERAGE = {
   // unit-tested; the two-lane screen + design-cut spawn + the Auto-lane bridge are GUI/I/O.
   "R-DS1": { status: "manual", note: "two-lane Design screen (Auto prompt+presets / Manual open-timeline) — GUI (manual-test-plan §15.13) (VS-86)" },
   "R-DS2": { status: "unit", tests: ["sidecar-protocol.test.mjs"], note: "proposeCommand argv (desktop/sidecar/steps.mjs); design-cut host spawn + rail refresh is I/O (VS-86)" },
-  "R-DS3": { status: "manual", note: "Auto lane 'Make my cut' -> live agent-run, streams the activity feed (§15.13); landing on a finished cut plan is VS-96 (VS-86)" },
+  "R-DS3": { status: "manual", note: "Auto lane 'Make my cut' -> live agent-run streams the activity feed AND lands the agent's cut plan as switches.json, opening Review (VS-96); verified live (§15.13, §15.18) (VS-86)" },
   "R-DS4": { status: "review", note: "handoff: both lanes land on the same editable switches.json in Review (R-RV3); a design principle (VS-86)" },
 
   // Desktop app — Review stage (docs/desktop-app-review.md, VS-87). reviewCommand +
