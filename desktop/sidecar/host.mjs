@@ -36,7 +36,7 @@ import {
   importCommand,
   analyzeProjectCommand,
 } from "./steps.mjs";
-import { proposeCutSpec, flatRenderCommand } from "./cutspec.mjs";
+import { proposeCutSpec, flatRenderCommand, cutPlanToCutSpec } from "./cutspec.mjs";
 import { DOCTOR_TOOLS, doctorResultFromChecks } from "./doctor.mjs";
 import {
   PROJECT_STATE_DIR,
@@ -61,6 +61,7 @@ import {
   AGENT_EVENT_KINDS,
   extractCutPlan,
   validateCutPlan,
+  validateSingleSourceCutPlan,
   cutPlanToSwitches,
   unknownPlanMembers,
 } from "./agent.mjs";
@@ -462,19 +463,25 @@ function runReviewStop(id) {
   send(resultMessage(id, { stopped: true }));
 }
 
-// Land a structured cut plan (R-CB7): if the agent's result text carries a valid cut plan and
-// the project is multi-cam, translate it (via the project's groupId from multicam.json) into
-// switches.json — the same artifact the Manual lane produces — so the Auto lane feeds straight
-// into Review. Returns { landedCut, outPath? }; a missing/invalid plan or a single-source
-// project (cut-plan landing there is a follow-up) is a graceful no-op, so the frontend falls
-// back to the deterministic design-cut baseline. The pure pieces (extractCutPlan /
-// validateCutPlan / cutPlanToSwitches) are unit-tested; only the fs read/write is here.
+// Land a structured cut plan (R-CB7): translate the agent's plan into the SAME artifact the
+// Manual lane produces so the Auto lane feeds straight on. Multi-cam -> switches.json (via the
+// groupId from multicam.json); single-source -> cut.json (via the sources.json meta, VS-104).
+// Returns { landedCut, outPath? }; a missing/invalid plan is a graceful no-op so the frontend
+// falls back to the deterministic design-cut baseline. The parse/validate/translate pieces are
+// pure + unit-tested; only the fs read/write is here.
 function tryLandCutPlan(folder, text) {
   if (!folder) return { landedCut: false };
-  const mcPath = path.join(folder, "multicam.json");
-  if (!fs.existsSync(mcPath)) return { landedCut: false };
   const raw = extractCutPlan(text);
   if (!raw) return { landedCut: false };
+  const mcPath = path.join(folder, "multicam.json");
+  if (fs.existsSync(mcPath)) return landMulticamPlan(folder, raw, mcPath);
+  const srcPath = path.join(folder, "sources.json");
+  if (fs.existsSync(srcPath)) return landSingleSourcePlan(folder, raw, srcPath);
+  return { landedCut: false };
+}
+
+// Multi-cam: the plan is switches; reject a hallucinated/placeholder angle before landing.
+function landMulticamPlan(folder, raw, mcPath) {
   const v = validateCutPlan(raw);
   if (!v.ok) return { landedCut: false };
   let group;
@@ -485,14 +492,33 @@ function tryLandCutPlan(folder, text) {
   }
   const groupId = group?.id;
   if (typeof groupId !== "string" || groupId === "") return { landedCut: false };
-  // Reject a plan that points at an angle the group doesn't have (a hallucinated/placeholder
-  // memberId) — landing it would break Review/export; fall back to the deterministic baseline.
   const validIds = Array.isArray(group.members) ? group.members.map((m) => m && m.id) : [];
   if (unknownPlanMembers(v.plan, validIds).length > 0) return { landedCut: false };
   const doc = cutPlanToSwitches(v.plan, groupId, {
     rationale: typeof raw.rationale === "string" ? raw.rationale : undefined,
   });
   const outPath = path.join(folder, "switches.json");
+  fs.writeFileSync(outPath, JSON.stringify(doc, null, 2));
+  return { landedCut: true, outPath };
+}
+
+// Single-source (VS-104): the plan is clip ranges; land a cut.json over the project's video.
+function landSingleSourcePlan(folder, raw, srcPath) {
+  const v = validateSingleSourceCutPlan(raw);
+  if (!v.ok) return { landedCut: false };
+  let sources;
+  try {
+    sources = JSON.parse(fs.readFileSync(srcPath, "utf8"));
+  } catch {
+    return { landedCut: false };
+  }
+  let doc;
+  try {
+    doc = cutPlanToCutSpec(v.plan, sources);
+  } catch {
+    return { landedCut: false };
+  }
+  const outPath = path.join(folder, "cut.json");
   fs.writeFileSync(outPath, JSON.stringify(doc, null, 2));
   return { landedCut: true, outPath };
 }

@@ -325,7 +325,7 @@ document.getElementById("design-make").addEventListener("click", () => {
     feed.appendChild(li);
     feed.scrollTop = feed.scrollHeight;
   };
-  const req = { prompt: buildAutoPrompt(prompt, currentProject.folder), folder: currentProject.folder };
+  const req = { prompt: buildAutoPrompt(prompt, currentProject), folder: currentProject.folder };
   if (autoSessionId) req.resume = autoSessionId; // R-CB8: continue the same session for refinements
   send("agent-run", req, {
     onProgress: (p) => addFeed(p.label, p.detail),
@@ -370,17 +370,23 @@ document.getElementById("design-make").addEventListener("click", () => {
 });
 
 // Build the agent prompt for "Make my cut": the user's ask + the project context + an
-// instruction to END the reply with a structured cut plan the app can land (R-CB7). The agent
-// can read multicam.json in the project folder for the angle memberIds. If it can't produce a
-// plan, the app falls back to the deterministic design-cut baseline.
-function buildAutoPrompt(prompt, folder) {
+// instruction to END the reply with a structured cut plan the app can land (R-CB7). Multi-cam
+// projects get the angle-switch schema (read multicam.json for memberIds); single-source
+// projects get the clip-range schema (VS-104). If the agent can't produce a valid plan, the app
+// falls back to the deterministic design-cut baseline.
+function buildAutoPrompt(prompt, project) {
+  const multicam = project.project.artifacts.includes("multicam");
+  const schema = multicam
+    ? '{ "switches": [ { "atSeconds": 0, "memberId": "<angle id from multicam.json>" } ], "rationale": "<one line>" }\n' +
+      "(read multicam.json in the project folder for the angle memberIds; use only real ids)"
+    : '{ "clips": [ { "in": <startSeconds>, "out": <endSeconds> } ], "rationale": "<one line>" }\n' +
+      "(pick scene ranges from the single video; in/out are seconds, out > in)";
   return (
-    `${prompt}\n\n(Project folder: ${folder})\n\n` +
-    `When you've decided the edit, END your reply with the cut plan as a \`\`\`json code block ` +
-    `matching this schema (read multicam.json in the project folder for the angle memberIds):\n` +
+    `${prompt}\n\n(Project folder: ${project.folder})\n\n` +
+    "When you've decided the edit, END your reply with the cut plan as a ```json code block matching this schema:\n" +
     "```json\n" +
-    `{ "switches": [ { "atSeconds": 0, "memberId": "<angle-id>" } ], "rationale": "<one line>" }\n` +
-    "```"
+    schema +
+    "\n```"
   );
 }
 

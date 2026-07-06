@@ -120,6 +120,28 @@ export function validateCutPlan(obj) {
   return { ok: true, plan: { switches } };
 }
 
+// Validate a SINGLE-SOURCE cut plan (R-CB7, VS-104) — clip ranges over the one video, mirroring
+// the cut.json clips. Shape: `{ clips: [{ in, out }] }` (seconds; the source is implicit — the
+// project's single video). Returns `{ ok: true, plan }` (normalized) or `{ ok: false, error }`.
+// Pure. Rejects a non-positive range so a bad clip can't land.
+export function validateSingleSourceCutPlan(obj) {
+  if (obj === null || typeof obj !== "object" || Array.isArray(obj)) {
+    return { ok: false, error: "cut plan is not an object" };
+  }
+  if (!Array.isArray(obj.clips)) {
+    return { ok: false, error: "cut plan is missing a clips array" };
+  }
+  const clips = [];
+  for (const [i, c] of obj.clips.entries()) {
+    if (c === null || typeof c !== "object") return { ok: false, error: `clip ${i} is not an object` };
+    if (typeof c.in !== "number" || !Number.isFinite(c.in) || c.in < 0) return { ok: false, error: `clip ${i} has an invalid in` };
+    if (typeof c.out !== "number" || !Number.isFinite(c.out) || c.out <= c.in) return { ok: false, error: `clip ${i} has an invalid out` };
+    clips.push({ in: c.in, out: c.out });
+  }
+  if (clips.length === 0) return { ok: false, error: "cut plan has no clips" };
+  return { ok: true, plan: { clips } };
+}
+
 // The switches.json schema version the pipeline writes/reads.
 export const SWITCHES_VERSION = 1;
 

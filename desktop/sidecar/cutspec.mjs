@@ -123,6 +123,24 @@ export function proposeCutSpec(sources, { kind = "highlights", targetSeconds, ma
   return { project, clips };
 }
 
+// Turn a validated single-source cut plan (agent clip ranges, VS-104) into a cut spec (cut.json)
+// the Export lane renders — the Auto-lane counterpart of proposeCutSpec, so an agent's plan
+// becomes the SAME artifact the deterministic proposer produces. The project meta + the clip
+// `source` come from the analyzed pool (sources.json); the plan carries only in/out. Pure.
+// Throws when there are no analyzed sources.
+export function cutPlanToCutSpec(plan, sources, { name = "auto" } = {}) {
+  const srcs = sources && Array.isArray(sources.sources) ? sources.sources : [];
+  if (srcs.length === 0) throw new Error("no analyzed sources to cut from");
+  const primary = srcs[0];
+  const clips = (plan && Array.isArray(plan.clips) ? plan.clips : []).map((c) => ({
+    source: primary.path,
+    in: c.in,
+    out: c.out,
+    audio: "keep",
+  }));
+  return { project: { fps: primary.fps, width: primary.width, height: primary.height, name }, clips };
+}
+
 // Build the ffmpeg argv that flat-renders a single-source cut spec into a finished video:
 // trim each clip range off the one source, concat them, (optionally) scale/pad to a target
 // frame (e.g. 1080x1920 for 9:16), and encode H.264/AAC. Pure — the host runs ffmpeg with it.

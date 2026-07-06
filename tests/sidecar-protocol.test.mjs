@@ -39,13 +39,14 @@ import {
   normalizeClaudeEvent,
   eventToFeedEntry,
   validateCutPlan,
+  validateSingleSourceCutPlan,
   cutPlanToSwitches,
   SWITCHES_VERSION,
   extractCutPlan,
   unknownPlanMembers,
   isAuthFailure,
 } from "../desktop/sidecar/agent.mjs";
-import { CUT_TARGETS, proposeCutSpec, flatRenderCommand } from "../desktop/sidecar/cutspec.mjs";
+import { CUT_TARGETS, proposeCutSpec, flatRenderCommand, cutPlanToCutSpec } from "../desktop/sidecar/cutspec.mjs";
 import {
   CATEGORIES,
   DEFAULT_POLICY,
@@ -778,6 +779,48 @@ describe("agent — unknownPlanMembers", () => {
     expect(unknownPlanMembers({}, valid)).toEqual([]);
     expect(unknownPlanMembers({ switches: [{ atSeconds: 0, memberId: "x" }] }, null)).toEqual(["x"]);
     expect(unknownPlanMembers({ switches: [{ atSeconds: 0 }] }, valid)).toEqual([]);
+  });
+});
+
+describe("agent — validateSingleSourceCutPlan", () => {
+  it("rejects non-objects + a missing/empty clips array", () => {
+    expect(validateSingleSourceCutPlan(null).ok).toBe(false);
+    expect(validateSingleSourceCutPlan([]).ok).toBe(false);
+    expect(validateSingleSourceCutPlan({}).error).toMatch(/clips array/);
+    expect(validateSingleSourceCutPlan({ clips: [] }).error).toMatch(/no clips/);
+  });
+  it("rejects malformed clips (non-object, bad in/out, non-positive range)", () => {
+    expect(validateSingleSourceCutPlan({ clips: [null] }).error).toMatch(/clip 0 is not an object/);
+    expect(validateSingleSourceCutPlan({ clips: [{ in: -1, out: 3 }] }).error).toMatch(/invalid in/);
+    expect(validateSingleSourceCutPlan({ clips: [{ in: "x", out: 3 }] }).error).toMatch(/invalid in/);
+    expect(validateSingleSourceCutPlan({ clips: [{ in: 2, out: 2 }] }).error).toMatch(/invalid out/);
+    expect(validateSingleSourceCutPlan({ clips: [{ in: 2, out: 1 }] }).error).toMatch(/invalid out/);
+    expect(validateSingleSourceCutPlan({ clips: [{ in: 0 }] }).error).toMatch(/invalid out/);
+  });
+  it("accepts + normalizes to { clips: [{in,out}] }", () => {
+    expect(validateSingleSourceCutPlan({ clips: [{ in: 0, out: 3, extra: 1 }, { in: 10, out: 14 }] })).toEqual({
+      ok: true,
+      plan: { clips: [{ in: 0, out: 3 }, { in: 10, out: 14 }] },
+    });
+  });
+});
+
+describe("cutspec — cutPlanToCutSpec", () => {
+  const sources = { sources: [{ id: "a", path: "/v.mp4", fps: 24, width: 1920, height: 1080 }] };
+  it("builds a cut.json from the plan clips + the primary source meta", () => {
+    const spec = cutPlanToCutSpec({ clips: [{ in: 0, out: 3 }, { in: 10, out: 14 }] }, sources);
+    expect(spec.project).toEqual({ fps: 24, width: 1920, height: 1080, name: "auto" });
+    expect(spec.clips).toEqual([
+      { source: "/v.mp4", in: 0, out: 3, audio: "keep" },
+      { source: "/v.mp4", in: 10, out: 14, audio: "keep" },
+    ]);
+  });
+  it("accepts a name override and tolerates an empty plan; throws with no sources", () => {
+    expect(cutPlanToCutSpec({ clips: [] }, sources, { name: "teaser" }).project.name).toBe("teaser");
+    expect(cutPlanToCutSpec({}, sources).clips).toEqual([]);
+    expect(cutPlanToCutSpec(null, sources).clips).toEqual([]);
+    expect(() => cutPlanToCutSpec({ clips: [{ in: 0, out: 1 }] }, { sources: [] })).toThrow(/no analyzed sources/);
+    expect(() => cutPlanToCutSpec({ clips: [{ in: 0, out: 1 }] }, null)).toThrow(/no analyzed sources/);
   });
 });
 
