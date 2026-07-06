@@ -143,6 +143,30 @@ export function cutPlanToSwitches(plan, groupId, { rationale } = {}) {
   return doc;
 }
 
+// Extract a cut-plan object from an agent's free-text result (R-CB7). We ask the model to end
+// its reply with the plan as JSON, but it may wrap it in a ```json fence, emit a bare {…}
+// object, or bury it in prose. Returns the parsed object (UNVALIDATED — pass to
+// validateCutPlan) or null when no JSON object is found. Pure. Prefers a fenced block (the
+// asked-for shape), then falls back to the first brace-delimited span.
+export function extractCutPlan(text) {
+  const s = typeof text === "string" ? text : "";
+  const candidates = [];
+  const fence = /```(?:json)?\s*([\s\S]*?)```/i.exec(s);
+  if (fence) candidates.push(fence[1]);
+  const brace = /\{[\s\S]*\}/.exec(s);
+  if (brace) candidates.push(brace[0]);
+  for (const c of candidates) {
+    let obj;
+    try {
+      obj = JSON.parse(c.trim());
+    } catch {
+      continue;
+    }
+    if (obj && typeof obj === "object" && !Array.isArray(obj)) return obj;
+  }
+  return null;
+}
+
 // Detect a credential/auth failure from a normalized result event (R-CB11) so the app
 // can trigger the Connect flow rather than showing a generic error. Pure.
 const AUTH_RE = /\b(auth|authenticat|credential|unauthor|not logged in|log ?in|setup-token|api[- ]?key|401)\b/i;

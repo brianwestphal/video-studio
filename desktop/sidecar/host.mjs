@@ -54,7 +54,15 @@ import {
   resetRules,
   setCategoryPolicy,
 } from "./config.mjs";
-import { normalizeClaudeEvent, eventToFeedEntry, isAuthFailure, AGENT_EVENT_KINDS } from "./agent.mjs";
+import {
+  normalizeClaudeEvent,
+  eventToFeedEntry,
+  isAuthFailure,
+  AGENT_EVENT_KINDS,
+  extractCutPlan,
+  validateCutPlan,
+  cutPlanToSwitches,
+} from "./agent.mjs";
 import { decide } from "./permissions.mjs";
 
 // The repo root is two levels up from desktop/sidecar/. The app lives in a subdir
@@ -451,6 +459,36 @@ function runReviewStop(id) {
   send(resultMessage(id, { stopped: true }));
 }
 
+// Land a structured cut plan (R-CB7): if the agent's result text carries a valid cut plan and
+// the project is multi-cam, translate it (via the project's groupId from multicam.json) into
+// switches.json — the same artifact the Manual lane produces — so the Auto lane feeds straight
+// into Review. Returns { landedCut, outPath? }; a missing/invalid plan or a single-source
+// project (cut-plan landing there is a follow-up) is a graceful no-op, so the frontend falls
+// back to the deterministic design-cut baseline. The pure pieces (extractCutPlan /
+// validateCutPlan / cutPlanToSwitches) are unit-tested; only the fs read/write is here.
+function tryLandCutPlan(folder, text) {
+  if (!folder) return { landedCut: false };
+  const mcPath = path.join(folder, "multicam.json");
+  if (!fs.existsSync(mcPath)) return { landedCut: false };
+  const raw = extractCutPlan(text);
+  if (!raw) return { landedCut: false };
+  const v = validateCutPlan(raw);
+  if (!v.ok) return { landedCut: false };
+  let groupId;
+  try {
+    groupId = JSON.parse(fs.readFileSync(mcPath, "utf8"))?.groups?.[0]?.id;
+  } catch {
+    return { landedCut: false };
+  }
+  if (typeof groupId !== "string" || groupId === "") return { landedCut: false };
+  const doc = cutPlanToSwitches(v.plan, groupId, {
+    rationale: typeof raw.rationale === "string" ? raw.rationale : undefined,
+  });
+  const outPath = path.join(folder, "switches.json");
+  fs.writeFileSync(outPath, JSON.stringify(doc, null, 2));
+  return { landedCut: true, outPath };
+}
+
 // The Auto lane's live engine (R-CB3): drive Claude headless via @anthropic-ai/claude-agent-sdk.
 // The pure normalize/feed/auth logic (agent.mjs) + the permission decision (permissions.mjs)
 // are unit-tested; this is the I/O edge that runs the SDK and streams its events. The SDK is
@@ -517,7 +555,8 @@ async function runAgentRun(id, { prompt, folder, resume }) {
       const feed = eventToFeedEntry(n);
       if (feed) send(progressMessage(id, feed));
       if (n.kind === AGENT_EVENT_KINDS.RESULT) {
-        send(resultMessage(id, { sessionId, ok: n.ok, text: n.text }));
+        const landed = n.ok ? tryLandCutPlan(folder, n.text) : { landedCut: false };
+        send(resultMessage(id, { sessionId, ok: n.ok, text: n.text, ...landed }));
         return;
       }
     }

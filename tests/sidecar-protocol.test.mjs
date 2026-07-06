@@ -41,6 +41,7 @@ import {
   validateCutPlan,
   cutPlanToSwitches,
   SWITCHES_VERSION,
+  extractCutPlan,
   isAuthFailure,
 } from "../desktop/sidecar/agent.mjs";
 import { CUT_TARGETS, proposeCutSpec, flatRenderCommand } from "../desktop/sidecar/cutspec.mjs";
@@ -731,6 +732,27 @@ describe("agent — validateCutPlan", () => {
     expect(
       validateCutPlan({ switches: [{ atSeconds: 5, memberId: "b" }, { atSeconds: 1, memberId: "a" }], extra: 1 }),
     ).toEqual({ ok: true, plan: { switches: [{ atSeconds: 1, memberId: "a" }, { atSeconds: 5, memberId: "b" }] } });
+  });
+});
+
+describe("agent — extractCutPlan", () => {
+  it("parses a fenced ```json block", () => {
+    const text = 'Here is your cut:\n```json\n{ "switches": [{ "atSeconds": 0, "memberId": "cam1" }] }\n```\nEnjoy!';
+    expect(extractCutPlan(text)).toEqual({ switches: [{ atSeconds: 0, memberId: "cam1" }] });
+  });
+  it("parses an unfenced bare object embedded in prose", () => {
+    expect(extractCutPlan('done: { "switches": [] } ok')).toEqual({ switches: [] });
+  });
+  it("falls back to the brace span when the fenced block isn't an object", () => {
+    const text = '```json\n"just a string"\n```\nthen { "switches": [{ "atSeconds": 1, "memberId": "a" }] }';
+    expect(extractCutPlan(text)).toEqual({ switches: [{ atSeconds: 1, memberId: "a" }] });
+  });
+  it("returns null for arrays, non-JSON, or a non-string input", () => {
+    expect(extractCutPlan("```json\n[1,2,3]\n```")).toBeNull(); // array, not a plan object
+    expect(extractCutPlan("no json here at all")).toBeNull();
+    expect(extractCutPlan("{ not valid json }")).toBeNull();
+    expect(extractCutPlan(null)).toBeNull();
+    expect(extractCutPlan(42)).toBeNull();
   });
 });
 

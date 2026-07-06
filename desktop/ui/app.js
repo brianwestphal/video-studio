@@ -320,12 +320,18 @@ document.getElementById("design-make").addEventListener("click", () => {
     feed.appendChild(li);
     feed.scrollTop = feed.scrollHeight;
   };
-  send("agent-run", { prompt: `${prompt}\n\n(Project folder: ${currentProject.folder})`, folder: currentProject.folder }, {
+  send("agent-run", { prompt: buildAutoPrompt(prompt, currentProject.folder), folder: currentProject.folder }, {
     onProgress: (p) => addFeed(p.label, p.detail),
-    onResult: () => {
-      // Turn the run into an actual, editable cut and move forward. (Tailoring the cut
-      // precisely to the prompt is VS-96; this is video-studio's auto-cut baseline. The
-      // prompt does pick the single-source cut style via cutKindFromPrompt.)
+    onResult: (res) => {
+      // If the agent produced a valid cut plan, the host already landed it as switches.json
+      // (R-CB7) — that IS the cut, tailored to the prompt. Otherwise fall back to the
+      // deterministic design-cut baseline so "Make my cut" always lands on an editable cut.
+      if (res && res.landedCut) {
+        note.textContent = "The AI proposed your cut — opening Review…";
+        btn.disabled = false;
+        refreshThen(navigateAfterCut);
+        return;
+      }
       note.textContent = "Building your cut…";
       send("design-cut", { folder: currentProject.folder, kind: cutKindFromPrompt(prompt) }, {
         onProgress: (p) => {
@@ -348,6 +354,21 @@ document.getElementById("design-make").addEventListener("click", () => {
     },
   });
 });
+
+// Build the agent prompt for "Make my cut": the user's ask + the project context + an
+// instruction to END the reply with a structured cut plan the app can land (R-CB7). The agent
+// can read multicam.json in the project folder for the angle memberIds. If it can't produce a
+// plan, the app falls back to the deterministic design-cut baseline.
+function buildAutoPrompt(prompt, folder) {
+  return (
+    `${prompt}\n\n(Project folder: ${folder})\n\n` +
+    `When you've decided the edit, END your reply with the cut plan as a \`\`\`json code block ` +
+    `matching this schema (read multicam.json in the project folder for the angle memberIds):\n` +
+    "```json\n" +
+    `{ "switches": [ { "atSeconds": 0, "memberId": "<angle-id>" } ], "rationale": "<one line>" }\n` +
+    "```"
+  );
+}
 
 // Map a free-text prompt to a single-source cut style (best-effort keyword match).
 function cutKindFromPrompt(prompt) {
