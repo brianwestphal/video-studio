@@ -66,10 +66,15 @@ flow (VS-84) — the one thing headless can't do.
 
 ## 4. Additional backends
 
-- **R-CB4** **Codex backend** — drive OpenAI's Codex agent in its headless/programmatic
-  mode behind the same interface (R-CB1): map its events to the normalized event shape
-  (R-CB6) and its tool-approval mechanism to the common choke point (R-CB9). Auth is its own
-  credential path (R-CB11). *(Build ticket; not in the Claude-first slice.)*
+- **R-CB4** **Codex backend** *(built — VS-93)* — drive OpenAI's Codex agent headless via
+  `codex exec --json` behind the same interface (R-CB1): `normalizeCodexEvent` maps its JSONL
+  stream to the shared event shape (R-CB6), and its permission mechanism is the **sandbox
+  mode** — we run `-s read-only` as the choke point (R-CB9), coarser than Claude's per-call
+  callback: Codex may read the project to design the cut but never writes/executes, so OUR host
+  lands the plan from Codex's `--output-schema` final message. Auth is its own ChatGPT/Codex
+  credential path (R-CB11). Pure core `desktop/sidecar/codex-backend.mjs` (100% unit); I/O is
+  `runCodexAgent` in host.mjs. Verified live (manual-test §15.20). Session resume
+  (`codex exec resume <thread_id>`) + the backend-selector UI are follow-ups.
 - **R-CB5** **Ollama backend** *(built — VS-94)* — drive a **local model** via Ollama behind
   the same interface. Local chat models generally lack a full agentic tool-use SDK, so this
   backend runs an **app-driven constrained tool loop**: the app offers the pipeline tools

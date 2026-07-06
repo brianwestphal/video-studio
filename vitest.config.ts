@@ -44,6 +44,7 @@ export default defineConfig({
         "desktop/sidecar/import-shape.mjs",
         "desktop/sidecar/cut-edit.mjs",
         "desktop/sidecar/ollama-backend.mjs",
+        "desktop/sidecar/codex-backend.mjs",
       ],
       thresholds: {
         lines: 100,

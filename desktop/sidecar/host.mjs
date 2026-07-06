@@ -66,6 +66,7 @@ import {
 } from "./agent.mjs";
 import { decide, isInProject } from "./permissions.mjs";
 import { buildOllamaMessages, parseModelReply, nextLoopAction, toolResultMessage } from "./ollama-backend.mjs";
+import { codexExecArgv, normalizeCodexEvent, CODEX_CUTPLAN_SCHEMA } from "./codex-backend.mjs";
 
 // The repo root is two levels up from desktop/sidecar/. The app lives in a subdir
 // of this repo (settled), so the pipeline tools sit alongside at ../../.
@@ -628,6 +629,91 @@ async function runOllamaAgent(id, { prompt, folder, model }) {
   }
 }
 
+// ---- Codex backend (R-CB4) -----------------------------------------------------------------
+// Codex is agentic (native tool-use/sessions/structured output), so we drive `codex exec
+// --json` and normalize its JSONL stream (codex-backend.mjs) to the shared event shape. Its
+// permission boundary is the SANDBOX MODE, not a per-call callback: we run `-s read-only`
+// (R-CB9) so Codex may read the project to design the cut but never writes/executes — OUR host
+// lands the plan from Codex's --output-last-message file.
+
+// A Codex-labelled activity-feed line from a normalized event (the feed is backend-agnostic,
+// but we name the assistant "Codex" rather than the shared "Claude" label).
+function codexFeedEntry(n) {
+  if (n.kind === AGENT_EVENT_KINDS.SESSION) return { label: "Session started", detail: n.sessionId || "" };
+  if (n.kind === AGENT_EVENT_KINDS.ASSISTANT) {
+    if (n.tools && n.tools.length > 0) return { label: "Running a command", detail: "" };
+    if (n.text) return { label: "Codex", detail: n.text };
+  }
+  return null;
+}
+
+function runCodexAgent(id, { prompt, folder, model }) {
+  const projectRoot = folder || REPO_ROOT;
+  let workDir;
+  let schemaPath;
+  let lastPath;
+  try {
+    workDir = fs.mkdtempSync(path.join(os.tmpdir(), "vs-codex-"));
+    schemaPath = path.join(workDir, "cutplan.schema.json");
+    lastPath = path.join(workDir, "last.txt");
+    fs.writeFileSync(schemaPath, JSON.stringify(CODEX_CUTPLAN_SCHEMA));
+  } catch (err) {
+    send(errorMessage(id, ERROR_CODES.STEP_FAILED, `codex setup failed: ${err.message}`));
+    return;
+  }
+  const args = codexExecArgv(prompt, projectRoot, { model, schemaPath, lastMessagePath: lastPath });
+  // stdin: "ignore" gives codex an immediate-EOF stdin (like `< /dev/null`) so it takes the
+  // prompt from argv and doesn't block/err waiting for piped input.
+  const child = spawn("codex", args, { cwd: projectRoot, stdio: ["ignore", "pipe", "pipe"] });
+  inflight.set(id, child);
+  let buf = "";
+  let stderr = "";
+  let sessionId = null;
+  let failText = null; // a turn.failed / error event's message (the real cause on non-zero exit)
+  child.stdout.on("data", (d) => {
+    buf += d;
+    let nl;
+    while ((nl = buf.indexOf("\n")) >= 0) {
+      const line = buf.slice(0, nl).trim();
+      buf = buf.slice(nl + 1);
+      if (!line.startsWith("{")) continue;
+      let ev;
+      try {
+        ev = JSON.parse(line);
+      } catch {
+        continue;
+      }
+      const n = normalizeCodexEvent(ev);
+      if (n.kind === AGENT_EVENT_KINDS.SESSION && n.sessionId) sessionId = n.sessionId;
+      if (n.kind === AGENT_EVENT_KINDS.RESULT && n.ok === false && n.text) failText = n.text;
+      const feed = codexFeedEntry(n);
+      if (feed) send(progressMessage(id, feed));
+    }
+  });
+  child.stderr.on("data", (d) => (stderr += d));
+  child.on("error", (err) => {
+    inflight.delete(id);
+    send(errorMessage(id, ERROR_CODES.STEP_FAILED, `codex not available: ${err.message}`));
+  });
+  child.on("close", (code) => {
+    inflight.delete(id);
+    if (code !== 0) {
+      const msg = failText || stderr.trim() || `codex exited with code ${code}`;
+      const authish = /auth|login|credential|not logged in|sign ?in/i.test(msg);
+      send(errorMessage(id, authish ? "not_connected" : ERROR_CODES.STEP_FAILED, msg.slice(0, 300)));
+      return;
+    }
+    let text = "";
+    try {
+      text = fs.readFileSync(lastPath, "utf8");
+    } catch {
+      /* no final message file */
+    }
+    const landed = tryLandCutPlan(projectRoot, text);
+    send(resultMessage(id, { sessionId, ok: true, text, ...landed }));
+  });
+}
+
 // The Auto lane's live engine (R-CB3): drive Claude headless via @anthropic-ai/claude-agent-sdk.
 // The pure normalize/feed/auth logic (agent.mjs) + the permission decision (permissions.mjs)
 // are unit-tested; this is the I/O edge that runs the SDK and streams its events. The SDK is
@@ -791,6 +877,7 @@ function handle(decoded) {
           // Claude. The permission choke point (decide) + tryLandCutPlan are shared.
           const backend = params.backend || loadConfig().agentBackend || "claude";
           if (backend === "ollama") runOllamaAgent(id, params);
+          else if (backend === "codex") runCodexAgent(id, params);
           else runAgentRun(id, params);
         }
       }
