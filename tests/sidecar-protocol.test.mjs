@@ -42,6 +42,7 @@ import {
   cutPlanToSwitches,
   SWITCHES_VERSION,
   extractCutPlan,
+  unknownPlanMembers,
   isAuthFailure,
 } from "../desktop/sidecar/agent.mjs";
 import { CUT_TARGETS, proposeCutSpec, flatRenderCommand } from "../desktop/sidecar/cutspec.mjs";
@@ -753,6 +754,30 @@ describe("agent — extractCutPlan", () => {
     expect(extractCutPlan("{ not valid json }")).toBeNull();
     expect(extractCutPlan(null)).toBeNull();
     expect(extractCutPlan(42)).toBeNull();
+  });
+});
+
+describe("agent — unknownPlanMembers", () => {
+  const valid = ["byam-cam-1", "byam-cam-2", "byam-cam-3", "byam-cam-4"];
+  it("returns [] when every switch memberId is a real group member", () => {
+    const plan = { switches: [{ atSeconds: 0, memberId: "byam-cam-1" }, { atSeconds: 3, memberId: "byam-cam-2" }] };
+    expect(unknownPlanMembers(plan, valid)).toEqual([]);
+  });
+  it("flags hallucinated / placeholder memberIds (deduped, in order)", () => {
+    const plan = {
+      switches: [
+        { atSeconds: 0, memberId: "byam-cam-1" },
+        { atSeconds: 2, memberId: "<REPLACE_with_id_from_multicam.json>" },
+        { atSeconds: 4, memberId: "byam-cam-9" },
+        { atSeconds: 6, memberId: "<REPLACE_with_id_from_multicam.json>" },
+      ],
+    };
+    expect(unknownPlanMembers(plan, valid)).toEqual(["<REPLACE_with_id_from_multicam.json>", "byam-cam-9"]);
+  });
+  it("tolerates a missing switches array / non-array validIds", () => {
+    expect(unknownPlanMembers({}, valid)).toEqual([]);
+    expect(unknownPlanMembers({ switches: [{ atSeconds: 0, memberId: "x" }] }, null)).toEqual(["x"]);
+    expect(unknownPlanMembers({ switches: [{ atSeconds: 0 }] }, valid)).toEqual([]);
   });
 });
 

@@ -53,7 +53,6 @@ import {
   revokeRule,
   resetRules,
   setCategoryPolicy,
-  effectivePolicy,
 } from "./config.mjs";
 import {
   normalizeClaudeEvent,
@@ -63,8 +62,9 @@ import {
   extractCutPlan,
   validateCutPlan,
   cutPlanToSwitches,
+  unknownPlanMembers,
 } from "./agent.mjs";
-import { decide, deriveAllowedTools } from "./permissions.mjs";
+import { decide } from "./permissions.mjs";
 
 // The repo root is two levels up from desktop/sidecar/. The app lives in a subdir
 // of this repo (settled), so the pipeline tools sit alongside at ../../.
@@ -475,13 +475,18 @@ function tryLandCutPlan(folder, text) {
   if (!raw) return { landedCut: false };
   const v = validateCutPlan(raw);
   if (!v.ok) return { landedCut: false };
-  let groupId;
+  let group;
   try {
-    groupId = JSON.parse(fs.readFileSync(mcPath, "utf8"))?.groups?.[0]?.id;
+    group = JSON.parse(fs.readFileSync(mcPath, "utf8"))?.groups?.[0];
   } catch {
     return { landedCut: false };
   }
+  const groupId = group?.id;
   if (typeof groupId !== "string" || groupId === "") return { landedCut: false };
+  // Reject a plan that points at an angle the group doesn't have (a hallucinated/placeholder
+  // memberId) — landing it would break Review/export; fall back to the deterministic baseline.
+  const validIds = Array.isArray(group.members) ? group.members.map((m) => m && m.id) : [];
+  if (unknownPlanMembers(v.plan, validIds).length > 0) return { landedCut: false };
   const doc = cutPlanToSwitches(v.plan, groupId, {
     rationale: typeof raw.rationale === "string" ? raw.rationale : undefined,
   });
@@ -503,8 +508,7 @@ async function runAgentRun(id, { prompt, folder, resume }) {
     return;
   }
   const projectRoot = folder || REPO_ROOT;
-  const config = loadConfig();
-  const rules = config.rules;
+  const rules = loadConfig().rules;
 
   // The reason string for a decision our policy won't allow.
   const denyReason = (d) =>
@@ -537,15 +541,18 @@ async function runAgentRun(id, { prompt, folder, resume }) {
     };
   };
 
+  // NOTE (VS-96): we deliberately do NOT set options.allowedTools here. The safe categories
+  // (media/read/write) are already "allow" in canUseTool, so an allow-list adds no friction
+  // benefit — but a bare allowedTools entry AUTO-APPROVES the tool *before* canUseTool is
+  // consulted (SDK CLAUDE_SDK_CAN_USE_TOOL_SHADOWED), collapsing our two-point gate
+  // (canUseTool + PreToolUse hook, VS-97) to one. Keeping both layers is worth more than the
+  // (nonexistent) friction saving. deriveAllowedTools stays available for when native prompts
+  // change this calculus.
   const options = {
     cwd: projectRoot,
     permissionMode: "default",
     canUseTool,
     hooks: { PreToolUse: [{ hooks: [preToolUse] }] },
-    // Pre-approve the always-safe tool categories (R-PERM8) so routine read/media/write work
-    // doesn't round-trip through canUseTool. This is NOT a safety hole: the PreToolUse hook
-    // above still fires for EVERY tool (including these) and remains the authoritative gate.
-    allowedTools: deriveAllowedTools(effectivePolicy(config)),
   };
   if (resume) options.resume = resume;
 

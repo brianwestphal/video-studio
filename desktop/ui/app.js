@@ -118,9 +118,14 @@ function renderRail() {
 }
 
 let currentProject = null;
+// The Auto lane's live agent session id (R-CB8): once a run returns one, follow-up "Make my
+// cut" clicks resume the SAME session so refinements ("make it 5s shorter", "favor the guitar")
+// build on the prior cut. Reset when the project changes.
+let autoSessionId = null;
 
 // Apply a project snapshot from the sidecar (project-open / project-create result).
 function applyProjectSnapshot(snapshot) {
+  if (currentProject && currentProject.folder !== snapshot.folder) autoSessionId = null;
   currentProject = snapshot;
   railStages = snapshot.stages;
   renderRail();
@@ -310,7 +315,7 @@ document.getElementById("design-make").addEventListener("click", () => {
     return;
   }
   feed.innerHTML = "";
-  note.textContent = "Working…";
+  note.textContent = autoSessionId ? "Refining your cut…" : "Working…";
   const btn = document.getElementById("design-make");
   btn.disabled = true;
   const addFeed = (label, detail) => {
@@ -320,9 +325,18 @@ document.getElementById("design-make").addEventListener("click", () => {
     feed.appendChild(li);
     feed.scrollTop = feed.scrollHeight;
   };
-  send("agent-run", { prompt: buildAutoPrompt(prompt, currentProject.folder), folder: currentProject.folder }, {
+  const req = { prompt: buildAutoPrompt(prompt, currentProject.folder), folder: currentProject.folder };
+  if (autoSessionId) req.resume = autoSessionId; // R-CB8: continue the same session for refinements
+  send("agent-run", req, {
     onProgress: (p) => addFeed(p.label, p.detail),
     onResult: (res) => {
+      // Remember the session so the next click refines this cut rather than starting fresh.
+      if (res && res.sessionId) {
+        autoSessionId = res.sessionId;
+        btn.textContent = "Refine cut";
+        document.getElementById("design-prompt").placeholder =
+          'Refine it — e.g. "make it 5s shorter" or "favor the wide angle"';
+      }
       // If the agent produced a valid cut plan, the host already landed it as switches.json
       // (R-CB7) — that IS the cut, tailored to the prompt. Otherwise fall back to the
       // deterministic design-cut baseline so "Make my cut" always lands on an editable cut.

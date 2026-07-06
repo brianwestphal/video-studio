@@ -143,6 +143,22 @@ export function cutPlanToSwitches(plan, groupId, { rationale } = {}) {
   return doc;
 }
 
+// The plan's switch memberIds that are NOT among the group's real member ids (`validIds`). An
+// agent can hallucinate or leave a template memberId (e.g. "<REPLACE_with_id>"); landing a cut
+// that points at a non-existent angle would break Review/export, so the host rejects a plan
+// with any unknown member. Pure. Returns [] (empty) when every memberId is valid.
+export function unknownPlanMembers(plan, validIds) {
+  const valid = new Set(Array.isArray(validIds) ? validIds : []);
+  const switches = plan && Array.isArray(plan.switches) ? plan.switches : [];
+  const unknown = [];
+  for (const s of switches) {
+    if (s && typeof s.memberId === "string" && !valid.has(s.memberId) && !unknown.includes(s.memberId)) {
+      unknown.push(s.memberId);
+    }
+  }
+  return unknown;
+}
+
 // Extract a cut-plan object from an agent's free-text result (R-CB7). We ask the model to end
 // its reply with the plan as JSON, but it may wrap it in a ```json fence, emit a bare {…}
 // object, or bury it in prose. Returns the parsed object (UNVALIDATED — pass to
