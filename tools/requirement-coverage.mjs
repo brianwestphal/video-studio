@@ -312,7 +312,7 @@ export const REQUIREMENT_COVERAGE = {
   "R-PERM6": { status: "unit", tests: ["sidecar-protocol.test.mjs"], note: "matchRule: this-project vs everywhere scope + precedence (project beats everywhere, deny beats allow) (VS-92)" },
   "R-PERM7": { status: "unit", tests: ["sidecar-protocol.test.mjs"], note: "decide: rules first, default only on a miss; canUseTool wiring is host I/O (VS-92)" },
   "R-PERM7a": { status: "manual", note: "two-point enforcement: canUseTool + a PreToolUse hook running decide, so the SDK's auto-approved sandboxed commands are still gated — adversarially verified (manual-test-plan §15.16) (VS-97)" },
-  "R-PERM8": { status: "unit", tests: ["sidecar-protocol.test.mjs"], note: "deriveAllowedTools from allow-by-default categories, kept in sync (VS-92)" },
+  "R-PERM8": { status: "unit", tests: ["sidecar-protocol.test.mjs"], note: "deriveAllowedTools from allow-by-default categories (pure); now wired into runAgentRun's options.allowedTools so safe read/media/write skip the canUseTool round-trip while the PreToolUse hook stays the authoritative gate — verified in a live agent run (VS-92/96)" },
   "R-PERM9": { status: "unit", tests: ["sidecar-protocol.test.mjs"], note: "decide never gates AskUserQuestion (VS-92)" },
   "R-PERM10": { status: "manual", note: "Permissions screen plain-language category toggles (desktop/ui) over setCategoryPolicy (unit-tested); GUI in manual-test-plan §15.8 (VS-92)" },
   "R-PERM11": { status: "manual", note: "Permissions screen remembered-approvals list + per-rule revoke + reset-all (desktop/ui) over revokeRule/resetRules (unit-tested); GUI in manual-test-plan §15.9 (VS-92)" },

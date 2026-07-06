@@ -53,6 +53,7 @@ import {
   revokeRule,
   resetRules,
   setCategoryPolicy,
+  effectivePolicy,
 } from "./config.mjs";
 import {
   normalizeClaudeEvent,
@@ -63,7 +64,7 @@ import {
   validateCutPlan,
   cutPlanToSwitches,
 } from "./agent.mjs";
-import { decide } from "./permissions.mjs";
+import { decide, deriveAllowedTools } from "./permissions.mjs";
 
 // The repo root is two levels up from desktop/sidecar/. The app lives in a subdir
 // of this repo (settled), so the pipeline tools sit alongside at ../../.
@@ -502,7 +503,8 @@ async function runAgentRun(id, { prompt, folder, resume }) {
     return;
   }
   const projectRoot = folder || REPO_ROOT;
-  const rules = loadConfig().rules;
+  const config = loadConfig();
+  const rules = config.rules;
 
   // The reason string for a decision our policy won't allow.
   const denyReason = (d) =>
@@ -540,6 +542,10 @@ async function runAgentRun(id, { prompt, folder, resume }) {
     permissionMode: "default",
     canUseTool,
     hooks: { PreToolUse: [{ hooks: [preToolUse] }] },
+    // Pre-approve the always-safe tool categories (R-PERM8) so routine read/media/write work
+    // doesn't round-trip through canUseTool. This is NOT a safety hole: the PreToolUse hook
+    // above still fires for EVERY tool (including these) and remains the authoritative gate.
+    allowedTools: deriveAllowedTools(effectivePolicy(config)),
   };
   if (resume) options.resume = resume;
 
