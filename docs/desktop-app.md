@@ -17,7 +17,7 @@ Status: **Partial** — the **native Tauri shell is scaffolded** (VS-79/VS-90): 
 the stage rail (R-APP5/6), a Setup/doctor screen (R-APP16/17), and an Analyze screen that runs
 `analyze-scenes` with live streamed progress. The sidecar protocol/steps/doctor cores
 (`desktop/sidecar/*.mjs`, R-APP12/13/16/17) are unit-tested to 100%. **Remaining:** the persisted
-project model (R-APP8–10), the New Project / Design / Review / Export screens, and packaging.
+project model (R-APP8–10), the New Project / Design / Export screens, and packaging.
 Run the app with `npm run desktop:dev`.
 
 ## 1. Concept
@@ -25,16 +25,15 @@ Run the app with `npm run desktop:dev`.
 A **guided project workspace** that walks a creative from *"drop in footage"* to
 *"finished cut"* without a terminal, while keeping the power users' escape hatches. The
 unit of work is a **Project** (a folder of footage). A left rail of pipeline stages —
-**Setup → New Project → Analyze → Design → Review/Edit → Export** — each a visual panel
+**Setup → New Project → Analyze → Design → Export** — each a visual panel
 with live progress. The engine underneath is the unchanged `tools/*.mjs` + `dist/analyzer.js`
 pipeline; the app only *invokes* those and *visualizes* their JSON artifacts.
 
-The app has **two lanes into the same engine**: an **Auto lane** (describe intent → an AI
-agent proposes a cut) and a **Manual lane** (the timeline/review editor). The AI agent is
-**optional and pluggable** — Claude, Codex, or a local Ollama model behind one interface
-(see [`desktop-app-agent-bridge.md`](desktop-app-agent-bridge.md)) — so the Manual lane
-works with no agent at all. **Both lanes ship in the MVP** (maintainer decision,
-2026-07-03).
+Design has an **Auto** workflow (describe intent → an AI agent proposes a cut) plus an
+optional timeline editor for hands-on refinement. The AI agent is **optional and pluggable**
+— Claude, Codex, or a local Ollama model behind one interface (see
+[`desktop-app-agent-bridge.md`](desktop-app-agent-bridge.md)) — so timeline editing works
+with no agent at all.
 
 ## 2. Architecture
 
@@ -62,17 +61,17 @@ works with no agent at all. **Both lanes ship in the MVP** (maintainer decision,
 
 ## 3. Stage navigation & shell chrome
 
-- **R-APP5** *(built — `desktop/ui`)* The window shows a **left stage rail** with the six
-  stages in order: **Setup, New Project, Analyze, Design, Review/Edit, Export** (matching the
-  wireframe).
+- **R-APP5** *(built — `desktop/ui`, refined in VS-113)* The window shows a **left stage rail**
+  with five stages in order: **Setup, New Project, Analyze, Design, Export**. Timeline review
+  is an optional action within Design rather than a mandatory duplicate stage.
 - **R-APP6** *(partial — `desktop/ui`)* Each stage carries a **visual state**: `active`
   (current) or `locked` (not wired yet — not selectable); the full `done` (artifact present +
   valid) derivation lands with the project model (R-APP7–10). Selecting an available stage
   swaps the main panel to that screen.
 - **R-APP7** *(built — `desktop/sidecar/project.mjs` `deriveStages`)* Stage state is
   **derived from the project's artifacts** (§4), not stored independently — e.g. Analyze is
-  `done` when the audio-events artifact exists, Review is `locked` until a cut
-  (`switches.json`) exists. The derivation is a **pure function** of artifact presence + the
+  `done` when the audio-events artifact exists, and Export is `locked` until Design produces
+  a cut (`switches.json` or `cut.json`). The derivation is a **pure function** of artifact presence + the
   selected stage, unit-tested to 100%.
 
 ## 4. Project model
@@ -87,8 +86,8 @@ works with no agent at all. **Both lanes ship in the MVP** (maintainer decision,
 - **R-APP9** *(built — logic)* The app can **create** a project and **open** an existing
   project folder (the New Project screen + the `open_folder` dialog + the host steps), and
   **recent projects** persist via `config.mjs` `addRecentProject` (dedupe + cap) + the
-  `config-add-recent`/`config-get` host steps. The recents *list UI* is the remaining manual
-  piece.
+  `config-add-recent`/`config-get` host steps. The New Project screen lists those paths with
+  clear project names; selecting one reopens it and moves it to the front (VS-112).
 - **R-APP10** *(built — `reconcileProject`)* The state file is **advisory over the
   filesystem** — artifacts on disk are the source of truth; the app re-derives artifact
   presence on open and reconciles the state file, so a project stays valid even if a user
@@ -184,7 +183,7 @@ resolved by the maintainer on VS-80; the requirements above reflect these:
   local audio-events pass Design consumes (R-AN).
 - [`desktop-app-single-source.md`](desktop-app-single-source.md) — the single-source cutting
   flow (VS-99): scene-range cut spec → flat render / FCPXML for a single video (R-SS).
-- [`desktop-app-design.md`](desktop-app-design.md) — the Design stage's two lanes (VS-86).
-- [`desktop-app-review.md`](desktop-app-review.md) — the Review stage (VS-87).
+- [`desktop-app-design.md`](desktop-app-design.md) — Design + optional timeline editing (VS-86/113).
+- [`desktop-app-review.md`](desktop-app-review.md) — the embedded timeline implementation (VS-87/113).
 - [`desktop-app-export.md`](desktop-app-export.md) — the Export lane (VS-88).
 - Packaging (VS-89) gets its own doc as that ticket is worked.

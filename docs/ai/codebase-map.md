@@ -68,7 +68,7 @@ and [`requirements-summary.md`](requirements-summary.md) for status.
 │   │   └── host.mjs            # I/O edge: stdin loop → spawn tool / `which` probes / project readdir → stream progress → result/error (manual, test-plan §14)
 │   ├── src-tauri/              # native Rust shell: lib.rs spawns host.mjs, streams stdout as `sidecar` events, sidecar_send + open_video commands
 │   │   ├── src/{main,lib}.rs   #   (Cargo.toml, build.rs, tauri.conf.json, capabilities/default.json, icons/)
-│   └── ui/                     # vanilla webview frontend (frontendDist): index.html + app.js + styles.css — stage rail + Setup/New Project/Analyze/Design/Review(iframe)/Export + Permissions screens (R-APP5/6, R-DS, R-RV, R-EX, R-PERM10/11)
+│   └── ui/                     # vanilla webview frontend (frontendDist): index.html + app.js + styles.css — stage rail + Setup/New Project (recent projects)/Analyze/Design (optional timeline iframe)/Export + Permissions screens (R-APP5/6/9, R-IM6, R-DS, R-RV, R-EX, R-PERM10/11)
 ├── skills/
 │   └── video-studio/SKILL.md   # the pipeline Claude follows — primary interface
 ├── tests/
@@ -100,6 +100,7 @@ and [`requirements-summary.md`](requirements-summary.md) for status.
 │   ├── requirements.md         # source-of-truth requirements (shipped pipeline)
 │   ├── feature-coverage.md     # the second coverage axis: requirement index + manifest + check:features (R7.5/R-EC, VS-58)
 │   ├── editor-handoff.md       # export segments + overlays + manifest + FCPXML (shipped, VS-24/25)
+│   ├── captions.md            # timed captions: SRT/WebVTT/TTML, embedded tracks, burn-in styling (design, VS-111)
 │   ├── multiple-sources.md     # draw from many files/folders (shipped, VS-26)
 │   ├── transitions.md          # FCP transition suggestions in the FCPXML — shipped VS-28/50 (full palette + handles)
 │   ├── render-transitions.md   # bake transitions into the video, no FCP — windowed re-encode + native Tier A/B/C (R-RT, VS-54/55)
@@ -116,8 +117,8 @@ and [`requirements-summary.md`](requirements-summary.md) for status.
 │   ├── desktop-app-import.md   # New Project + import — single-source vs multi-cam detection (R-IM, VS-81)
 │   ├── desktop-app-analyze.md  # Analyze stage — deeper local audio-events pass (R-AN, VS-82)
 │   ├── desktop-app-single-source.md # Single-source cutting — scene-range cut spec -> flat render/FCPXML (R-SS, VS-99)
-│   ├── desktop-app-design.md   # Design stage — two lanes (Auto prompt + Manual open-timeline) (R-DS, VS-86)
-│   ├── desktop-app-review.md   # Review stage — embed the shipped review-switches UI via iframe (R-RV, VS-87)
+│   ├── desktop-app-design.md   # Design stage — Auto prompt + optional timeline editor (R-DS, VS-86/113)
+│   ├── desktop-app-review.md   # optional Design timeline editor — embed review-switches via iframe (R-RV, VS-87/113)
 │   ├── releasing.md            # release + npm trusted-publisher setup
 │   ├── manual-test-plan.md     # manual checklist for the external-tool pipeline
 │   ├── media/                  # README demo media (docs-only; gitignored binaries) — from Tears of Steel (CC BY 3.0)

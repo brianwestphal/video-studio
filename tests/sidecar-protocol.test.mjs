@@ -608,7 +608,7 @@ describe("project — deriveStages", () => {
     expect(st["new-project"]).toBe("done");
     expect(st.analyze).toBe("done");
     expect(st.design).toBe("idle"); // reachable (analyze done), not active, not done
-    expect(st.review).toBe("locked");
+    expect(st.export).toBe("locked");
   });
 
   it("a selected but locked stage is ignored (falls back to first actionable)", () => {
@@ -617,10 +617,9 @@ describe("project — deriveStages", () => {
     expect(st.setup).toBe("active"); // fell back
   });
 
-  it("a single-source cut.json satisfies both Design and Review; Export unlocks", () => {
+  it("a single-source cut.json completes Design and unlocks Export", () => {
     const st = byKey(deriveStages(new Set(["sources", "audioEvents", "cut"]), "setup"));
     expect(st.design).toBe("done");
-    expect(st.review).toBe("done");
     expect(st.export).toBe("idle"); // reachable, no export artifact yet
   });
 
@@ -629,7 +628,6 @@ describe("project — deriveStages", () => {
     const st = byKey(deriveStages(all, null));
     expect(st.setup).toBe("active"); // setup is never done → first actionable
     expect(st.design).toBe("done");
-    expect(st.review).toBe("done");
     expect(st.export).toBe("done");
   });
 });

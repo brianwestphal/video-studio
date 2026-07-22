@@ -9,7 +9,7 @@ Claude is the **first / reference backend** (initial testing is Claude-only); Co
 Ollama land behind the same interface as follow-ups.
 
 Because the agent is **optional** (maintainer decision, 2026-07-03), the Manual lane
-([`desktop-app.md`](desktop-app.md) + the Review stage, VS-87) works with **no agent at
+([`desktop-app.md`](desktop-app.md) + Design's optional timeline editor, VS-87/113) works with **no agent at
 all** — the bridge powers Auto, not the whole app.
 
 Part of the desktop-app initiative — see the umbrella [`desktop-app.md`](desktop-app.md)

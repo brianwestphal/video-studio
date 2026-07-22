@@ -34,6 +34,10 @@
             <button class="btn" id="open-project">Open project folder…</button>
             <button class="btn" id="create-project">Create here…</button>
           </div>
+          <div class="recent-projects" id="recent-projects" hidden>
+            <h2>Recent projects</h2>
+            <div class="recent-list" id="recent-list"></div>
+          </div>
           <div class="project-info" id="project-info" hidden>
             <div class="project-name" id="project-name"></div>
             <div class="project-folder" id="project-folder"></div>
@@ -65,11 +69,11 @@
           <p class="analyze-empty" id="analyze-empty" hidden>Import footage first (New Project) — Analyze needs a project.</p>
         </section>
 
-        <!-- Design (two lanes) -->
-        <section class="screen" data-screen="design" hidden>
+        <!-- Design + optional timeline editing -->
+        <section class="screen design-screen" data-screen="design" hidden>
           <header class="screen-head">
             <h1>Design the cut</h1>
-            <p class="sub">Two lanes, one engine: describe what you want, or open the timeline and cut by hand. Either way the result is fully editable.</p>
+            <p class="sub">Describe the cut you want. When it is ready, continue to Export or open the timeline for detailed multi-camera edits.</p>
           </header>
           <div class="lanes">
             <div class="lane">
@@ -90,22 +94,13 @@
               <div class="lane-note" id="design-auto-note"></div>
               <ul class="activity-feed" id="design-feed"></ul>
             </div>
-            <div class="lane">
-              <div class="lane-title">Manual</div>
-              <p class="lane-desc">Open the timeline with an auto starting point and cut by hand.</p>
-              <button class="btn" id="design-open-timeline">Open the timeline</button>
+            <div class="timeline-action">
+              <p class="lane-desc">Need precise multi-camera changes? Open the timeline to adjust angles and split points.</p>
+              <button class="btn" id="design-open-timeline">Open timeline editor</button>
               <div class="lane-note" id="design-manual-note"></div>
             </div>
           </div>
-        </section>
-
-        <!-- Review / Edit -->
-        <section class="screen review-screen" data-screen="review" hidden>
-          <header class="screen-head">
-            <h1>Review &amp; Edit</h1>
-            <p class="sub">The synced multi-angle player + timeline. Flagged "needs a look" cuts come first; pick angles, split, then Save.</p>
-          </header>
-          <div class="review-status" id="review-status">Open a project with a cut (switches.json) to review.</div>
+          <div class="review-status" id="review-status" hidden></div>
           <iframe class="review-frame" id="review-frame" hidden title="Review UI"></iframe>
         </section>
 
@@ -113,7 +108,7 @@
         <section class="screen" data-screen="export" hidden>
           <header class="screen-head">
             <h1>Export</h1>
-            <p class="sub">Turn the reviewed cut into a finished file. Open a project first (New Project).</p>
+            <p class="sub">Turn your designed cut into a finished file. Open a project first (New Project).</p>
           </header>
           <div class="export-cards" id="export-cards">
             <div class="export-card" data-kind="mp4">

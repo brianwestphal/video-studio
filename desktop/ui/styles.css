@@ -13,6 +13,7 @@
 }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 
 body {
   margin: 0;
@@ -101,6 +102,25 @@ body {
 .doctor-row .hint { color: var(--muted); font-size: 12px; font-family: ui-monospace, Menlo, monospace; }
 
 .project-info { margin-top: 24px; max-width: 640px; }
+.recent-projects { margin-top: 28px; max-width: 640px; }
+.recent-projects h2 { margin: 0 0 10px; font-size: 14px; color: var(--muted); }
+.recent-list { display: flex; flex-direction: column; gap: 6px; }
+.recent-project {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  padding: 10px 12px;
+  text-align: left;
+  color: var(--text);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  cursor: pointer;
+}
+.recent-project:hover { border-color: #3a4150; }
+.recent-name { font-weight: 600; }
+.recent-path { color: var(--muted); font: 11px ui-monospace, Menlo, monospace; }
 .project-name { font-size: 18px; font-weight: 600; }
 .project-folder { color: var(--muted); font-family: ui-monospace, Menlo, monospace; font-size: 12px; margin-top: 2px; }
 .artifacts { list-style: none; padding: 0; margin: 16px 0 0; display: flex; flex-wrap: wrap; gap: 8px; }
@@ -149,6 +169,9 @@ body {
   resize: vertical;
 }
 .lane-note { color: var(--warn); font-size: 12px; min-height: 16px; }
+.timeline-action { flex: 1 1 100%; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.timeline-action .lane-desc { margin: 0; }
+.timeline-action .lane-note { flex-basis: 100%; }
 .activity-feed { list-style: none; padding: 0; margin: 4px 0 0; max-height: 260px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
 .feed-item { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; background: #101318; border: 1px solid var(--line); border-radius: 6px; }
 .feed-label { font-size: 12px; font-weight: 600; color: var(--accent); }
@@ -167,9 +190,9 @@ body {
 .op-status { color: var(--muted); font-size: 12px; margin-top: 8px; min-height: 16px; font-family: ui-monospace, Menlo, monospace; }
 .analyze-empty { color: var(--muted); }
 
-.review-screen { display: flex; flex-direction: column; height: 100%; }
+.design-screen { display: flex; flex-direction: column; min-height: 100%; }
 .review-status { color: var(--muted); font-size: 13px; padding: 12px 0; }
-.review-frame { flex: 1; width: 100%; border: 1px solid var(--line); border-radius: 8px; background: #0d0f13; min-height: 400px; }
+.review-frame { width: 100%; border: 1px solid var(--line); border-radius: 8px; background: #0d0f13; min-height: 520px; margin-top: 18px; }
 
 .export-cards { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 8px; }
 .export-card {

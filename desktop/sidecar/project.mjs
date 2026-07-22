@@ -31,9 +31,8 @@ export const STAGES = Object.freeze([
   { key: "analyze", label: "Analyze", requires: "new-project", doneWhen: (a) => a.has("audioEvents") },
   // Design produces a cut: switches.json (multi-cam) or cut.json (single-source).
   { key: "design", label: "Design", requires: "analyze", doneWhen: (a) => a.has("switches") || a.has("cut") },
-  // Review: multi-cam records a history; a single-source cut needs no separate review pass.
-  { key: "review", label: "Review", requires: "design", doneWhen: (a) => a.has("switchesHistory") || a.has("cut") },
-  { key: "export", label: "Export", requires: "review", doneWhen: (a) => a.has("exports") },
+  // Timeline review is an optional action inside Design, not a required stage.
+  { key: "export", label: "Export", requires: "design", doneWhen: (a) => a.has("exports") },
 ]);
 
 // Given a raw directory listing (filenames), return the set of present artifact

@@ -128,6 +128,7 @@ Larger features have their own source-of-truth docs (kept in sync the same way):
 
 - **Feature / requirement coverage** — [`feature-coverage.md`](feature-coverage.md) *(shipped, R7.5; the second coverage axis + `check:features`)*
 - **Editor handoff** — [`editor-handoff.md`](editor-handoff.md) *(shipped)*
+- **Captions and subtitles** — [`captions.md`](captions.md) *(design complete; R-CAP1–R-CAP12, VS-111)*
 - **Multiple sources** — [`multiple-sources.md`](multiple-sources.md) *(shipped)*
 - **Multi-cam editing** — [`multicam.md`](multicam.md) + [`multicam-sync.md`](multicam-sync.md) *(shipped; FCP import validated, VS-36)*
 - **FCP-incompatible source audio detection** — [`fcp-audio-compat.md`](fcp-audio-compat.md) *(shipped, VS-40; warn-only, R-FA)*
@@ -149,8 +150,8 @@ Larger features have their own source-of-truth docs (kept in sync the same way):
   permission & safety layer, R-PERM1–R-PERM12, VS-85),
   [`desktop-app-export.md`](desktop-app-export.md) (Export lane — MP4 / 9:16 / FCPXML
   over the shipped exporters + Reveal in Finder, R-EX1–R-EX5, VS-88),
-  [`desktop-app-review.md`](desktop-app-review.md) (Review stage — embed the shipped
-  `review-switches` UI via an iframe, R-RV1–R-RV3, VS-87),
-  and [`desktop-app-design.md`](desktop-app-design.md) (Design stage — two lanes: Auto prompt
-  + Manual open-the-timeline, R-DS1–R-DS4, VS-86). Concept + roadmap:
+  [`desktop-app-review.md`](desktop-app-review.md) (optional Design timeline editor — embed
+  the shipped `review-switches` UI via an iframe, R-RV1–R-RV3, VS-87/113),
+  and [`desktop-app-design.md`](desktop-app-design.md) (Design stage — Auto prompt + optional
+  timeline editor, R-DS1–R-DS4, VS-86/113). Concept + roadmap:
   [`investigations/ui-app.md`](investigations/ui-app.md).

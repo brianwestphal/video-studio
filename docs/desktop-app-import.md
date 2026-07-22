@@ -10,9 +10,9 @@ Part of the desktop-app initiative — see [`desktop-app.md`](desktop-app.md). I
 
 Status: **Partial** — single-source-vs-multi-cam **detection is built and functional**: opening
 a folder and clicking *Analyze this footage* creates `sources.json` (single) or `multicam.json`
-(multi-cam) and lights up the rail. The **group proposal** for a mixed folder (R-IM5) and the
-**recent-projects list** UI (R-IM6) are documented follow-ups. Depends on VS-90 (shell + project
-model + sidecar host).
+(multi-cam) and lights up the rail. Recent projects are persisted and reopenable from the New
+Project screen (R-IM6, VS-112). The **group proposal** for a mixed folder (R-IM5) remains a
+follow-up. Depends on VS-90 (shell + project model + sidecar host).
 
 ## 1. The screen
 
@@ -64,9 +64,10 @@ model + sidecar host).
   core (`describeImportShape` — single / multicam / multi-group + the human summary, unit-tested)
   is now in place; the analyze-first flow and the confirm-then-sync-per-group host/UI wiring are
   the remaining tail (VS-100).
-- **R-IM6** *(deferred)* A **recent-projects list** on the New Project screen. The app-global
-  config store already **persists** recent projects (`addRecentProject`, dedupe + cap —
-  R-APP9 / R-APP18, unit-tested); surfacing them as a clickable list in the UI is not built.
+- **R-IM6** *(built — VS-112)* The **recent-projects list** on New Project reads the app-global
+  config store (`addRecentProject`, dedupe + cap — R-APP9 / R-APP18, unit-tested). Each row
+  shows the folder name and full path; clicking it reopens the project and promotes it to the
+  front of the list. An empty history stays hidden.
 
 ## 6. Cross-references
 

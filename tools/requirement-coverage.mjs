@@ -45,6 +45,19 @@ export function extractRequirementIds(markdown) {
 // entry here no longer in the docs, and any `unit` entry with no test — so a new
 // behavior (or a newly-shipped design-only one) forces a conscious coverage decision.
 export const REQUIREMENT_COVERAGE = {
+  // Captions/subtitles (docs/captions.md, VS-111) are designed and tracked by follow-ups.
+  "R-CAP1": { status: "deferred", note: "timed-text model + SRT/WebVTT/TTML parsers planned after VS-111" },
+  "R-CAP2": { status: "deferred", note: "desktop Whisper generation/import UI planned after VS-111" },
+  "R-CAP3": { status: "deferred", note: "cue segmentation/readability core planned after VS-111" },
+  "R-CAP4": { status: "deferred", note: "cut-time caption remapping planned after VS-111" },
+  "R-CAP5": { status: "deferred", note: "explicit export mode + manifest persistence planned after VS-111" },
+  "R-CAP6": { status: "deferred", note: "SRT/WebVTT/TTML sidecar export planned after VS-111" },
+  "R-CAP7": { status: "deferred", note: "container-compatible selectable subtitle tracks planned after VS-111" },
+  "R-CAP8": { status: "deferred", note: "burn-in + editable FCP handoff planned after VS-111" },
+  "R-CAP9": { status: "deferred", note: "caption output validation planned after VS-111" },
+  "R-CAP10": { status: "deferred", note: "responsive caption style controls planned after VS-111" },
+  "R-CAP11": { status: "deferred", note: "style persistence/font fallback/filter escaping planned after VS-111" },
+  "R-CAP12": { status: "deferred", note: "Unicode/SDH metadata and exact preview planned after VS-111" },
   // Platform & deps + launcher — external-tool detection/installation in the bin.
   "R2.1": { status: "manual", note: "launcher macOS guard (bin/video-studio.mjs)" },
   "R2.2": { status: "manual", note: "tool presence checks (Node/ffmpeg/claude)" },
@@ -218,11 +231,11 @@ export const REQUIREMENT_COVERAGE = {
   "R-APP2": { status: "manual", note: "Rust shell spawns the long-lived Node sidecar over the stdio protocol — built (desktop/src-tauri/src/lib.rs) (VS-90)" },
   "R-APP3": { status: "manual", note: "reuses tools/*.mjs + dist/analyzer.js as-is; app lives in a subdir — built (VS-90)" },
   "R-APP4": { status: "manual", note: "macOS-only Tauri build — built (VS-90)" },
-  "R-APP5": { status: "manual", note: "left stage rail in desktop/ui — GUI (manual-test-plan §15.1) (VS-79/90)" },
+  "R-APP5": { status: "manual", note: "five-stage rail in desktop/ui; optional timeline editing lives inside Design instead of a duplicate Review stage (manual-test-plan §15.1) (VS-79/90/113)" },
   "R-APP6": { status: "manual", note: "active/locked stage state in desktop/ui; full done-derivation pending project model (manual §15.1) (VS-90)" },
   "R-APP7": { status: "unit", tests: ["sidecar-protocol.test.mjs"], note: "deriveStages — pure done/active/locked from artifact presence, in desktop/sidecar/project.mjs (VS-90)" },
   "R-APP8": { status: "unit", tests: ["sidecar-protocol.test.mjs"], note: "project state shape + ARTIFACTS map + newProjectState in project.mjs; the .video-studio/project.json read/write is host I/O (VS-90)" },
-  "R-APP9": { status: "unit", tests: ["sidecar-protocol.test.mjs"], note: "create/open (project-open/project-create host steps) + recent-projects persistence via config.mjs addRecentProject (dedupe+cap) (VS-90); dialogs + the recents UI are manual" },
+  "R-APP9": { status: "unit", tests: ["sidecar-protocol.test.mjs"], note: "create/open host steps + recent-project persistence via addRecentProject (dedupe+cap); New Project list/open wiring is manual (VS-90/112)" },
   "R-APP10": { status: "unit", tests: ["sidecar-protocol.test.mjs"], note: "reconcileProject — filesystem-wins re-derivation of artifacts (pure); the readdir is host I/O (VS-90)" },
   "R-APP11": { status: "manual", note: "one long-lived Node sidecar host spawned by the shell, restarted on death — built (host.mjs + lib.rs) (VS-90)" },
   "R-APP12": { status: "unit", tests: ["sidecar-protocol.test.mjs"], note: "sidecar protocol framing + request validation — desktop/sidecar/protocol.mjs (VS-90); host stdio wiring in host.mjs is manual" },
@@ -235,13 +248,13 @@ export const REQUIREMENT_COVERAGE = {
 
   // Desktop app — New Project + import (docs/desktop-app-import.md, VS-81). videoFilesIn +
   // importCommand are pure + unit-tested; the New Project screen + import-footage spawn are
-  // GUI/I/O; group proposal + the recents list are documented follow-ups (not built).
+  // GUI/I/O; group proposal remains a documented follow-up.
   "R-IM1": { status: "manual", note: "New Project screen: Open/Create a project over a footage folder (single video or folder of angles) — GUI (manual-test-plan §15.6-15.7, §15.15) (VS-81)" },
   "R-IM2": { status: "unit", tests: ["sidecar-protocol.test.mjs"], note: "videoFilesIn — recognize video files by extension (case-insensitive), sort, ignore the rest; empty folder throws 'no video files' (desktop/sidecar/steps.mjs) (VS-81)" },
   "R-IM3": { status: "unit", tests: ["sidecar-protocol.test.mjs"], note: "importCommand — detect single vs multi-cam + build argv: 1 video -> analyze-sources -> sources.json (kind single); 2+ -> sync-multicam -> multicam.json (kind multicam, count) (VS-81)" },
   "R-IM4": { status: "manual", note: "import-footage host step: readdir -> importCommand -> spawn writes the first artifact, then refresh unlocks the rail (New Project done -> Analyze/Design reachable) — GUI/I/O (§15.15) (VS-81)" },
   "R-IM5": { status: "deferred", note: "group proposal for a multi-group folder + detected-shape confirmation before syncing. Pure describeImportShape core built + unit-tested (desktop/sidecar/import-shape.mjs, tests/import-shape.test.mjs) — detects single/multicam/multi-group + the 'N angles, M:SS' summary via proposeGroups; the analyze-first flow + confirm-then-sync-per-group host/UI wiring remain (VS-81/100)" },
-  "R-IM6": { status: "deferred", note: "recent-projects list on the New Project screen; the config store already persists them (addRecentProject, R-APP9/R-APP18, unit) but the clickable list UI is not built — follow-up (VS-81)" },
+  "R-IM6": { status: "manual", note: "clickable recent-project list on New Project over unit-tested addRecentProject dedupe/cap; empty history hidden (manual-test-plan §15.24, VS-81/112)" },
 
   // Desktop app — Analyze stage (docs/desktop-app-analyze.md, VS-82). analyzeProjectCommand is
   // pure + unit-tested; the screen + spawn are GUI/I-O; saliency/contact-sheet/determinate
@@ -265,16 +278,16 @@ export const REQUIREMENT_COVERAGE = {
   "R-SS7": { status: "unit", tests: ["cut-edit.test.mjs"], note: "single-source cut edits — pure trimClip/reorderClip/dropClip/cutDuration transforms over cut.json (desktop/sidecar/cut-edit.mjs); the Review UI surface that calls them is the tail (VS-102)" },
 
   // Desktop app — Design stage (docs/desktop-app-design.md, VS-86). proposeCommand is pure +
-  // unit-tested; the two-lane screen + design-cut spawn + the Auto-lane bridge are GUI/I/O.
-  "R-DS1": { status: "manual", note: "two-lane Design screen (Auto prompt+presets / Manual open-timeline) — GUI (manual-test-plan §15.13) (VS-86)" },
+  // unit-tested; the Design screen + design-cut spawn + the Auto bridge are GUI/I/O.
+  "R-DS1": { status: "manual", note: "Design screen with Auto prompt+presets and optional timeline editor action — GUI (manual-test-plan §15.13) (VS-86/113)" },
   "R-DS2": { status: "unit", tests: ["sidecar-protocol.test.mjs"], note: "proposeCommand argv (desktop/sidecar/steps.mjs); design-cut host spawn + rail refresh is I/O (VS-86)" },
-  "R-DS3": { status: "manual", note: "Auto lane 'Make my cut' -> live agent-run streams the activity feed AND lands the agent's cut plan as switches.json, opening Review (VS-96); verified live (§15.13, §15.18) (VS-86)" },
-  "R-DS4": { status: "review", note: "handoff: both lanes land on the same editable switches.json in Review (R-RV3); a design principle (VS-86)" },
+  "R-DS3": { status: "manual", note: "Auto lane 'Make my cut' -> live agent-run streams the activity feed, lands the cut plan, and opens Export (VS-96/113); verified live (§15.13, §15.18) (VS-86)" },
+  "R-DS4": { status: "review", note: "Design opens Export by default while its optional timeline editor refines the same switches.json (R-RV3); a design principle (VS-86/113)" },
 
-  // Desktop app — Review stage (docs/desktop-app-review.md, VS-87). reviewCommand +
+  // Desktop app — optional Design timeline editor (docs/desktop-app-review.md, VS-87/113). reviewCommand +
   // parseReviewUrl are pure + unit-tested; the server spawn + iframe embed are I/O/GUI.
   "R-RV1": { status: "unit", tests: ["sidecar-protocol.test.mjs"], note: "reviewCommand argv + parseReviewUrl URL capture (desktop/sidecar/steps.mjs); review-start/-stop long-lived server spawn is host I/O — manual §15.12 (VS-87)" },
-  "R-RV2": { status: "manual", note: "Review stage iframes the review server URL; auto-start on enter, prompt when no cut (manual-test-plan §15.12) (VS-87)" },
+  "R-RV2": { status: "manual", note: "Design's Open timeline editor action iframes the review server URL; prompt when no cut/unsupported source (manual-test-plan §15.12) (VS-87/113)" },
   "R-RV3": { status: "review", note: "flagged-first + switches.json write-back are the shipped review UI's behavior (R-RUI2/R-AC7); the stage is glue (VS-87)" },
 
   // Desktop app — Export lane (docs/desktop-app-export.md, VS-88). exportCommand is pure +
@@ -295,7 +308,7 @@ export const REQUIREMENT_COVERAGE = {
   "R-CB4": { status: "manual", note: "Codex backend BUILT + verified live (VS-93): pure core 100% unit (desktop/sidecar/codex-backend.mjs) — normalizeCodexEvent (Codex JSONL -> shared event shape, R-CB6), codexExecArgv, CODEX_CAPABILITIES, CODEX_CUTPLAN_SCHEMA; host runCodexAgent drives `codex exec --json` (read-only sandbox = the permission boundary, R-CB9), normalizes the stream, lands the --output-schema final message via tryLandCutPlan; dispatched on config.agentBackend/param. Verified against ChatGPT auth: session -> gated command -> structured plan -> landed switches.json (manual-test §15.20)" },
   "R-CB5": { status: "manual", note: "Ollama backend BUILT + verified live (VS-94): pure constrained-loop core 100% unit (desktop/sidecar/ollama-backend.mjs); host runOllamaAgent wires the I/O loop — Ollama /api/chat, each tool (read_file/propose_baseline) gated through the SAME decide() choke point as Claude (R-CB9), results fed back, final plan landed via tryLandCutPlan; dispatched on config.agentBackend/param. Verified against gemma4:12b: read_file->propose_baseline->landed switches.json (manual-test §15.19)" },
   "R-CB6": { status: "unit", tests: ["sidecar-protocol.test.mjs"], note: "eventToFeedEntry — normalized event -> activity-feed line (friendly tool labels) — agent.mjs (VS-91); the live SDK run is host I/O" },
-  "R-CB7": { status: "unit", tests: ["sidecar-protocol.test.mjs"], note: "structured cut-plan pipeline (all pure + unit): extractCutPlan -> validateCutPlan + unknownPlanMembers -> cutPlanToSwitches (multi-cam switches.json), OR validateSingleSourceCutPlan -> cutPlanToCutSpec (single-source cut.json, VS-104). The host lands the right one by project type (tryLandCutPlan -> landMulticamPlan / landSingleSourcePlan) + the frontend opens Review/Export, else falls back to design-cut — that wiring is the I/O edge (manual §15.18/§15.21, VS-96/104)" },
+  "R-CB7": { status: "unit", tests: ["sidecar-protocol.test.mjs"], note: "structured cut-plan pipeline (all pure + unit): extractCutPlan -> validateCutPlan + unknownPlanMembers -> cutPlanToSwitches (multi-cam switches.json), OR validateSingleSourceCutPlan -> cutPlanToCutSpec (single-source cut.json, VS-104). The host lands the right one by project type (tryLandCutPlan -> landMulticamPlan / landSingleSourcePlan) + the frontend opens Export, else falls back to design-cut — that wiring is the I/O edge (manual §15.18/§15.21, VS-96/104/113)" },
   "R-CB8": { status: "deferred", note: "session handle capture is in normalizeClaudeEvent (VS-91); resume across turns is the live-backend I/O (not built)" },
   "R-CB9": { status: "manual", note: "canUseTool -> permissions.decide wired + verified (escalated calls denied by our policy); allowedTools pre-approval + interactive-prompt + SDK-sandbox-coverage are VS-97 follow-ups (VS-91)" },
   "R-CB10": { status: "manual", note: "Claude onUserDialog -> correlated sidecar interaction -> native question picker -> answer returned to the SDK (manual-test-plan §15.23, VS-97)" },

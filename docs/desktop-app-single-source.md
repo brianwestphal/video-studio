@@ -1,6 +1,6 @@
 # Desktop app — single-source cutting flow (VS-99)
 
-The desktop app's Design → Review → Export was originally **multi-cam only**: the cut is a
+The desktop app's Design → Export flow was originally **multi-cam only**: the cut is a
 `switches.json` (angle switching over `multicam.json`). A **single video** got through Import
 (→ `sources.json`) + Analyze (→ `audio-events.json`) and then dead-ended — no `multicam.json`,
 so neither Design lane nor Review/Export could proceed.
@@ -49,11 +49,10 @@ Depends on VS-90 (shell + project model) and VS-81 (import writing `sources.json
 
 ## 2. The cut spec advances the rail (no separate angle review)
 
-- **R-SS4** A single-source **`cut.json` satisfies both the Design and Review stages** — a
-  single-video cut needs no separate angle-review pass — so the project reaches **Export**
-  without a multi-cam `switches.json`. Encoded in the pure stage-state derivation
-  (`deriveStages` in `desktop/sidecar/project.mjs`, R-APP7: `design`/`review` `doneWhen` accept
-  `cut`), unit-tested.
+- **R-SS4** A single-source **`cut.json` satisfies Design** and unlocks **Export** without a
+  multi-cam `switches.json`. Timeline editing is optional and currently multi-camera-only.
+  Encoded in the pure stage-state derivation (`deriveStages` in
+  `desktop/sidecar/project.mjs`, R-APP7), unit-tested.
 
 ## 3. Export — flat render or editor handoff
 

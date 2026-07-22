@@ -15,7 +15,6 @@ let railStages = [
   { key: "new-project", label: "New Project", state: "idle" },
   { key: "analyze", label: "Analyze", state: "locked" },
   { key: "design", label: "Design", state: "locked" },
-  { key: "review", label: "Review", state: "locked" },
   { key: "export", label: "Export", state: "locked" },
 ];
 let selectedStage = "setup";
@@ -250,6 +249,43 @@ function applyProjectSnapshot(snapshot) {
   }
 }
 
+function renderRecentProjects(config) {
+  const box = document.getElementById("recent-projects");
+  const list = document.getElementById("recent-list");
+  const projects = Array.isArray(config.recentProjects) ? config.recentProjects : [];
+  box.hidden = projects.length === 0;
+  list.innerHTML = "";
+  for (const folder of projects) {
+    const button = document.createElement("button");
+    button.className = "recent-project";
+    const parts = folder.split("/").filter(Boolean);
+    const name = document.createElement("span");
+    name.className = "recent-name";
+    name.textContent = parts.at(-1) || folder;
+    const path = document.createElement("span");
+    path.className = "recent-path";
+    path.textContent = folder;
+    button.append(name, path);
+    button.addEventListener("click", () => {
+      send("project-open", { folder }, {
+        onResult: (snapshot) => {
+          applyProjectSnapshot(snapshot);
+          send("config-add-recent", { folder }, { onResult: renderRecentProjects });
+        },
+        onError: (e) => {
+          document.getElementById("project-info").hidden = false;
+          document.getElementById("project-name").textContent = `Could not open recent project: ${e.message}`;
+        },
+      });
+    });
+    list.appendChild(button);
+  }
+}
+
+function loadRecentProjects() {
+  send("config-get", {}, { onResult: renderRecentProjects });
+}
+
 // Import: turn the opened folder's raw footage into the first artifact (sources/multicam.json),
 // then refresh so the rail unlocks. This can take a while (audio sync / scene analysis).
 document.getElementById("import-run").addEventListener("click", () => {
@@ -319,7 +355,10 @@ async function openOrCreateProject(step) {
   const folder = await invoke("open_folder");
   if (!folder) return;
   send(step, { folder }, {
-    onResult: applyProjectSnapshot,
+    onResult: (snapshot) => {
+      applyProjectSnapshot(snapshot);
+      send("config-add-recent", { folder }, { onResult: renderRecentProjects });
+    },
     onError: (e) => {
       document.getElementById("project-info").hidden = false;
       document.getElementById("project-name").textContent = `Error: ${e.message}`;
@@ -388,7 +427,7 @@ document.getElementById("analyze-run").addEventListener("click", () => {
   });
 });
 
-// --- Design (two lanes) ---------------------------------------------------
+// --- Design + optional timeline editing ----------------------------------
 
 // Auto lane: presets fill the prompt.
 for (const chip of document.querySelectorAll("#design-presets .chip")) {
@@ -398,7 +437,8 @@ for (const chip of document.querySelectorAll("#design-presets .chip")) {
 }
 
 // Auto lane "Make my cut" — drive the live AI agent (VS-91) with the prompt + project
-// context, streaming its activity into a feed. The agent proposes; Review refines (R-DS4).
+// context, streaming its activity into a feed. The result can go straight to Export or be
+// refined in Design's optional timeline editor (R-DS4).
 document.getElementById("design-make").addEventListener("click", () => {
   const note = document.getElementById("design-auto-note");
   const feed = document.getElementById("design-feed");
@@ -438,7 +478,7 @@ document.getElementById("design-make").addEventListener("click", () => {
       // (R-CB7) — that IS the cut, tailored to the prompt. Otherwise fall back to the
       // deterministic design-cut baseline so "Make my cut" always lands on an editable cut.
       if (res && res.landedCut) {
-        note.textContent = "The AI proposed your cut — opening Review…";
+        note.textContent = "The AI proposed your cut — opening Export…";
         btn.disabled = false;
         refreshThen(navigateAfterCut);
         return;
@@ -509,15 +549,12 @@ function refreshThen(fn) {
   });
 }
 
-// After a cut is produced, go where it makes sense: single-source (cut.json) skips the
-// multi-cam review and goes to Export; multi-cam opens the Review timeline.
+// A completed cut unlocks Export. Timeline editing is optional and remains available in Design.
 function navigateAfterCut() {
-  if (currentProject.project.artifacts.includes("cut")) gotoStage("export");
-  else gotoReview();
+  gotoStage("export");
 }
 
-// Manual lane: open the timeline. If there's no cut yet, propose an auto starting point
-// (propose-switches) first, then jump to Review.
+// Optional timeline editor. If there's no cut yet, propose an auto starting point first.
 document.getElementById("design-open-timeline").addEventListener("click", () => {
   const note = document.getElementById("design-manual-note");
   if (!currentProject) {
@@ -525,8 +562,12 @@ document.getElementById("design-open-timeline").addEventListener("click", () => 
     return;
   }
   const artifacts = currentProject.project.artifacts;
-  if (artifacts.includes("switches") || artifacts.includes("cut")) {
-    navigateAfterCut();
+  if (artifacts.includes("cut") && !artifacts.includes("switches")) {
+    note.textContent = "Timeline editing currently supports multi-camera projects. Your cut is ready to Export.";
+    return;
+  }
+  if (artifacts.includes("switches")) {
+    startReview();
     return;
   }
   note.textContent = "Proposing an auto starting cut…";
@@ -536,7 +577,7 @@ document.getElementById("design-open-timeline").addEventListener("click", () => 
     },
     onResult: () => {
       note.textContent = "Cut ready.";
-      refreshThen(navigateAfterCut);
+      refreshThen(startReview);
     },
     onError: (e) => {
       note.textContent = e.message;
@@ -544,12 +585,8 @@ document.getElementById("design-open-timeline").addEventListener("click", () => 
   });
 });
 
-function gotoReview() {
-  gotoStage("review");
-}
-
 // Navigate to a stage: select it, re-render the rail, show its screen, run its enter hook.
-// Used to move the user forward after a step completes (import → Analyze → Design → Review).
+// Used to move the user forward after a step completes (import → Analyze → Design → Export).
 function gotoStage(key) {
   selectedStage = key;
   renderRail();
@@ -557,7 +594,7 @@ function gotoStage(key) {
   onEnterScreen(key);
 }
 
-// --- Review ---------------------------------------------------------------
+// --- Optional timeline editor inside Design -------------------------------
 
 // Start (or reuse) the review server for the current project and point the iframe at it.
 function startReview() {
@@ -569,12 +606,12 @@ function startReview() {
     status.textContent = "Open a project first (New Project).";
     return;
   }
-  // Single-source cut: the visual multi-angle timeline doesn't apply. Point to Export.
+  // Single-source cut: the visual multi-angle timeline doesn't apply.
   if (currentProject.project.artifacts.includes("cut") && !currentProject.project.artifacts.includes("switches")) {
     frame.hidden = true;
     status.hidden = false;
     status.textContent =
-      "Single-source cut is ready. The visual timeline here is for multi-cam angle-picking; a single-source review is coming. Head to Export to render your cut.";
+      "Timeline editing currently supports multi-camera projects. Your cut is ready to Export.";
     return;
   }
   status.hidden = false;
@@ -595,8 +632,7 @@ function startReview() {
 
 // Per-screen entry hook — refresh a screen's dynamic content when the user lands on it.
 function onEnterScreen(key) {
-  if (key === "review") startReview();
-  else if (key === "analyze") renderAnalyze();
+  if (key === "analyze") renderAnalyze();
 }
 
 // --- Export ---------------------------------------------------------------
@@ -716,3 +752,4 @@ document.getElementById("open-permissions").addEventListener("click", () => {
 
 renderRail();
 showScreen("setup");
+loadRecentProjects();
