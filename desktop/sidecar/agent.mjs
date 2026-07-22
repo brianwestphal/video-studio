@@ -68,6 +68,33 @@ const TOOL_LABELS = Object.freeze({
   "propose-switches": "Designing the cut",
 });
 
+const fileName = (value) => typeof value === "string" ? value.split(/[\\/]/).filter(Boolean).at(-1) ?? "" : "";
+
+// Tool calls can contain sensitive or noisy implementation details (especially exact shell
+// commands). Turn the common agent tools into outcome-oriented progress instead.
+function toolToFeedEntry(tool) {
+  const name = String(tool?.name ?? "");
+  const lower = name.toLowerCase();
+  const input = tool?.input && typeof tool.input === "object" ? tool.input : {};
+  if (lower === "skill") {
+    const skill = String(input.skill ?? input.name ?? "video workflow").replaceAll("-", " ");
+    return { label: "Loading the editing workflow", detail: skill };
+  }
+  if (lower === "bash" || lower === "command") {
+    const description = typeof input.description === "string" ? input.description.trim() : "";
+    return { label: description || "Processing the project", detail: description ? "" : "Running a background media task" };
+  }
+  if (["read", "glob", "grep"].includes(lower)) {
+    const target = fileName(input.file_path ?? input.path);
+    return { label: lower === "read" ? "Reading project context" : "Searching project files", detail: target };
+  }
+  if (["write", "edit", "multiedit"].includes(lower)) {
+    return { label: "Preparing the cut files", detail: fileName(input.file_path ?? input.path) };
+  }
+  if (TOOL_LABELS[name]) return { label: TOOL_LABELS[name], detail: "" };
+  return { label: "Working on the cut", detail: name ? `Using ${name}` : "" };
+}
+
 // Map a normalized event to a single activity-feed entry `{ label, detail }`, or null
 // to skip it (R-CB6). Pure + total.
 export function eventToFeedEntry(n) {
@@ -75,11 +102,10 @@ export function eventToFeedEntry(n) {
     case AGENT_EVENT_KINDS.SESSION:
       return { label: "Session started", detail: n.sessionId ?? "" };
     case AGENT_EVENT_KINDS.SYSTEM:
-      return { label: "System", detail: n.subtype ?? "" };
+      return n.subtype === "compact" ? { label: "Organizing project context", detail: "" } : null;
     case AGENT_EVENT_KINDS.ASSISTANT:
       if (n.tools.length > 0) {
-        const t = n.tools[0];
-        return { label: TOOL_LABELS[t.name] ?? `Using ${t.name}`, detail: "" };
+        return toolToFeedEntry(n.tools[0]);
       }
       if (n.text !== "") return { label: "Claude", detail: n.text };
       return null;

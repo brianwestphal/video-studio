@@ -180,7 +180,8 @@ the full palette in VS-50). The "edit awareness" auto-cut initiative is partial
   R-APP, VS-80); a **pluggable AI agent control bridge** that powers the Auto lane —
   **Claude / Codex / Ollama** behind one interface, agent **optional** (timeline editing needs
   none), Claude via `@anthropic-ai/claude-agent-sdk` first, structured events → activity
-  feed, backend-agnostic tool-permission choke point
+  feed (outcome-oriented summaries; raw commands/internal token telemetry suppressed, VS-108),
+  backend-agnostic tool-permission choke point
   ([`../desktop-app-agent-bridge.md`](../desktop-app-agent-bridge.md), R-CB1–11, VS-83); and
   the **app-owned permission & safety layer** — a pure category classifier + persisted
   "always allow this kind" rules + a Permissions screen, independent of any agent's own

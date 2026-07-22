@@ -95,8 +95,10 @@ flow (VS-84) — the one thing headless can't do.
   The backend's raw events are **normalized to a common event shape** — task start (with a
   session handle where supported), assistant/progress text, tool-use, tool-result, and a
   terminal result — and streamed to the UI as protocol progress events. The webview renders
-  a friendly **activity feed** ("Analyzing scenes ✓", "Proposed a 15 s teaser", generated
-  files). The **event→feed mapping is a pure function** (normalized event → feed entry) and
+  a friendly **activity feed** ("Analyzing scenes", "Loading the editing workflow",
+  "Inspecting analyzed footage"). Exact shell commands and internal SDK telemetry such as
+  token counters are not shown; file operations expose at most a basename. The
+  **event→feed mapping is a pure function** (normalized event → feed entry) and
   unit-tested to 100%.
 - **R-CB7** Since we own the prompt, the bridge **prefers a JSON-schema structured result**
   — a **cut plan** (a `switches.json`/cut-spec-shaped object) the app renders and hands to

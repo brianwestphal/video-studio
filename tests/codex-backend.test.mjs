@@ -85,7 +85,7 @@ describe("codex-backend — normalizeCodexEvent", () => {
   it("command_execution -> tool activity on start, tool-result on completion", () => {
     const started = normalizeCodexEvent({ type: "item.started", item: { type: "command_execution" } });
     expect(started).toEqual({ kind: AGENT_EVENT_KINDS.ASSISTANT, text: "", tools: [{ name: "command" }] });
-    expect(eventToFeedEntry(started).label).toBe("Using command"); // reuses the shared feed mapper
+    expect(eventToFeedEntry(started)).toEqual({ label: "Processing the project", detail: "Running a background media task" }); // reuses the shared feed mapper
     expect(normalizeCodexEvent({ type: "item.completed", item: { type: "command_execution" } })).toEqual({
       kind: AGENT_EVENT_KINDS.TOOL_RESULT,
     });

@@ -758,16 +758,40 @@ describe("agent — eventToFeedEntry", () => {
   it("session / system", () => {
     expect(eventToFeedEntry({ kind: "session", sessionId: "s1" })).toEqual({ label: "Session started", detail: "s1" });
     expect(eventToFeedEntry({ kind: "session" })).toEqual({ label: "Session started", detail: "" });
-    expect(eventToFeedEntry({ kind: "system", subtype: "compact" })).toEqual({ label: "System", detail: "compact" });
-    expect(eventToFeedEntry({ kind: "system" })).toEqual({ label: "System", detail: "" });
+    expect(eventToFeedEntry({ kind: "system", subtype: "compact" })).toEqual({ label: "Organizing project context", detail: "" });
+    expect(eventToFeedEntry({ kind: "system", subtype: "thinking_tokens" })).toBe(null);
+    expect(eventToFeedEntry({ kind: "system" })).toBe(null);
   });
-  it("assistant: friendly tool label, raw tool label, text, or skip", () => {
+  it("assistant: pipeline tool label, safe generic label, text, or skip", () => {
     expect(eventToFeedEntry({ kind: "assistant", tools: [{ name: "analyze-scenes" }], text: "" }).label).toBe(
       "Analyzing scenes",
     );
-    expect(eventToFeedEntry({ kind: "assistant", tools: [{ name: "mystery" }], text: "" }).label).toBe("Using mystery");
+    expect(eventToFeedEntry({ kind: "assistant", tools: [{ name: "mystery" }], text: "" })).toEqual({ label: "Working on the cut", detail: "Using mystery" });
+    expect(eventToFeedEntry({ kind: "assistant", tools: [{ name: "" }], text: "" })).toEqual({ label: "Working on the cut", detail: "" });
     expect(eventToFeedEntry({ kind: "assistant", tools: [], text: "hi" })).toEqual({ label: "Claude", detail: "hi" });
     expect(eventToFeedEntry({ kind: "assistant", tools: [], text: "" })).toBe(null);
+  });
+  it("assistant: tool activity is outcome-oriented and does not expose shell commands", () => {
+    expect(eventToFeedEntry({ kind: "assistant", tools: [{ name: "Skill", input: { skill: "video-studio" } }], text: "" })).toEqual({
+      label: "Loading the editing workflow", detail: "video studio",
+    });
+    expect(eventToFeedEntry({ kind: "assistant", tools: [{ name: "Skill", input: {} }], text: "" }).detail).toBe("video workflow");
+    expect(eventToFeedEntry({ kind: "assistant", tools: [{ name: "Bash", input: { command: "rm -rf secret", description: "Inspecting analyzed footage" } }], text: "" })).toEqual({
+      label: "Inspecting analyzed footage", detail: "",
+    });
+    expect(eventToFeedEntry({ kind: "assistant", tools: [{ name: "command", input: { command: "private" } }], text: "" })).toEqual({
+      label: "Processing the project", detail: "Running a background media task",
+    });
+  });
+  it("assistant: file tools summarize safe targets", () => {
+    expect(eventToFeedEntry({ kind: "assistant", tools: [{ name: "Read", input: { file_path: "/secret/project/cut.json" } }], text: "" })).toEqual({ label: "Reading project context", detail: "cut.json" });
+    expect(eventToFeedEntry({ kind: "assistant", tools: [{ name: "Glob", input: { path: "/secret/project" } }], text: "" })).toEqual({ label: "Searching project files", detail: "project" });
+    expect(eventToFeedEntry({ kind: "assistant", tools: [{ name: "Grep", input: null }], text: "" })).toEqual({ label: "Searching project files", detail: "" });
+    expect(eventToFeedEntry({ kind: "assistant", tools: [{ name: "Read", input: { path: "/" } }], text: "" }).detail).toBe("");
+    expect(eventToFeedEntry({ kind: "assistant", tools: [{ name: "Edit", input: { file_path: "cut.json" } }], text: "" })).toEqual({ label: "Preparing the cut files", detail: "cut.json" });
+    expect(eventToFeedEntry({ kind: "assistant", tools: [{ name: "Write", input: {} }], text: "" }).detail).toBe("");
+    expect(eventToFeedEntry({ kind: "assistant", tools: [{ name: "MultiEdit", input: { path: "a/b.json" } }], text: "" }).detail).toBe("b.json");
+    expect(eventToFeedEntry({ kind: "assistant", tools: [null], text: "" })).toEqual({ label: "Working on the cut", detail: "" });
   });
   it("tool-result → null; result → Done/Failed; unknown → null; null → null", () => {
     expect(eventToFeedEntry({ kind: "tool-result" })).toBe(null);
