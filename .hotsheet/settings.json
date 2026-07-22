@@ -3,13 +3,10 @@
   "ticketPrefix": "VS",
   "terminals": [
     {
-      "id": "claude",
-      "command": "{{claudeCommand}}",
-      "name": "Claude",
-      "lazy": true,
-      "theme": "github-dark",
-      "fontFamily": "system",
-      "fontSize": 17
+      "id": "t-mrvakcy2-9jys",
+      "command": "{{aiCommand}}",
+      "name": "AI",
+      "lazy": false
     }
   ],
   "auto_context": [
