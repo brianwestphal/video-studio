@@ -130,6 +130,7 @@ describe("segmentArgs", () => {
     expect(a[a.indexOf("-profile:v") + 1]).toBe("3");
     expect(a).toContain("0:a:0?"); // maps source audio
     expect(a).toEqual(expect.arrayContaining(["-ss", "10", "-t", "2.000"]));
+    expect(a).toEqual(expect.arrayContaining(["-af", "afade=t=in:st=0:d=0.005,afade=t=out:st=1.995:d=0.005"]));
     expect(a.at(-1)).toBe("/out/seg-001.mov");
   });
 
@@ -146,6 +147,13 @@ describe("segmentArgs", () => {
   it("omits the setpts retime when rateCorrection is 1 or absent", () => {
     expect(segmentArgs(project, { source: "/a.mov", in: 0, out: 4, audio: "silent", rateCorrection: 1 }, "/o.mov").join(" ")).not.toContain("setpts");
     expect(segmentArgs(project, { source: "/a.mov", in: 0, out: 4, audio: "silent" }, "/o.mov").join(" ")).not.toContain("setpts");
+  });
+
+  it("leaves transition-handled audio boundaries to the crossfade", () => {
+    const both = segmentArgs(project, { source: "/a.mov", in: 10, out: 12, audio: "keep" }, "/o.mov", { start: 0.25, end: 0.25 });
+    expect(both).not.toContain("-af");
+    const incoming = segmentArgs(project, { source: "/a.mov", in: 10, out: 12, audio: "keep" }, "/o.mov", { start: 0.25 });
+    expect(incoming).toEqual(expect.arrayContaining(["-af", "afade=t=out:st=2.245:d=0.005"]));
   });
 });
 

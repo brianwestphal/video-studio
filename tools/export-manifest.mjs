@@ -1,3 +1,5 @@
+import { audioCutFadeFilter } from "./audio-cuts.mjs";
+
 // Pure logic for the editor-handoff export (docs/editor-handoff.md): turn a cut
 // spec into the timeline manifest, the per-segment / per-overlay ffmpeg commands,
 // and the rebuild script. No I/O here (durations are passed in), so it's all
@@ -177,8 +179,15 @@ export function segmentArgs(project, clip, outPath, handles = {}) {
     return ["-y", "-ss", ss, "-i", clip.source, "-f", "lavfi", "-i", "anullsrc=r=48000:cl=stereo",
       "-map", "0:v:0", "-map", "1:a:0", "-t", dur, "-vf", vf, ...enc, "-c:a", "pcm_s16le", "-ar", "48000", outPath];
   }
+  const visibleDuration = clip.out - clip.in;
+  const fade = audioCutFadeFilter(visibleDuration, {
+    offsetSeconds: head,
+    fadeIn: !head,
+    fadeOut: !tail,
+  });
   return ["-y", "-ss", ss, "-i", clip.source,
-    "-map", "0:v:0", "-map", "0:a:0?", "-t", dur, "-vf", vf, ...enc, "-c:a", "pcm_s16le", "-ar", "48000", outPath];
+    "-map", "0:v:0", "-map", "0:a:0?", "-t", dur, "-vf", vf,
+    ...(fade ? ["-af", fade] : []), ...enc, "-c:a", "pcm_s16le", "-ar", "48000", outPath];
 }
 
 // Transcode an overlay's alpha source file to ProRes 4444, trimmed to its

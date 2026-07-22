@@ -1,3 +1,5 @@
+import { audioCutFadeFilter } from "../../tools/audio-cuts.mjs";
+
 // Single-source cut-spec proposer (VS-99) — the pure core of the single-video Design lane.
 // Turns the scene analysis (sources.json) + an intent into a cut spec: an ordered list of
 // clip ranges the export-project tool renders into a finished video / FCPXML. This is
@@ -153,7 +155,8 @@ export function flatRenderCommand(cutSpec, outPath, { width, height } = {}) {
   const concatInputs = [];
   clips.forEach((c, i) => {
     filters.push(`[0:v]trim=start=${c.in}:end=${c.out},setpts=PTS-STARTPTS[v${i}]`);
-    filters.push(`[0:a]atrim=start=${c.in}:end=${c.out},asetpts=PTS-STARTPTS[a${i}]`);
+    const audioFade = audioCutFadeFilter(c.out - c.in);
+    filters.push(`[0:a]atrim=start=${c.in}:end=${c.out},asetpts=PTS-STARTPTS,${audioFade}[a${i}]`);
     concatInputs.push(`[v${i}][a${i}]`);
   });
   filters.push(`${concatInputs.join("")}concat=n=${clips.length}:v=1:a=1[cv][ca]`);

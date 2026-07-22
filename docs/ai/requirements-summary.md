@@ -16,7 +16,7 @@ sync with the requirements doc and code; the source wins on conflict.
 | The skill | R6.1–R6.5 | **Shipped** |
 | Quality gates | R7.1–R7.5 | **Shipped** — incl. feature/requirement coverage (VS-58) |
 | Feature/requirement coverage (2nd axis) | [`feature-coverage.md`](../feature-coverage.md) (R-EC) | **Shipped** (VS-58) — `check:features` + `conventions.test.ts` |
-| Editor handoff (segments + overlays + manifest/FCPXML) | [`editor-handoff.md`](../editor-handoff.md) | **Shipped** — export + manifest + rebuild (VS-24) + FCPXML (VS-25) |
+| Editor handoff (segments + overlays + manifest/FCPXML) | [`editor-handoff.md`](../editor-handoff.md) | **Shipped** — export + manifest + rebuild (VS-24) + FCPXML (VS-25); hard-cut kept audio uses bounded 5 ms anti-pop fades while transition/continuous-master audio keeps its existing path (VS-109) |
 | Multiple source videos | [`multiple-sources.md`](../multiple-sources.md) | **Shipped** (VS-26) |
 | FCP transition suggestions | [`transitions.md`](../transitions.md) | **Shipped** (VS-28, VS-50) — opt-in `transitions` → FCP `<transition>`s (16 built-ins: dissolves/fades, movements, wipes, insets/splits, Static) + baked segment handles; DTD-valid. |
 | Render transitions into the video (no FCP) | [`render-transitions.md`](../render-transitions.md) | **Shipped** (VS-54 + VS-55, R-RT1–R-RT9) — `render-transitions` bakes the transitions into a finished video with **no FCP**, reusing the baked handles. **Windowed re-encode** (default): re-encode only each transition overlap + stream-copy-concat the bodies (cost ≈ Σ transition duration); `--full-chain` for the whole-timeline graph. **Native Tier A/B/C**: Tier A direct `xfade`, Tier B `xfade=custom` (chevron/static), Tier C overlay-mask/crop-slide (inset/split). |

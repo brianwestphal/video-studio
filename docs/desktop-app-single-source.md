@@ -58,7 +58,9 @@ Depends on VS-90 (shell + project model) and VS-81 (import writing `sources.json
 
 - **R-SS5** Single-source **Export** flat-renders the cut spec into a finished video:
   `flatRenderCommand` builds the ffmpeg **trim + concat** argv over the one source (per-clip
-  `trim`/`atrim` → `concat`), encoding **H.264 / AAC**. With a target frame it **scales + pads to
+  `trim`/`atrim` → 5 ms audio boundary fades → `concat`), encoding **H.264 / AAC**. The
+  fades provide a deterministic no-pop fallback when the pure command planner cannot inspect
+  decoded samples for a nearby zero crossing. With a target frame it **scales + pads to
   9:16** (e.g. 1080×1920, `force_original_aspect_ratio=decrease` + centered black pad). Pure
   (`cutspec.mjs`), unit-tested; the host runs ffmpeg with it. Throws on an empty cut.
 

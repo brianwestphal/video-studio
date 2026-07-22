@@ -121,6 +121,7 @@ export const REQUIREMENT_COVERAGE = {
   // Editor handoff — manifest/segment/fcpxml logic unit-tested; encode + FCP import manual.
   "R-EH1": { status: "unit", tests: ["export-manifest.test.ts"], note: "segment numbering (encode manual)" },
   "R-EH2": { status: "unit", tests: ["export-manifest.test.ts"], note: "ProRes 422 HQ segment argv" },
+  "R-EH2a": { status: "unit", tests: ["audio-cuts.test.ts", "export-manifest.test.ts"], note: "bounded 5ms hard-cut audio fades; transition-handled and continuous-master boundaries remain untouched (VS-109)" },
   "R-EH3": { status: "unit", tests: ["export-manifest.test.ts"] },
   "R-EH4": { status: "unit", tests: ["export-manifest.test.ts"] },
   "R-EH5": { status: "unit", tests: ["export-manifest.test.ts"], note: "ProRes 4444 overlay argv" },
@@ -282,7 +283,7 @@ export const REQUIREMENT_COVERAGE = {
   "R-SS2": { status: "unit", tests: ["sidecar-protocol.test.mjs"], note: "audio-aware selection: loudness+onset (soundbites -> vocal overlap), per-clip cap, chronological restore; spread fallback with no audio; degenerate/zero-length safe (cutspec.mjs) (VS-99)" },
   "R-SS3": { status: "manual", note: "design-cut host step branches multicam -> propose-switches / single -> proposeCutSpec -> cut.json; Auto prompt picks the kind — GUI/I-O (§15.17) (VS-99)" },
   "R-SS4": { status: "unit", tests: ["sidecar-protocol.test.mjs"], note: "a single-source cut.json satisfies both Design and Review; Export unlocks — deriveStages doneWhen accepts 'cut' (desktop/sidecar/project.mjs) (VS-99)" },
-  "R-SS5": { status: "unit", tests: ["sidecar-protocol.test.mjs"], note: "flatRenderCommand — ffmpeg trim+concat argv over one source, H.264/AAC, optional 9:16 scale+pad; throws on empty cut (cutspec.mjs) (VS-99)" },
+  "R-SS5": { status: "unit", tests: ["sidecar-protocol.test.mjs"], note: "flatRenderCommand — ffmpeg trim+bounded 5ms boundary fades+concat over one source, H.264/AAC, optional 9:16 scale+pad; throws on empty cut (cutspec.mjs) (VS-99/109)" },
   "R-SS6": { status: "manual", note: "export host branch: single-source (cut.json, no multicam.json) -> flat render (mp4/9:16) or export-project (fcpxml) — GUI/I-O (§15.17) (VS-99)" },
   "R-SS7": { status: "unit", tests: ["cut-edit.test.mjs"], note: "single-source cut edits — pure trimClip/reorderClip/dropClip/cutDuration transforms over cut.json (desktop/sidecar/cut-edit.mjs); the Review UI surface that calls them is the tail (VS-102)" },
 

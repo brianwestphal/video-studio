@@ -1059,7 +1059,7 @@ describe("cutspec — flatRenderCommand", () => {
     expect(c.outPath).toBe("/out.mp4");
     const fc = c.args[c.args.indexOf("-filter_complex") + 1];
     expect(fc).toContain("[0:v]trim=start=1:end=3,setpts=PTS-STARTPTS[v0]");
-    expect(fc).toContain("[0:a]atrim=start=10:end=12.5,asetpts=PTS-STARTPTS[a1]");
+    expect(fc).toContain("[0:a]atrim=start=10:end=12.5,asetpts=PTS-STARTPTS,afade=t=in:st=0:d=0.005,afade=t=out:st=2.495:d=0.005[a1]");
     expect(fc).toContain("[v0][a0][v1][a1]concat=n=2:v=1:a=1[cv][ca]");
     expect(c.args).toEqual(expect.arrayContaining(["-map", "[cv]", "-map", "[ca]", "/out.mp4"]));
   });

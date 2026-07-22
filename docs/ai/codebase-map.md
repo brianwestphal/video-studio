@@ -42,6 +42,7 @@ and [`requirements-summary.md`](requirements-summary.md) for status.
 │   ├── export-multicam-fcpxml.mjs # multicam.json → true FCP <mc-clip> multicam FCPXML (I/O over buildMulticamFcpxml; --switch flags or --switches <switches.json>; black filler for angle leading gaps)
 │   ├── render-multicam-preview.mjs # multicam.json + switches (--switch or --switches <switches.json>) → flat preview MP4 of the angle cut (I/O over resolveAngleCuts)
 │   ├── audio-events.mjs        # pure non-speech audio-events DSP: RMS envelope, onsets, vocal/instrumental sectioning, spectral descriptors + structural novelty, schema (unit-tested, VS-44/49)
+│   ├── audio-cuts.mjs          # pure hard-cut audio policy: bounded 5ms boundary-fade filter planning (unit-tested, VS-109)
 │   ├── analyze-audio-events.mjs # audio/video (+ whisper transcript) → audio-events.json (ffmpeg I/O over audio-events.mjs)
 │   ├── wav-compat.mjs          # pure RIFF parse + FCP-compat classification + sidecar path/ffmpeg-argv helpers for WAV source audio (unit-tested, VS-40/53)
 │   ├── wav-compat-io.mjs       # thin I/O: read a file's RIFF header, warn (or with --fcp-normalize-audio re-encode + repoint) FCP-incompatible WAVs (over wav-compat.mjs)

@@ -76,6 +76,11 @@ A single export produces a project directory next to the source, e.g.:
 - **R-EH2** Encode segments as **ProRes 422 HQ** (`-c:v prores_ks -profile:v 3`),
   frame-accurate in/out (no keyframe snapping), preserving the source fps and the
   segment's audio (soundbite audio kept; B-roll silent per the cut design).
+- **R-EH2a** Kept audio at a **hard cut** receives a 5 ms fade-in and fade-out to
+  suppress discontinuity pops when a decoded zero crossing is unavailable to the command
+  planner. The fade is bounded to half of very short clips. Boundaries with transition
+  handles are left untouched because the transition renderer/FCPXML audio crossfade owns them;
+  a continuous `audioTrack` is never cut or faded.
 - **R-EH3** Each segment's source provenance is recorded in the manifest: source
   file + source in/out timecode (so the cut is reproducible / re-cuttable).
 - **R-EH4** Segment export is an **option**, not a replacement: the existing
