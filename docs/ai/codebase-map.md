@@ -58,12 +58,12 @@ and [`requirements-summary.md`](requirements-summary.md) for status.
 ├── desktop/                    # desktop app (VS-76) — Tauri shell over the pipeline; subdir of this repo. `npm run desktop:dev`
 │   ├── README.md               # layout + how to run (dev) + what's built vs deferred
 │   ├── sidecar/
-│   │   ├── protocol.mjs        # pure: NDJSON request/stream protocol — framing + validateRequest + constructors (R-APP12, 100% unit)
+│   │   ├── protocol.mjs        # pure: bidirectional NDJSON request/stream/interaction protocol — framing + validation + constructors (R-APP12, 100% unit)
 │   │   ├── steps.mjs           # pure: step registry — buildCommand descriptors + analyzer progress parser (R-APP13, 100% unit)
 │   │   ├── doctor.mjs          # pure: tool list + doctorResultFromChecks for the Setup screen (R-APP16/17, 100% unit)
 │   │   ├── project.mjs         # pure: project model — ARTIFACTS map, deriveStages, reconcileProject (filesystem-wins) (R-APP7/8/10, 100% unit)
 │   │   ├── agent.mjs           # pure: AI agent bridge core — normalizeClaudeEvent, eventToFeedEntry, validateCutPlan, isAuthFailure (R-CB2/6/7/11, 100% unit). host.mjs `agent-run` drives the live @anthropic-ai/claude-agent-sdk over these (R-CB3, devDep)
-│   │   ├── permissions.mjs     # pure: safety layer — classifyToolCall, DEFAULT_POLICY, matchRule, decide, deriveAllowedTools (R-PERM1-9, 100% unit)
+│   │   ├── permissions.mjs     # pure: safety layer — path resolution, classifyToolCall, DEFAULT_POLICY, matchRule, decide, deriveAllowedTools (R-PERM1-9, 100% unit)
 │   │   ├── config.mjs          # pure: app-global config — parseConfig (tolerant), recent projects, rules (add/revoke/reset), policy overrides (R-APP18/R-PERM12, 100% unit)
 │   │   └── host.mjs            # I/O edge: stdin loop → spawn tool / `which` probes / project readdir → stream progress → result/error (manual, test-plan §14)
 │   ├── src-tauri/              # native Rust shell: lib.rs spawns host.mjs, streams stdout as `sidecar` events, sidecar_send + open_video commands

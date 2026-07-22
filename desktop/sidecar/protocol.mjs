@@ -9,10 +9,12 @@
 // Message shapes:
 //   shell → host:  { type: "request", id, step, params }   run a pipeline step
 //                  { type: "cancel",  id }                  cancel an in-flight request
+//                  { type: "interaction-response", interactionId, decision, value? }
 //   host → shell:  { type: "ready" }                        startup handshake
 //                  { type: "progress", id, progress }       incremental progress
 //                  { type: "result",   id, data }           terminal success
 //                  { type: "error",    id, error:{code,message} }  terminal failure
+//                  { type: "interaction-request", interactionId, interaction }
 
 export const MESSAGE_TYPES = Object.freeze({
   REQUEST: "request",
@@ -21,6 +23,8 @@ export const MESSAGE_TYPES = Object.freeze({
   PROGRESS: "progress",
   RESULT: "result",
   ERROR: "error",
+  INTERACTION_REQUEST: "interaction-request",
+  INTERACTION_RESPONSE: "interaction-response",
 });
 
 // Error codes the host can report on a request that never runs / fails.
@@ -74,6 +78,23 @@ export function resultMessage(id, data) {
 
 export function errorMessage(id, code, message) {
   return { type: MESSAGE_TYPES.ERROR, id, error: { code, message } };
+}
+
+export function interactionRequestMessage(interactionId, interaction) {
+  return { type: MESSAGE_TYPES.INTERACTION_REQUEST, interactionId, interaction };
+}
+
+export function interactionResponseMessage(interactionId, decision, value) {
+  const message = { type: MESSAGE_TYPES.INTERACTION_RESPONSE, interactionId, decision };
+  if (value !== undefined) message.value = value;
+  return message;
+}
+
+export function validateInteractionResponse(obj) {
+  if (!obj || typeof obj !== "object" || Array.isArray(obj)) return null;
+  if (obj.type !== MESSAGE_TYPES.INTERACTION_RESPONSE || !hasValidId(obj.interactionId)) return null;
+  if (!["allow-once", "always-allow", "deny", "completed", "cancelled"].includes(obj.decision)) return null;
+  return { interactionId: obj.interactionId, decision: obj.decision, value: obj.value };
 }
 
 // --- request validation ----------------------------------------------------

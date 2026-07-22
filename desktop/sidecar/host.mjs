@@ -22,6 +22,8 @@ import {
   progressMessage,
   resultMessage,
   errorMessage,
+  interactionRequestMessage,
+  validateInteractionResponse,
   validateRequest,
   MESSAGE_TYPES,
 } from "./protocol.mjs";
@@ -53,6 +55,7 @@ import {
   revokeRule,
   resetRules,
   setCategoryPolicy,
+  effectivePolicy,
 } from "./config.mjs";
 import {
   normalizeClaudeEvent,
@@ -65,7 +68,7 @@ import {
   cutPlanToSwitches,
   unknownPlanMembers,
 } from "./agent.mjs";
-import { decide, isInProject } from "./permissions.mjs";
+import { classifyToolCall, decide, isInProject, resolveToolInput } from "./permissions.mjs";
 import { buildOllamaMessages, parseModelReply, nextLoopAction, toolResultMessage } from "./ollama-backend.mjs";
 import { codexExecArgv, normalizeCodexEvent, CODEX_CUTPLAN_SCHEMA } from "./codex-backend.mjs";
 
@@ -74,9 +77,41 @@ import { codexExecArgv, normalizeCodexEvent, CODEX_CUTPLAN_SCHEMA } from "./code
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 
 const inflight = new Map(); // id -> ChildProcess
+const pendingInteractions = new Map(); // interaction id -> { resolve }
+let nextInteractionId = 1;
 
 function send(obj) {
   process.stdout.write(frameMessage(obj));
+}
+
+// Park an SDK callback while the native UI asks the user. The correlated response
+// arrives over the same bidirectional NDJSON stream. Abort removes the parked
+// resolver so a cancelled agent run cannot leak a promise or accept a stale click.
+function requestInteraction(interaction, signal) {
+  const interactionId = `interaction-${nextInteractionId++}`;
+  return new Promise((resolve) => {
+    const finish = (answer) => {
+      pendingInteractions.delete(interactionId);
+      if (signal) signal.removeEventListener("abort", onAbort);
+      resolve(answer);
+    };
+    const onAbort = () => finish({ decision: "cancelled" });
+    if (signal?.aborted) {
+      onAbort();
+      return;
+    }
+    if (signal) signal.addEventListener("abort", onAbort, { once: true });
+    pendingInteractions.set(interactionId, { resolve: finish });
+    send(interactionRequestMessage(interactionId, interaction));
+  });
+}
+
+function handleInteractionResponse(decoded) {
+  const response = validateInteractionResponse(decoded);
+  if (!response) return false;
+  const pending = pendingInteractions.get(response.interactionId);
+  if (pending) pending.resolve(response);
+  return true;
 }
 
 // Spawn a pipeline tool in its OWN process group (detached) so a cancel can tear down the
@@ -753,35 +788,59 @@ async function runAgentRun(id, { prompt, folder, resume }) {
     return;
   }
   const projectRoot = folder || REPO_ROOT;
-  const rules = loadConfig().rules;
+  const config = loadConfig();
+  let rules = config.rules;
+  const policy = effectivePolicy(config);
 
   // The reason string for a decision our policy won't allow.
-  const denyReason = (d) =>
-    d === "deny"
-      ? "Blocked by video-studio's safety policy."
-      : "Needs your approval — interactive permission prompts are coming soon.";
+  const denyReason = () => "Blocked by video-studio's safety policy.";
 
-  // Every non-pre-approved tool the agent wants flows through OUR safety layer (R-CB9): allow
-  // silently, deny, or — since the interactive native prompt isn't wired through the sidecar
-  // yet — deny an "ask" with an explanation (the run continues; that one action is blocked).
-  const canUseTool = async (toolName, input) => {
-    const d = decide(toolName, input, projectRoot, rules);
-    if (d === "allow") return { behavior: "allow", updatedInput: input };
-    return { behavior: "deny", message: denyReason(d) };
+  const askPermission = async (toolName, input, details, signal) => {
+    const normalizedInput = resolveToolInput(toolName, input, projectRoot);
+    const category = classifyToolCall(toolName, normalizedInput, projectRoot);
+    const answer = await requestInteraction(
+      {
+        kind: "permission",
+        title: details?.title || `${details?.displayName || toolName} needs your approval`,
+        description: details?.description || details?.decisionReason || "The AI wants to perform this action.",
+        toolName,
+        category,
+        input: normalizedInput,
+      },
+      signal,
+    );
+    if (answer.decision === "always-allow") {
+      const rule = { category, scope: "project", project: projectRoot, decision: "allow" };
+      const saved = saveConfig(addRule(loadConfig(), rule));
+      rules = saved.rules;
+      return { behavior: "allow", updatedInput: normalizedInput };
+    }
+    if (answer.decision === "allow-once") return { behavior: "allow", updatedInput: normalizedInput };
+    return { behavior: "deny", message: "You denied this action." };
   };
 
-  // Defense-in-depth (VS-97): a PreToolUse hook fires for EVERY tool call — including the ones
-  // the SDK auto-approves in its own bash sandbox, which never reach canUseTool. Running our
-  // policy here makes video-studio the authoritative gate: our layer can block any tool
-  // (prompt-injection or model mistake) even when the SDK would have sandboxed-and-allowed it.
+  // Every non-pre-approved tool the agent wants flows through OUR safety layer (R-CB9):
+  // allow silently, deny, or park on the app's interactive approval dialog.
+  const canUseTool = async (toolName, input, details) => {
+    const normalizedInput = resolveToolInput(toolName, input, projectRoot);
+    const d = decide(toolName, normalizedInput, projectRoot, rules, policy);
+    if (d === "allow") return { behavior: "allow", updatedInput: normalizedInput };
+    if (d === "deny") return { behavior: "deny", message: denyReason() };
+    return askPermission(toolName, normalizedInput, details, details?.signal);
+  };
+
+  // Defense-in-depth (VS-97): a PreToolUse hook fires for EVERY tool call and independently
+  // blocks explicit denies. Ask decisions continue to canUseTool; sandbox auto-approval is
+  // disabled below so they cannot skip the native prompt.
   const preToolUse = async (input) => {
-    const d = decide(input.tool_name, input.tool_input, projectRoot, rules);
-    if (d === "allow") return {}; // no objection — let the normal flow proceed
+    const normalizedInput = resolveToolInput(input.tool_name, input.tool_input, projectRoot);
+    const d = decide(input.tool_name, normalizedInput, projectRoot, rules, policy);
+    if (d !== "deny") return {}; // allow/ask continue to canUseTool; SDK sandbox auto-allow is disabled below
     return {
       hookSpecificOutput: {
         hookEventName: "PreToolUse",
         permissionDecision: "deny",
-        permissionDecisionReason: denyReason(d),
+        permissionDecisionReason: denyReason(),
       },
     };
   };
@@ -798,6 +857,20 @@ async function runAgentRun(id, { prompt, folder, resume }) {
     permissionMode: "default",
     canUseTool,
     hooks: { PreToolUse: [{ hooks: [preToolUse] }] },
+    // Force sandboxed Bash through canUseTool too. Without this, the SDK may
+    // auto-approve a sandboxed command before our interactive policy can ask.
+    sandbox: { enabled: true, autoAllowBashIfSandboxed: false },
+    onUserDialog: (request, { signal }) => {
+      if (!Array.isArray(request.payload?.questions)) return Promise.resolve({ behavior: "cancelled" });
+      return requestInteraction(
+        { kind: "question", dialogKind: request.dialogKind, payload: request.payload },
+        signal,
+      ).then((answer) =>
+        answer.decision === "completed"
+          ? { behavior: "completed", result: answer.value }
+          : { behavior: "cancelled" },
+      );
+    },
   };
   if (resume) options.resume = resume;
 
@@ -825,6 +898,7 @@ async function runAgentRun(id, { prompt, folder, resume }) {
 }
 
 function handle(decoded) {
+  if (handleInteractionResponse(decoded)) return;
   // The doctor + project + config + export steps are handled here (not via the registry):
   // doctor is a fan-out of probes; the others are filesystem/tool orchestration around the
   // pure cores, not a plain registry spawn.

@@ -216,6 +216,35 @@ body {
 }
 .btn.small { padding: 5px 12px; font-size: 12px; }
 
+.interaction-dialog {
+  width: min(620px, calc(100vw - 48px));
+  color: var(--text);
+  background: var(--panel);
+  border: 1px solid #3a4150;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 24px 80px #000b;
+}
+.interaction-dialog::backdrop { background: #080a0dcc; }
+.interaction-dialog h2 { margin: 0 0 6px; }
+.interaction-detail {
+  max-height: 180px;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: #101318;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: var(--muted);
+  font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.interaction-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+.interaction-question { border: 0; padding: 0; margin: 18px 0; }
+.interaction-question legend { font-weight: 600; margin-bottom: 8px; }
+.interaction-option { display: block; padding: 7px 0; }
+.interaction-option span { color: var(--muted); font-size: 12px; margin-left: 6px; }
+
 .progress { margin: 18px 0; max-width: 640px; }
 .bar { height: 8px; background: #12151b; border-radius: 999px; overflow: hidden; }
 .bar-fill { height: 100%; width: 0; background: var(--accent); transition: width 0.2s ease; }

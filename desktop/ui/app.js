@@ -21,6 +21,8 @@ let railStages = [
 let selectedStage = "setup";
 let nextId = 1;
 const pending = new Map(); // request id -> { onProgress, onResult, onError }
+const interactionQueue = [];
+let activeInteraction = null;
 
 function send(step, params, handlers) {
   const id = nextId++;
@@ -33,6 +35,64 @@ function send(step, params, handlers) {
 // onError fires with a "cancelled (SIGTERM)" message, which the run's reset handler catches.
 function cancel(id) {
   invoke("sidecar_send", { payload: JSON.stringify({ type: "cancel", id }) });
+}
+
+function answerInteraction(interactionId, decision, value) {
+  invoke("sidecar_send", {
+    payload: JSON.stringify({ type: "interaction-response", interactionId, decision, value }),
+  });
+}
+
+function showNextInteraction() {
+  if (activeInteraction || interactionQueue.length === 0) return;
+  activeInteraction = interactionQueue.shift();
+  const { interaction } = activeInteraction;
+  const dialog = document.getElementById("interaction-dialog");
+  const permissionActions = document.getElementById("interaction-permission-actions");
+  const questionActions = document.getElementById("interaction-question-actions");
+  const detail = document.getElementById("interaction-detail");
+  const questionsBox = document.getElementById("interaction-questions");
+  questionsBox.innerHTML = "";
+
+  if (interaction.kind === "permission") {
+    document.getElementById("interaction-title").textContent = interaction.title || "Approval needed";
+    document.getElementById("interaction-description").textContent = interaction.description || "";
+    detail.hidden = false;
+    detail.textContent = `${interaction.toolName} · ${interaction.category}\n${JSON.stringify(interaction.input, null, 2)}`;
+    permissionActions.hidden = false;
+    questionActions.hidden = true;
+  } else {
+    document.getElementById("interaction-title").textContent = "The editor needs your input";
+    document.getElementById("interaction-description").textContent = "Choose an answer so the cut can continue.";
+    detail.hidden = true;
+    permissionActions.hidden = true;
+    questionActions.hidden = false;
+    const questions = Array.isArray(interaction.payload?.questions) ? interaction.payload.questions : [];
+    questions.forEach((question, index) => {
+      const fieldset = document.createElement("fieldset");
+      fieldset.className = "interaction-question";
+      const legend = document.createElement("legend");
+      legend.textContent = question.question || question.header || `Question ${index + 1}`;
+      fieldset.appendChild(legend);
+      for (const option of question.options || []) {
+        const label = document.createElement("label");
+        label.className = "interaction-option";
+        const input = document.createElement("input");
+        input.type = question.multiSelect ? "checkbox" : "radio";
+        input.name = `question-${index}`;
+        input.value = option.label;
+        label.append(input, document.createTextNode(` ${option.label}`));
+        if (option.description) {
+          const description = document.createElement("span");
+          description.textContent = option.description;
+          label.appendChild(description);
+        }
+        fieldset.appendChild(label);
+      }
+      questionsBox.appendChild(fieldset);
+    });
+  }
+  dialog.showModal();
 }
 
 // Run a long, cancellable op: toggles a run/cancel button pair and resets both on any terminal
@@ -72,6 +132,11 @@ listen("sidecar", (event) => {
     return;
   }
   if (msg.type === "ready") return;
+  if (msg.type === "interaction-request") {
+    interactionQueue.push(msg);
+    showNextInteraction();
+    return;
+  }
   const h = pending.get(msg.id);
   if (!h) return;
   if (msg.type === "progress") h.onProgress && h.onProgress(msg.progress);
@@ -82,6 +147,38 @@ listen("sidecar", (event) => {
     pending.delete(msg.id);
     h.onError && h.onError(msg.error);
   }
+});
+
+document.getElementById("interaction-form").addEventListener("submit", (event) => {
+  event.preventDefault();
+  if (!activeInteraction) return;
+  const submitter = event.submitter;
+  const decision = submitter?.value || "cancelled";
+  let value;
+  if (activeInteraction.interaction.kind === "question" && decision === "completed") {
+    const questions = Array.isArray(activeInteraction.interaction.payload?.questions)
+      ? activeInteraction.interaction.payload.questions
+      : [];
+    const answers = {};
+    questions.forEach((question, index) => {
+      const selected = [...document.querySelectorAll(`[name="question-${index}"]:checked`)].map((el) => el.value);
+      answers[question.question] = selected.join(", ");
+    });
+    value = { questions, answers };
+  }
+  answerInteraction(activeInteraction.interactionId, decision, value);
+  document.getElementById("interaction-dialog").close();
+  activeInteraction = null;
+  showNextInteraction();
+});
+
+document.getElementById("interaction-dialog").addEventListener("cancel", (event) => {
+  event.preventDefault();
+  if (!activeInteraction) return;
+  answerInteraction(activeInteraction.interactionId, "cancelled");
+  event.currentTarget.close();
+  activeInteraction = null;
+  showNextInteraction();
 });
 
 // --- stage rail -----------------------------------------------------------

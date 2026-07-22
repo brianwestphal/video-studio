@@ -67,6 +67,21 @@ export function isInProject(absPath, projectRoot) {
   return p === root || p.startsWith(root + "/");
 }
 
+// The SDK commonly sends project-relative paths (for example `sources.json`). The
+// classifier deliberately expects absolute paths, so normalize the path-bearing
+// fields at the I/O boundary before deciding. Keeping this transform pure makes the
+// important relative/in-project vs traversal/outside transition directly testable.
+export function resolveToolInput(toolName, input, projectRoot) {
+  const args = input && typeof input === "object" && !Array.isArray(input) ? { ...input } : {};
+  const name = String(toolName ?? "");
+  const field = name === "NotebookEdit" ? "notebook_path" : "file_path" in args ? "file_path" : "path" in args ? "path" : null;
+  if (!field || typeof args[field] !== "string" || args[field] === "") return args;
+  args[field] = args[field].startsWith("/")
+    ? normalizePath(args[field])
+    : normalizePath(`${projectRoot}/${args[field]}`);
+  return args;
+}
+
 // Destructive shell patterns: deletion, or output redirection / move that could clobber.
 const DESTRUCTIVE_CMD_RE = /(^|[;&|]\s*)(rm|rmdir|unlink|shred)\b|>\s*\/|\bmv\b|\bdd\b/;
 const EGRESS_CMD_RE = /(^|[;&|]\s*)(curl|wget|nc|ncat|ssh|scp|rsync|git\s+push|npm\s+publish)\b/;
@@ -129,12 +144,12 @@ export function matchRule(category, projectRoot, rules) {
 // The full decision at the choke point (R-PERM7): questions are never gated (R-PERM9);
 // otherwise apply persisted rules first, and only fall back to the category default on a
 // miss — returning "allow" | "deny" | "ask". Pure over (toolName, input, projectRoot, rules).
-export function decide(toolName, input, projectRoot, rules) {
+export function decide(toolName, input, projectRoot, rules, policy = DEFAULT_POLICY) {
   if (QUESTION_TOOLS.includes(String(toolName ?? ""))) return "allow";
   const category = classifyToolCall(toolName, input, projectRoot);
   const ruled = matchRule(category, projectRoot, rules);
   if (ruled !== null) return ruled;
-  return DEFAULT_POLICY[category] === "allow" ? "allow" : "ask";
+  return policy[category] === "allow" ? "allow" : "ask";
 }
 
 // The tool names to pre-approve via the backend's allow-list (R-PERM8), DERIVED from the

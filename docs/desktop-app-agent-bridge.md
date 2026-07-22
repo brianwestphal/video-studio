@@ -132,7 +132,7 @@ flow (VS-84) — the one thing headless can't do.
 - **R-CB10** A backend's **question** affordance (Claude's `AskUserQuestion`, arriving
   through the same callback with a `questions[]` + `options` payload) is surfaced as a
   **native picker** and the answer fed back — "the agent is asking something" becomes a
-  friendly dialog, not terminal text.
+  friendly dialog, not terminal text. *(Built — VS-97, manual-test-plan §15.23.)*
 
 ## 8. Auth / credential handling
 

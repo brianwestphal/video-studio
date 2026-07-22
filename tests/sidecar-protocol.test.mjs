@@ -8,6 +8,9 @@ import {
   progressMessage,
   resultMessage,
   errorMessage,
+  interactionRequestMessage,
+  interactionResponseMessage,
+  validateInteractionResponse,
   validateRequest,
 } from "../desktop/sidecar/protocol.mjs";
 import {
@@ -55,6 +58,7 @@ import {
   matchRule,
   decide,
   deriveAllowedTools,
+  resolveToolInput,
 } from "../desktop/sidecar/permissions.mjs";
 import {
   emptyConfig,
@@ -128,6 +132,34 @@ describe("protocol — host→shell constructors", () => {
       id: "id2",
       error: { code: "step_failed", message: "boom" },
     });
+  });
+  it("interaction request/response messages", () => {
+    expect(interactionRequestMessage("p1", { kind: "permission" })).toEqual({
+      type: MESSAGE_TYPES.INTERACTION_REQUEST,
+      interactionId: "p1",
+      interaction: { kind: "permission" },
+    });
+    expect(interactionResponseMessage("p1", "allow-once")).toEqual({
+      type: MESSAGE_TYPES.INTERACTION_RESPONSE,
+      interactionId: "p1",
+      decision: "allow-once",
+    });
+    expect(interactionResponseMessage("q1", "completed", { answers: { A: "B" } })).toEqual({
+      type: MESSAGE_TYPES.INTERACTION_RESPONSE,
+      interactionId: "q1",
+      decision: "completed",
+      value: { answers: { A: "B" } },
+    });
+  });
+  it("validates interaction responses fail-closed", () => {
+    expect(validateInteractionResponse({ type: "interaction-response", interactionId: "p1", decision: "deny" })).toEqual({
+      interactionId: "p1",
+      decision: "deny",
+      value: undefined,
+    });
+    for (const bad of [null, [], {}, { type: "interaction-response", interactionId: "", decision: "deny" }, { type: "interaction-response", interactionId: 1, decision: "maybe" }]) {
+      expect(validateInteractionResponse(bad)).toBe(null);
+    }
   });
 });
 
@@ -1080,6 +1112,27 @@ describe("permissions — classifyToolCall", () => {
   });
 });
 
+describe("permissions — resolveToolInput", () => {
+  it("resolves SDK-relative read/write paths inside the project", () => {
+    expect(resolveToolInput("Read", { file_path: "sources.json" }, ROOT)).toEqual({ file_path: `${ROOT}/sources.json` });
+    expect(resolveToolInput("Grep", { path: "docs/../src" }, ROOT)).toEqual({ path: `${ROOT}/src` });
+    expect(resolveToolInput("NotebookEdit", { notebook_path: "notes/a.ipynb" }, ROOT)).toEqual({ notebook_path: `${ROOT}/notes/a.ipynb` });
+  });
+  it("preserves normalized absolute paths and exposes traversal outside the project", () => {
+    expect(resolveToolInput("Read", { file_path: "/tmp/../etc/passwd" }, ROOT)).toEqual({ file_path: "/etc/passwd" });
+    expect(resolveToolInput("Write", { file_path: "../outside" }, ROOT)).toEqual({ file_path: "/Users/x/outside" });
+  });
+  it("copies untouched inputs when there is no usable path field", () => {
+    const input = { command: "ls" };
+    const resolved = resolveToolInput("Bash", input, ROOT);
+    expect(resolved).toEqual(input);
+    expect(resolved).not.toBe(input);
+    expect(resolveToolInput("Read", null, ROOT)).toEqual({});
+    expect(resolveToolInput(null, { path: "a" }, ROOT)).toEqual({ path: `${ROOT}/a` });
+    expect(resolveToolInput("Read", { file_path: "" }, ROOT)).toEqual({ file_path: "" });
+  });
+});
+
 describe("permissions — matchRule (scope + precedence)", () => {
   const rule = (o) => ({ scope: "everywhere", decision: "allow", ...o });
   it("no rules / non-array → null", () => {
@@ -1122,6 +1175,9 @@ describe("permissions — decide (enforcement order)", () => {
     expect(decide("Bash", { command: "curl x" }, ROOT, rules)).toBe("allow");
     const deny = [{ category: CATEGORIES.MEDIA, scope: "everywhere", decision: "deny" }];
     expect(decide("analyze-scenes", {}, ROOT, deny)).toBe("deny");
+  });
+  it("honors an effective policy override", () => {
+    expect(decide("Read", { file_path: `${ROOT}/a` }, ROOT, [], { ...DEFAULT_POLICY, [CATEGORIES.READ]: "ask" })).toBe("ask");
   });
 });
 

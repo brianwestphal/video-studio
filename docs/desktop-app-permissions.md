@@ -16,16 +16,19 @@ Part of the desktop-app initiative — see the umbrella [`desktop-app.md`](deskt
 which routes non-pre-approved calls into the choke point this layer implements).
 Design rationale: [`investigations/ui-app.md`](investigations/ui-app.md) §10.
 
-Status: **Partial** — the **pure policy core is built** (`desktop/sidecar/permissions.mjs`,
+Status: **Shipped** — the **pure policy core is built** (`desktop/sidecar/permissions.mjs`,
 unit-tested to 100%): the category classifier (R-PERM1–3), the default policy (R-PERM4), the
 rule matcher with scope + precedence (R-PERM5/6), the `decide` enforcement order (R-PERM7/9),
 and `deriveAllowedTools` (R-PERM8). The **rule store** is built too — `desktop/sidecar/config.mjs`
 (R-PERM12): the tolerant parse + the add/revoke/reset-all/policy-toggle transforms (100% unit),
 persisted by the host's `config-*` steps under Application Support. The **Permissions screen** is
 built too (`desktop/ui`, R-PERM10/11): plain-language category toggles + a remembered-approvals
-list with per-rule revoke + reset-all, wired to the config steps. **Remaining:** wiring `decide`
-into the live `canUseTool` choke point (host I/O, lands with VS-91's live backend). Depends on
-VS-91. Wireframe screen 07.
+list with per-rule revoke + reset-all, wired to the config steps. The live Claude bridge now
+resolves relative SDK paths before classification, silently allows routine in-project work,
+and parks true `ask` decisions on a native app dialog offering **Allow once / Always allow
+this kind / Deny**. Always-allow persists a project-scoped category rule. The SDK's own
+sandbox auto-approval is disabled so every Bash call reaches this flow, with `PreToolUse` as
+a second explicit-deny enforcement point (VS-97). Wireframe screen 07.
 
 ## 1. Principle
 
@@ -85,11 +88,10 @@ category/pattern rules (not exact strings), stored in the app's own config.
 ## 5. Map down to the backend
 
 - **R-PERM7a** *(built — VS-97)* The choke point is enforced at **two points** for defense in
-  depth: the backend's `canUseTool` callback **and** a **`PreToolUse` hook**. The hook is
-  load-bearing because an agent SDK may **auto-approve its own sandboxed commands** (which
-  never reach `canUseTool`) — the hook fires for *every* tool call, so `decide` gates even
-  those. Adversarially verified: an agent-issued `curl`/egress command is blocked *before
-  execution* by our policy, not merely by the SDK's sandbox (manual-test-plan §15.16).
+  depth: the backend's `canUseTool` callback **and** a **`PreToolUse` hook**. SDK sandbox
+  auto-approval is explicitly disabled, so sandboxed Bash reaches `canUseTool` and can show
+  the app prompt; the hook independently blocks explicit policy denies before execution.
+  Adversarially verified with agent-issued egress (manual-test-plan §15.16).
 - **R-PERM8** The always-safe categories are **pre-approved via the backend's allow-list**
   (Claude's `allowedTools`; the equivalent for other backends) so they never hit the choke
   point; everything else flows through it, where this layer runs R-PERM7. Because
