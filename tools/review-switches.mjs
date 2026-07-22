@@ -96,8 +96,7 @@ function serveRange(req, res, path) {
   }
 }
 
-function page(groupId, count, canRepropose) {
-  const reBtn = canRepropose ? '<button id="repropose" title="Re-flow the un-locked cuts around your picks">Re-propose downstream</button> &nbsp;' : "";
+function page(groupId, _count, _canRepropose) {
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Review cuts — ${groupId}</title>
 <style>
   :root { color-scheme: dark; }
@@ -162,12 +161,8 @@ function page(groupId, count, canRepropose) {
   #status { color: #9aa0ad; font-size: 13px; }
   pre { background: #0c0e14; border: 1px solid #2c3040; border-radius: 8px; padding: 12px; overflow: auto; font-size: 12px; white-space: pre-wrap; }
 </style></head><body>
-<div id="top">
-<header><div><h1>Review <span id="count">${count}</span> cut(s) — ${groupId}</h1><div class="legend">On the scrubber, the <span class="swatch"></span> band is the shot this cut introduces; the clip ends are ±context lead-in/out.</div></div><div><button id="tltoggle">▸ Timeline</button> &nbsp; <span id="status"></span> &nbsp; ${reBtn}<button id="save">Save picks</button></div></header>
-<div id="tldrawer"><div id="tlbody"></div></div>
-</div>
-<main id="root">Loading…</main>
-<script>
+<div id="review-app">Loading…</div>
+<script type="text/plain" id="legacy-review-client">
 const fmt = (s) => Math.floor(s/60)+":"+String(Math.floor(s%60)).padStart(2,"0");
 const fmt1 = (s) => Math.floor(s/60)+":"+(s%60).toFixed(1).padStart(4,"0"); // m:ss.d
 let SEGS = [];
@@ -387,7 +382,7 @@ document.getElementById("save").onclick = async () => {
   document.getElementById("root").prepend(pre);
   document.getElementById("save").disabled = false;
 };
-</script></body></html>`;
+</script><script src="review-entry.js"></script></body></html>`;
 }
 
 function main() {
@@ -446,6 +441,11 @@ function main() {
   const server = createServer(async (req, res) => {
     const url = (req.url || "/").split("?")[0];
     if (url === "/") { res.setHeader("content-type", "text/html"); res.end(page(group.id, segments.length, canRepropose)); return; }
+    if (url === "/review-entry.js") {
+      res.setHeader("content-type", "text/javascript");
+      res.end(readFileSync(new URL("../dist/ui/review-entry.js", import.meta.url)));
+      return;
+    }
     if (url === "/data") { res.setHeader("content-type", "application/json"); res.end(JSON.stringify({ groupId: group.id, canRepropose, segments })); return; }
     if (url.startsWith("/clip/")) {
       const clip = join(tmp, basename(decodeURIComponent(url.slice("/clip/".length))));

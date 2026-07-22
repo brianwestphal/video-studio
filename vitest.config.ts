@@ -46,6 +46,7 @@ export default defineConfig({
         "desktop/sidecar/ollama-backend.mjs",
         "desktop/sidecar/codex-backend.mjs",
         "ui/foundation.tsx",
+        "ui/review-components.tsx",
       ],
       thresholds: {
         lines: 100,

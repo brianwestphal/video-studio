@@ -162,3 +162,13 @@ preview extraction — is out of automated scope and lives in
   `--audio-events` + `--saliency` are supplied): it re-runs `autoCut` with the user's
   confirmed picks as locks so the still-auto cuts re-flow, previewing in the page;
   nothing is written until Save (manual-test-plan §13.7–13.8).
+
+### Kerfjs client migration (VS-120)
+
+The browser client is a typed kerfjs bundle (`ui/review-entry.tsx` and
+`ui/review-components.tsx`) served by the existing local HTTP server. Reactive header and
+segment state use one mount; dynamic segments/candidates carry stable keys and review
+actions delegate from the stable app root. Candidate and assembled-player video nodes live
+inside explicit preserved ownership boundaries so synchronized playback, seek state, and
+fullscreen survive reactive updates. Server endpoints and persisted file formats are
+unchanged.

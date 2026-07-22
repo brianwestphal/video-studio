@@ -7,8 +7,8 @@ keyed reconciliation, and delegated events.
 
 Status: **Foundation shipped; migrations planned.** Kerfjs, its ESLint plugin, browser TSX
 typechecking/bundling, shared UI utilities, and a component-test seam ship in VS-121. The
-current desktop webview and multi-camera review page predate this requirement and remain
-tracked as explicit migration follow-ups.
+desktop webview predates this requirement and remains VS-119; the multi-camera review page
+is migrated in VS-120.
 
 ## 1. Scope
 
