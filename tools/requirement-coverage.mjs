@@ -47,12 +47,12 @@ export function extractRequirementIds(markdown) {
 export const REQUIREMENT_COVERAGE = {
   // Kerfjs UI standard (docs/kerfjs-ui.md, VS-115); migrations are tracked by follow-ups.
   "R-KERF1": { status: "deferred", note: "desktop + review UI migration planned after VS-115" },
-  "R-KERF2": { status: "deferred", note: "shared TypeScript/TSX kerf build foundation planned after VS-115" },
+  "R-KERF2": { status: "unit", tests: ["ui-foundation.test.tsx"], note: "tsconfig.ui.json + esbuild kerf TSX entries + shared UiRoot rendering/escaping test (VS-121)" },
   "R-KERF3": { status: "deferred", note: "kerf signals/mounts/stores migration planned after VS-115" },
   "R-KERF4": { status: "deferred", note: "stable keyed dynamic lists planned with UI migrations" },
   "R-KERF5": { status: "deferred", note: "delegated event migration + disposer enforcement planned after VS-115" },
   "R-KERF6": { status: "deferred", note: "dynamic innerHTML/string markup removal planned with UI migrations" },
-  "R-KERF7": { status: "deferred", note: "kerfjs dependency + eslint-plugin-kerfjs foundation planned after VS-115" },
+  "R-KERF7": { status: "gate", note: "direct kerfjs dependency + eslint-plugin-kerfjs recommended config; npm run check runs lint/typecheck/build:ui (VS-121)" },
   "R-KERF8": { status: "deferred", note: "component/store tests + UI automation planned with migrations" },
   // Captions/subtitles (docs/captions.md, VS-111) are designed and tracked by follow-ups.
   "R-CAP1": { status: "deferred", note: "timed-text model + SRT/WebVTT/TTML parsers planned after VS-111" },

@@ -3,7 +3,7 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   test: {
     environment: "node",
-    include: ["tests/**/*.test.ts", "tests/**/*.test.mjs"],
+    include: ["tests/**/*.test.ts", "tests/**/*.test.tsx", "tests/**/*.test.mjs"],
     exclude: ["node_modules/**", "dist/**"],
     coverage: {
       provider: "v8",
@@ -45,6 +45,7 @@ export default defineConfig({
         "desktop/sidecar/cut-edit.mjs",
         "desktop/sidecar/ollama-backend.mjs",
         "desktop/sidecar/codex-backend.mjs",
+        "ui/foundation.tsx",
       ],
       thresholds: {
         lines: 100,

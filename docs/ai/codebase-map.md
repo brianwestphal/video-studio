@@ -25,6 +25,7 @@ and [`requirements-summary.md`](requirements-summary.md) for status.
 │   ├── ffmpeg.ts               # ffprobe/ffmpeg wrappers: probe, scene-detect, frame-extract (I/O, manual-tested)
 │   ├── ollama.ts               # analyzeFrame — Ollama vision call (I/O, manual-tested)
 │   └── scene-math.ts           # pure fps/timecode/scene-merge math (unit-tested)
+├── ui/                         # shared kerfjs TSX foundation + desktop/review bundle entry points (VS-121)
 ├── tools/
 │   ├── render-caption.mjs      # caption/CTA → animated SVG (Chromium pipeline)
 │   ├── caption-format.mjs      # pure arg-parse + SVG/HTML assembly (unit-tested)
@@ -137,6 +138,8 @@ and [`requirements-summary.md`](requirements-summary.md) for status.
 ├── eslint.config.mjs           # flat ESLint config (TS + Node-ESM passes)
 ├── vitest.config.ts            # unit tests + 100% coverage on the pure modules
 ├── tsconfig.json               # NodeNext, strict; rootDir src/ → outDir dist/
+├── tsconfig.ui.json            # browser TSX typecheck (jsxImportSource: kerfjs)
+├── .claude/skills/kerf-app/    # kerfjs-authored AI implementation guidance
 ├── CHANGELOG.md · LICENSE · README.md
 └── CLAUDE.md                   # project instructions for AI assistants
 ```

@@ -5,8 +5,10 @@ reactivity runtime. This keeps the project framework-light while replacing hand-
 whole-container `innerHTML` updates, and per-render event rebinding with typed JSX, signals,
 keyed reconciliation, and delegated events.
 
-Status: **Required; migration planned.** The current desktop webview and multi-camera review
-page predate this requirement and are tracked as explicit migration follow-ups.
+Status: **Foundation shipped; migrations planned.** Kerfjs, its ESLint plugin, browser TSX
+typechecking/bundling, shared UI utilities, and a component-test seam ship in VS-121. The
+current desktop webview and multi-camera review page predate this requirement and remain
+tracked as explicit migration follow-ups.
 
 ## 1. Scope
 
@@ -14,7 +16,7 @@ page predate this requirement and are tracked as explicit migration follow-ups.
   `desktop/ui` and the multi-camera review UI served by `tools/review-switches.mjs`. New UI
   surfaces must start on kerfjs. Static documentation wireframes, generated SVG/video
   overlays, and CLI text output are not application UIs and are out of scope.
-- **R-KERF2** UI source uses TypeScript/TSX with `jsxImportSource: "kerfjs"`. Components
+- **R-KERF2** *(foundation built — VS-121)* UI source uses TypeScript/TSX with `jsxImportSource: "kerfjs"`. Components
   return kerfjs `SafeHtml`/JSX; string children remain auto-escaped. Pre-escaped content may
   enter through `raw()` only at a documented trust boundary.
 
@@ -36,7 +38,7 @@ page predate this requirement and are tracked as explicit migration follow-ups.
 
 ## 3. Tooling and verification
 
-- **R-KERF7** `kerfjs` is a direct runtime dependency and `eslint-plugin-kerfjs` is enabled
+- **R-KERF7** *(built — VS-121)* `kerfjs` is a direct runtime dependency and `eslint-plugin-kerfjs` is enabled
   for UI source. The recommended rules enforce delegated-event disposal, keyed iteration,
   no nested mounts, no inline JSX event closures, and module-level JSX augmentation as
   supported by the installed version.

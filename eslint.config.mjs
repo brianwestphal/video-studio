@@ -4,6 +4,7 @@
 import js from "@eslint/js";
 import tsParser from "@typescript-eslint/parser";
 import tsPlugin from "@typescript-eslint/eslint-plugin";
+import kerfPlugin from "eslint-plugin-kerfjs";
 import simpleImportSort from "eslint-plugin-simple-import-sort";
 import globals from "globals";
 
@@ -40,6 +41,27 @@ export default [
       "simple-import-sort": simpleImportSort,
     },
     rules: tsRules,
+  },
+
+  // Browser TSX shared by the desktop and review bundles. Kerf's recommended
+  // rules enforce keyed lists, stable/delegated events, and safe JSX boundaries.
+  {
+    files: ["ui/**/*.ts", "ui/**/*.tsx", "tests/ui-foundation.test.tsx"],
+    languageOptions: {
+      parser: tsParser,
+      parserOptions: {
+        ecmaVersion: "latest",
+        sourceType: "module",
+        project: "./tsconfig.ui.json",
+      },
+      globals: { ...globals.browser, ...globals.node },
+    },
+    plugins: {
+      "@typescript-eslint": tsPlugin,
+      "simple-import-sort": simpleImportSort,
+      kerfjs: kerfPlugin,
+    },
+    rules: { ...tsRules, ...kerfPlugin.configs.recommended.rules },
   },
 
   // TypeScript tests — same TS rules but no `project` (tests live outside the

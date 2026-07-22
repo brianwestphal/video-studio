@@ -17,9 +17,9 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const readJson = (rel: string) => JSON.parse(readFileSync(join(ROOT, rel), "utf8"));
 
 describe("dependency allow-list", () => {
-  it("ships exactly the three runtime dependencies", () => {
+  it("ships exactly the approved runtime dependencies", () => {
     const pkg = readJson("package.json");
-    expect(Object.keys(pkg.dependencies).sort()).toEqual(["domotion-svg", "fluent-ffmpeg", "ollama"]);
+    expect(Object.keys(pkg.dependencies).sort()).toEqual(["domotion-svg", "fluent-ffmpeg", "kerfjs", "ollama"]);
   });
 });
 

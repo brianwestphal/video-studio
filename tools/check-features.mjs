@@ -57,7 +57,11 @@ export function collectDefinedRequirements(docsDir = DOCS_DIR) {
 }
 
 function existingTestBasenames(testsDir = TESTS_DIR) {
-  return new Set(readdirSync(testsDir).filter((f) => f.endsWith(".test.ts") || f.endsWith(".test.mjs")));
+  return new Set(
+    readdirSync(testsDir).filter(
+      (f) => f.endsWith(".test.ts") || f.endsWith(".test.tsx") || f.endsWith(".test.mjs"),
+    ),
+  );
 }
 
 export function runCheck() {
