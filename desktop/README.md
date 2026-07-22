@@ -1,7 +1,7 @@
 # desktop/ — video-studio desktop app (VS-76)
 
 The native app front door over the existing pipeline — a **Tauri shell → long-lived Node
-sidecar → vanilla webview** (the `~/Documents/glassbox` pattern), living in a subdirectory
+sidecar → Kerf webview** (the `~/Documents/glassbox` pattern), living in a subdirectory
 of this repo so it reuses `tools/*.mjs`, `review-switches`, and `dist/analyzer.js` directly
 without publishing.
 
@@ -28,9 +28,11 @@ Concept + roadmap: [`../docs/investigations/ui-app.md`](../docs/investigations/u
   each stdout line to the webview as a `sidecar` event, and exposes the `sidecar_send`
   (write a request to the host's stdin) + `open_video` (native file dialog) commands. The
   host script path resolves from `CARGO_MANIFEST_DIR` (bundled-resource packaging = VS-89).
-- **`ui/`** — the vanilla webview frontend (`frontendDist`): the left **stage rail**
+- **`ui/`** — the generated Kerf webview frontend (`frontendDist`; typed source in
+  `../ui/desktop-app.tsx`): the left **stage rail**
   (R-APP5/6), the **Setup/doctor** screen, and the **Analyze** screen (open a video → run
-  `analyze-scenes` with live streamed progress). No framework, no build step.
+  `analyze-scenes` with live streamed progress). `npm run build:desktop-ui` regenerates
+  `ui/app.js` from the repository-level typed TSX source.
 
 ## Running (dev)
 

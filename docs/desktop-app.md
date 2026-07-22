@@ -12,12 +12,11 @@ Design background + the phased roadmap live in
 [`investigations/ui-app.md`](investigations/ui-app.md); the seven-screen visual deck is
 [`investigations/ui-app-wireframe.html`](investigations/ui-app-wireframe.html) (VS-78).
 
-Status: **Partial** — the **native Tauri shell is scaffolded** (VS-79/VS-90): `desktop/src-tauri`
-(Rust) spawns the Node sidecar and streams its events to a vanilla webview (`desktop/ui`) with
-the stage rail (R-APP5/6), a Setup/doctor screen (R-APP16/17), and an Analyze screen that runs
-`analyze-scenes` with live streamed progress. The sidecar protocol/steps/doctor cores
-(`desktop/sidecar/*.mjs`, R-APP12/13/16/17) are unit-tested to 100%. **Remaining:** the persisted
-project model (R-APP8–10), the New Project / Design / Export screens, and packaging.
+Status: **Implemented, packaging remains.** The native Tauri shell (VS-79/VS-90) streams
+sidecar events to a typed Kerf webview (`ui/desktop-app.tsx`, migrated in VS-119). The five
+stages, recent projects, interactions, permissions, inline review, and exports are wired to
+the existing sidecar protocol and their primary flow runs in Chromium. Native distribution
+packaging remains separate work.
 Run the app with `npm run desktop:dev`.
 
 ## 1. Concept
@@ -37,7 +36,7 @@ with no agent at all.
 
 ## 2. Architecture
 
-- **R-APP1** The app is a **Tauri** shell (Rust window) with a **vanilla HTML/JS/TS
+- **R-APP1** The app is a **Tauri** shell (Rust window) with a typed **kerfjs TSX
   webview frontend** — no React/Svelte — matching the maintainer's existing
   `~/Documents/hotsheet` + `~/Documents/glassbox` pattern. The heavy engine (ffmpeg /
   whisper / ollama / an AI agent) stays **external** to the webview.

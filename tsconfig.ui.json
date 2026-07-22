@@ -14,5 +14,5 @@
     "noEmit": true,
     "skipLibCheck": true
   },
-  "include": ["ui/**/*.ts", "ui/**/*.tsx", "tests/ui-foundation.test.tsx"]
+  "include": ["ui/**/*.ts", "ui/**/*.tsx", "tests/**/*.test.tsx"]
 }

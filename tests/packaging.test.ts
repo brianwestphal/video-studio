@@ -84,3 +84,17 @@ describe("kerf review client packaging", () => {
     expect(pkg.scripts["build:ui"]).toContain("ui/review-entry.tsx");
   });
 });
+
+describe("kerf desktop client packaging", () => {
+  const desktopHtml = readFileSync(join(ROOT, "desktop/ui/index.html"), "utf8");
+  const desktopSource = readFileSync(join(ROOT, "ui/desktop-app.tsx"), "utf8");
+
+  it("ships the generated Kerf bundle without the vanilla DOM renderer", () => {
+    expect(desktopHtml).toContain('<div id="app">Loading…</div>');
+    expect(desktopHtml).toContain('<script src="app.js"></script>');
+    expect(desktopHtml).not.toContain("rail-stages");
+    expect(desktopSource).not.toContain("innerHTML");
+    expect(pkg.scripts["build:desktop-ui"]).toContain("ui/desktop-entry.tsx");
+    expect(pkg.scripts["build:desktop-ui"]).toContain("desktop/ui/app.js");
+  });
+});

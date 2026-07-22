@@ -309,6 +309,11 @@ Launch with `npm run desktop:dev` (= `cargo run --manifest-path desktop/src-taur
 
 Covered by unit tests (do **not** re-test by hand):
 
+- **Desktop and review browser flows** — `tests/browser/desktop-flow.spec.mjs` mocks the
+  Tauri bridge and covers stage navigation, doctor/project/design/export/review requests,
+  permissions, and interaction responses; `review-flow.spec.mjs` covers the multi-camera
+  client. Both Chromium flows run in `npm run check` after the production UI build.
+
 - **`desktop/sidecar/protocol.mjs`** — NDJSON framing (`frameMessage`/`parseFrames`),
   `validateRequest`, and the host→shell message constructors
   (`tests/sidecar-protocol.test.mjs`). 100% coverage. Only the `host.mjs` stdio/spawn edge

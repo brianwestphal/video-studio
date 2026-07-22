@@ -69,7 +69,7 @@ and [`requirements-summary.md`](requirements-summary.md) for status.
 │   │   └── host.mjs            # I/O edge: stdin loop → spawn tool / `which` probes / project readdir → stream progress → result/error (manual, test-plan §14)
 │   ├── src-tauri/              # native Rust shell: lib.rs spawns host.mjs, streams stdout as `sidecar` events, sidecar_send + open_video commands
 │   │   ├── src/{main,lib}.rs   #   (Cargo.toml, build.rs, tauri.conf.json, capabilities/default.json, icons/)
-│   └── ui/                     # vanilla webview frontend (frontendDist): index.html + app.js + styles.css — stage rail + Setup/New Project (recent projects)/Analyze/Design (optional timeline iframe)/Export + Permissions screens (R-APP5/6/9, R-IM6, R-DS, R-RV, R-EX, R-PERM10/11)
+│   └── ui/                     # Tauri frontendDist: minimal index.html, generated Kerf app.js, styles.css — typed source lives in ui/desktop-app.tsx
 ├── skills/
 │   └── video-studio/SKILL.md   # the pipeline Claude follows — primary interface
 ├── tests/
