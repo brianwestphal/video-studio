@@ -129,6 +129,7 @@ Larger features have their own source-of-truth docs (kept in sync the same way):
 - **Feature / requirement coverage** — [`feature-coverage.md`](feature-coverage.md) *(shipped, R7.5; the second coverage axis + `check:features`)*
 - **Editor handoff** — [`editor-handoff.md`](editor-handoff.md) *(shipped)*
 - **Captions and subtitles** — [`captions.md`](captions.md) *(design complete; R-CAP1–R-CAP12, VS-111)*
+- **UI implementation standard** — [`kerfjs-ui.md`](kerfjs-ui.md) *(kerfjs required for every interactive UI; R-KERF1–R-KERF8, VS-115)*
 - **Multiple sources** — [`multiple-sources.md`](multiple-sources.md) *(shipped)*
 - **Multi-cam editing** — [`multicam.md`](multicam.md) + [`multicam-sync.md`](multicam-sync.md) *(shipped; FCP import validated, VS-36)*
 - **FCP-incompatible source audio detection** — [`fcp-audio-compat.md`](fcp-audio-compat.md) *(shipped, VS-40; warn-only, R-FA)*

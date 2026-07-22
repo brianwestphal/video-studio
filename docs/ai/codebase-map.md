@@ -101,6 +101,7 @@ and [`requirements-summary.md`](requirements-summary.md) for status.
 │   ├── feature-coverage.md     # the second coverage axis: requirement index + manifest + check:features (R7.5/R-EC, VS-58)
 │   ├── editor-handoff.md       # export segments + overlays + manifest + FCPXML (shipped, VS-24/25)
 │   ├── captions.md            # timed captions: SRT/WebVTT/TTML, embedded tracks, burn-in styling (design, VS-111)
+│   ├── kerfjs-ui.md           # kerfjs standard + migration boundaries for every interactive UI (R-KERF, VS-115)
 │   ├── multiple-sources.md     # draw from many files/folders (shipped, VS-26)
 │   ├── transitions.md          # FCP transition suggestions in the FCPXML — shipped VS-28/50 (full palette + handles)
 │   ├── render-transitions.md   # bake transitions into the video, no FCP — windowed re-encode + native Tier A/B/C (R-RT, VS-54/55)

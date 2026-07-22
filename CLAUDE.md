@@ -64,3 +64,17 @@ All docs live under **`docs/`** (kebab-case filenames). Layout:
 When you add/remove a public behavior, a CLI flag, a file, or change the analyzer's state/timeline shape, update `docs/requirements.md` **and** both AI summaries in the same change. The `check-requirements-against-code` skill audits this.
 <!-- hotsheet:end specifics=requirements-documentation -->
 <!-- hotsheet:end section=requirements-documentation -->
+
+## UI implementation standard
+
+All shipped interactive UIs use **kerfjs** with TypeScript/TSX. Follow
+`docs/kerfjs-ui.md`: use kerf rendering/reactivity and delegated events, stable keys for
+dynamic lists, and documented escape hatches for media/library-owned DOM. Do not add new
+manual dynamic `innerHTML`, HTML-string concatenation, or per-render listener rebinding.
+
+## Git workflow
+
+- During Hot Sheet work, commit completed work automatically after each ticket or cohesive
+  batch once `npm run check` passes. Use a message that names the relevant ticket IDs.
+- Do not push unless the maintainer explicitly asks. Preserve unrelated user changes and do
+  not commit incomplete ticket work unless it is intentionally handed off as such.
