@@ -77,9 +77,10 @@ describe("shipped example scripts are syntactically valid", () => {
 describe("kerf review client packaging", () => {
   const serverSource = readFileSync(join(ROOT, "tools/review-switches.mjs"), "utf8");
 
-  it("serves the compiled kerf bundle and keeps the legacy client inert", () => {
+  it("serves only the compiled kerf bundle", () => {
     expect(serverSource).toContain('<script src="review-entry.js"></script>');
-    expect(serverSource).toContain('<script type="text/plain" id="legacy-review-client">');
+    expect(serverSource).not.toContain("legacy-review-client");
+    expect(serverSource).not.toContain("function buildSeg(");
     expect(pkg.scripts["build:ui"]).toContain("ui/review-entry.tsx");
   });
 });

@@ -76,6 +76,12 @@ function CandidateCard({ segment, candidate }: { segment: ReviewSegment; candida
 export function SegmentCard(segment: ReviewSegment): SafeHtml {
   const bandStart = sectionPercent(segment, segment.atSeconds);
   const bandEnd = sectionPercent(segment, segment.endSeconds);
+  const candidateCards = each(
+    segment.candidates,
+    // eslint-disable-next-line kerfjs/require-data-key-in-each -- CandidateCard's root carries the candidate key.
+    (candidate) => <CandidateCard segment={segment} candidate={candidate} />,
+    (candidate) => `${candidate.id}:${segment.pick}`,
+  );
   return <section class="seg" data-key={segment.index} data-segment={segment.index}>
     <h2>Cut at {fmt(segment.atSeconds)} — auto picked <code>{segment.chosen}</code>{segment.forced ? <em> (added for review)</em> : ""}</h2>
     <p class="why">{segment.why || ""} · confidence <code>{segment.confidence ?? "?"}</code> · section <code>{fmt1(segment.atSeconds)}–{fmt1(segment.endSeconds)}</code></p>
@@ -89,9 +95,7 @@ export function SegmentCard(segment: ReviewSegment): SafeHtml {
       </div>
       <span class="time">0:00 / 0:00</span>
     </div>
-    <div class="cands">{/* eslint-disable-next-line kerfjs/require-data-key-in-each -- CandidateCard's root carries the candidate key. */}
-      {each(segment.candidates, (candidate) => <CandidateCard segment={segment} candidate={candidate} />)}
-    </div>
+    <div class="cands">{candidateCards}</div>
     <input class="note" {...REVIEW_ACTIONS.note.attrs} value={segment.note} placeholder="note (optional) — why this angle?" />
   </section>;
 }

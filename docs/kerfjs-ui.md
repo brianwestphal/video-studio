@@ -5,10 +5,10 @@ reactivity runtime. This keeps the project framework-light while replacing hand-
 whole-container `innerHTML` updates, and per-render event rebinding with typed JSX, signals,
 keyed reconciliation, and delegated events.
 
-Status: **Foundation shipped; migrations planned.** Kerfjs, its ESLint plugin, browser TSX
+Status: **Foundation and review migration shipped; desktop migration planned.** Kerfjs, its ESLint plugin, browser TSX
 typechecking/bundling, shared UI utilities, and a component-test seam ship in VS-121. The
 desktop webview predates this requirement and remains VS-119; the multi-camera review page
-is migrated in VS-120.
+is migrated in VS-120 and its primary browser flow is automated in VS-122.
 
 ## 1. Scope
 

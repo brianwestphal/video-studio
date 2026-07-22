@@ -56,7 +56,8 @@
     "test": "vitest run --coverage",
     "test:watch": "vitest",
     "check:features": "node tools/check-features.mjs",
-    "check": "npm run lint && npm run typecheck && npm test && npm run check:features && npm run build",
+    "test:browser": "playwright test --config=playwright.review.config.mjs",
+    "check": "npm run lint && npm run typecheck && npm test && npm run check:features && npm run build && npm run test:browser",
     "studio": "node bin/video-studio.mjs",
     "doctor": "node bin/video-studio.mjs --check",
     "desktop:dev": "cargo run --manifest-path desktop/src-tauri/Cargo.toml",
@@ -76,6 +77,7 @@
   "devDependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.3.199",
     "@eslint/js": "^9.16.0",
+    "@playwright/test": "^1.61.1",
     "@types/fluent-ffmpeg": "^2.1.28",
     "@types/node": "^25.9.2",
     "@typescript-eslint/eslint-plugin": "^8.18.0",

@@ -53,7 +53,7 @@ export const REQUIREMENT_COVERAGE = {
   "R-KERF5": { status: "manual", note: "review actions delegate from stable app root; playback listeners stay inside preserved media boundary (VS-120, manual §13.22)" },
   "R-KERF6": { status: "unit", tests: ["review-components.test.tsx"], note: "review dynamic markup is escaped kerf TSX; preserved timeline uses toElement for structural markup (VS-120)" },
   "R-KERF7": { status: "gate", note: "direct kerfjs dependency + eslint-plugin-kerfjs recommended config; npm run check runs lint/typecheck/build:ui (VS-121)" },
-  "R-KERF8": { status: "deferred", note: "component/store tests + UI automation planned with migrations" },
+  "R-KERF8": { status: "deferred", note: "review component tests + Chromium flow ship in VS-120/VS-122; desktop component/automation coverage remains VS-119" },
   // Captions/subtitles (docs/captions.md, VS-111) are designed and tracked by follow-ups.
   "R-CAP1": { status: "deferred", note: "timed-text model + SRT/WebVTT/TTML parsers planned after VS-111" },
   "R-CAP2": { status: "deferred", note: "desktop Whisper generation/import UI planned after VS-111" },

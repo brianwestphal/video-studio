@@ -172,3 +172,7 @@ actions delegate from the stable app root. Candidate and assembled-player video 
 inside explicit preserved ownership boundaries so synchronized playback, seek state, and
 fullscreen survive reactive updates. Server endpoints and persisted file formats are
 unchanged.
+
+The previous inline browser implementation was removed in VS-122. `npm run test:browser`
+launches the built client in Chromium against a controlled local HTTP fixture and exercises
+pick/note/save, synchronized play/seek, timeline split/add, and re-propose behavior.

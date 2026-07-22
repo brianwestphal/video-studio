@@ -8,6 +8,8 @@ dist/
 
 # Test coverage
 coverage/
+playwright-report/
+test-results/
 
 # Release script resume state
 .release-state.json
