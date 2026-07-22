@@ -40,6 +40,7 @@ export default defineConfig({
         "desktop/sidecar/permissions.mjs",
         "desktop/sidecar/config.mjs",
         "desktop/sidecar/cutspec.mjs",
+        "desktop/sidecar/export-preview.mjs",
         "desktop/sidecar/mutation-queue.mjs",
         "desktop/sidecar/import-shape.mjs",
         "desktop/sidecar/cut-edit.mjs",

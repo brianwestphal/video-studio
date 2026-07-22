@@ -39,6 +39,7 @@ import {
   analyzeProjectCommand,
 } from "./steps.mjs";
 import { proposeCutSpec, flatRenderCommand, cutPlanToCutSpec } from "./cutspec.mjs";
+import { buildPostEditAudioMap } from "./export-preview.mjs";
 import { DOCTOR_TOOLS, doctorResultFromChecks } from "./doctor.mjs";
 import {
   PROJECT_STATE_DIR,
@@ -307,13 +308,13 @@ function runExport(id, kind, folder) {
   let command;
   try {
     const hasSwitches = fs.existsSync(path.join(folder, "switches.json"));
-    command = exportCommand(kind, folder, { hasSwitches });
+    command = exportCommand(kind, folder, { hasSwitches, ...(kind === "preview" ? { crf: 32 } : {}) });
     fs.mkdirSync(path.dirname(command.outPath), { recursive: true });
   } catch (err) {
     send(errorMessage(id, ERROR_CODES.STEP_FAILED, `export setup failed: ${err.message}`));
     return;
   }
-  runToolCommand(id, command, { kind, outPath: command.outPath });
+  runToolCommand(id, command, { kind, outPath: command.outPath, ...(kind === "preview" ? { audioMap: readPostEditAudioMap(folder) } : {}) });
 }
 
 // Single-source export (VS-99): mp4 / 9:16 are a flat ffmpeg render of the cut spec; fcpxml
@@ -333,17 +334,26 @@ function runExportSingle(id, kind, folder) {
   let render;
   try {
     const cut = JSON.parse(fs.readFileSync(path.join(folder, "cut.json"), "utf8"));
-    const dims = kind === "social" ? { width: 1080, height: 1920 } : {};
-    const outName = kind === "social" ? "cut.9x16.mp4" : "cut.mp4";
+    const dims = kind === "social" ? { width: 1080, height: 1920 } : kind === "preview" ? { width: 640, height: 360 } : {};
+    const outName = kind === "social" ? "cut.9x16.mp4" : kind === "preview" ? ".preview.mp4" : "cut.mp4";
     render = flatRenderCommand(cut, path.join(exportsDir, outName), dims);
   } catch (err) {
     send(errorMessage(id, ERROR_CODES.STEP_FAILED, `export failed: ${err.message}`));
     return;
   }
-  runToolCommand(id, { bin: "ffmpeg", args: render.args }, { kind, outPath: render.outPath });
+  runToolCommand(id, { bin: "ffmpeg", args: render.args }, { kind, outPath: render.outPath, ...(kind === "preview" ? { audioMap: readPostEditAudioMap(folder) } : {}) });
 }
 
-const EXPORT_STEPS = { "export-mp4": "mp4", "export-social": "social", "export-fcpxml": "fcpxml" };
+function readPostEditAudioMap(folder) {
+  try {
+    const audioEvents = JSON.parse(fs.readFileSync(path.join(folder, "audio-events.json"), "utf8"));
+    let cutSpec = null;
+    try { cutSpec = JSON.parse(fs.readFileSync(path.join(folder, "cut.json"), "utf8")); } catch { /* multi-camera keeps group time */ }
+    return buildPostEditAudioMap(audioEvents, cutSpec);
+  } catch { return []; }
+}
+
+const EXPORT_STEPS = { "export-preview": "preview", "export-mp4": "mp4", "export-social": "social", "export-fcpxml": "fcpxml" };
 
 // Stream a one-shot tool command (like export/propose): spawn, forward output as progress,
 // return { ...extra, ok } on success. Shared by the export + design-cut steps.

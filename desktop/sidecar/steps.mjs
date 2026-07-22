@@ -164,6 +164,7 @@ export function genericProgress(line) {
 // `<multicam.json> --width --height [--switches] --out` shape. `render-preview` renders an
 // mp4 (heavy, ffmpeg); `fcpxml` writes a re-cuttable FCP handoff (fast).
 export const EXPORT_KINDS = Object.freeze({
+  preview: { tool: "render-preview", width: 640, height: 360, outName: ".preview.mp4" },
   mp4: { tool: "render-preview", width: 1280, height: 720, outName: "cut.mp4" },
   social: { tool: "render-preview", width: 1080, height: 1920, outName: "cut.9x16.mp4" },
   fcpxml: { tool: "fcpxml", width: 1280, height: 720, outName: "cut.fcpxml" },

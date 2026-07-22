@@ -2160,9 +2160,27 @@ ${schema}
       reviewUrl.value ? /* @__PURE__ */ jsx("iframe", { class: "review-frame", "data-morph-skip": "", src: reviewUrl.value, title: "Review UI" }) : ""
     ] });
   }
+  function fmtTime(seconds) {
+    return `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, "0")}`;
+  }
+  function ExportPreview() {
+    const cues = each(audioMap.value, (cue, index) => /* @__PURE__ */ jsx("li", { "data-key": `${cue.startSeconds}-${cue.kind}-${index}`, children: /* @__PURE__ */ jsx("button", { "data-seconds": cue.startSeconds, ...ACTIONS.previewCue.attrs, children: [
+      /* @__PURE__ */ jsx("time", { children: fmtTime(cue.startSeconds) }),
+      /* @__PURE__ */ jsx("span", { class: `audio-kind ${cue.kind}`, children: cue.kind }),
+      /* @__PURE__ */ jsx("span", { children: cue.text })
+    ] }) }));
+    return /* @__PURE__ */ jsx("div", { class: "export-preview", children: [
+      /* @__PURE__ */ jsx("h2", { children: "Cut preview" }),
+      previewUrl.value ? /* @__PURE__ */ jsx("video", { id: "export-preview-video", "data-morph-skip": "", src: previewUrl.value, controls: true, preload: "metadata" }) : /* @__PURE__ */ jsx("div", { class: "preview-status", children: previewStatus.value || "Preparing a lightweight preview\u2026" }),
+      previewStatus.value && !previewUrl.value ? /* @__PURE__ */ jsx("button", { class: "btn small", ...ACTIONS.retryPreview.attrs, children: "Retry preview" }) : "",
+      /* @__PURE__ */ jsx("h3", { children: "Post-edit audio map" }),
+      audioMap.value.length ? /* @__PURE__ */ jsx("ol", { class: "preview-transcript", children: cues }) : /* @__PURE__ */ jsx("p", { class: "sub", children: "No speech/audio analysis is available for this cut yet." })
+    ] });
+  }
   function ExportScreen() {
     return /* @__PURE__ */ jsx("section", { class: "screen", "data-screen": "export", hidden: screen.value !== "export", children: [
       /* @__PURE__ */ jsx(Header, { title: "Export", sub: "Turn your designed cut into a finished file. Open a project first." }),
+      /* @__PURE__ */ jsx(ExportPreview, {}),
       /* @__PURE__ */ jsx("div", { class: "export-cards", children: each(EXPORTS.map((item) => ({ ...item })), (item) => {
         const state = exportsState.value[item.kind] ?? { status: "ready", running: false };
         return /* @__PURE__ */ jsx("div", { class: "export-card", "data-key": item.kind, "data-kind": item.kind, children: [
@@ -2297,8 +2315,13 @@ ${schema}
     } });
   }
   function goto(key) {
+    const previous = screen.value;
     screen.value = key;
     if (key === "permissions") loadConfig();
+    if (key === "export" && previous !== "export") {
+      previewFolder = "";
+      loadExportPreview();
+    }
   }
   function openFolder(step) {
     void getTauri().core.invoke("open_folder").then((folder) => {
@@ -2424,6 +2447,16 @@ ${schema}
       const path = el.dataset.path;
       if (path) void getTauri().core.invoke("reveal_in_finder", { path });
     });
+    void delegate(root, "click", ACTIONS.previewCue.selector, (_event, el) => {
+      const video = root.querySelector("#export-preview-video");
+      if (!video) return;
+      video.currentTime = Number(el.dataset.seconds) || 0;
+      void video.play().catch(() => void 0);
+    });
+    void delegate(root, "click", ACTIONS.retryPreview.selector, () => {
+      previewFolder = "";
+      loadExportPreview();
+    });
     void delegate(root, "change", ACTIONS.policy.selector, (_event, el) => {
       const input = el;
       const category = input.dataset.category;
@@ -2513,6 +2546,29 @@ ${schema}
       } });
     }
   }
+  function loadExportPreview() {
+    const snap = project.value;
+    if (!snap || previewFolder === snap.folder) return;
+    previewFolder = snap.folder;
+    previewUrl.value = "";
+    audioMap.value = [];
+    previewStatus.value = "Rendering a lightweight preview\u2026";
+    send("export-preview", { folder: snap.folder }, {
+      onProgress: (progress) => {
+        if (progress.message) previewStatus.value = progress.message.slice(0, 90);
+      },
+      onResult: (data) => {
+        const convert = getTauri().core.convertFileSrc;
+        previewUrl.value = convert ? convert(data.outPath) : data.outPath;
+        audioMap.value = data.audioMap || [];
+        previewStatus.value = "";
+      },
+      onError: (error) => {
+        previewFolder = "";
+        previewStatus.value = `Preview unavailable: ${error.message}`;
+      }
+    });
+  }
   function runExport(kind) {
     const snap = project.value;
     if (!snap || !kind) {
@@ -2546,7 +2602,7 @@ ${schema}
     activeInteraction.value = null;
     showNextInteraction();
   }
-  var ACTIONS, defaultStages, PRESETS, PERMISSIONS, stages, screen, project, recents, doctorRows, doctorStatus, importStatus, importRequest, analyzeStatus, analyzeRequest, designPrompt, designNote, manualNote, feed, designRunning, reviewUrl, reviewStatus, config, exportsState, activeInteraction, autoSessionId, feedId, EXPORTS, getTauri, pending, interactionQueue, requestByKind, nextId;
+  var ACTIONS, defaultStages, PRESETS, PERMISSIONS, stages, screen, project, recents, doctorRows, doctorStatus, importStatus, importRequest, analyzeStatus, analyzeRequest, designPrompt, designNote, manualNote, feed, designRunning, reviewUrl, reviewStatus, config, exportsState, previewUrl, previewStatus, audioMap, previewFolder, activeInteraction, autoSessionId, feedId, EXPORTS, getTauri, pending, interactionQueue, requestByKind, nextId;
   var init_desktop_app = __esm({
     "ui/desktop-app.tsx"() {
       "use strict";
@@ -2573,7 +2629,9 @@ ${schema}
         revoke: attr("data-action", "revoke"),
         resetRules: attr("data-action", "reset-rules"),
         interaction: attr("data-action", "interaction"),
-        designPrompt: attr("data-role", "design-prompt")
+        designPrompt: attr("data-role", "design-prompt"),
+        previewCue: attr("data-action", "preview-cue"),
+        retryPreview: attr("data-action", "retry-preview")
       };
       defaultStages = [
         { key: "setup", label: "Setup", state: "active" },
@@ -2619,6 +2677,10 @@ ${schema}
       reviewStatus = signal("");
       config = signal({});
       exportsState = signal({ mp4: { status: "ready", running: false }, social: { status: "ready", running: false }, fcpxml: { status: "ready", running: false } });
+      previewUrl = signal("");
+      previewStatus = signal("");
+      audioMap = signal([]);
+      previewFolder = "";
       activeInteraction = signal(null);
       autoSessionId = null;
       feedId = 0;

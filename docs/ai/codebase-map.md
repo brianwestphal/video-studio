@@ -66,6 +66,7 @@ and [`requirements-summary.md`](requirements-summary.md) for status.
 │   │   ├── agent.mjs           # pure: AI agent bridge core — normalizeClaudeEvent, eventToFeedEntry, validateCutPlan, isAuthFailure (R-CB2/6/7/11, 100% unit). host.mjs `agent-run` drives the live @anthropic-ai/claude-agent-sdk over these (R-CB3, devDep)
 │   │   ├── permissions.mjs     # pure: safety layer — path resolution, classifyToolCall, DEFAULT_POLICY, matchRule, decide, deriveAllowedTools (R-PERM1-9, 100% unit)
 │   │   ├── config.mjs          # pure: app-global config — parseConfig (tolerant), recent projects, rules (add/revoke/reset), policy overrides (R-APP18/R-PERM12, 100% unit)
+│   │   ├── export-preview.mjs  # pure: filter, clip, and rebase audio-events into the rendered cut clock for Export preview cues (R-EX7, 100% unit)
 │   │   └── host.mjs            # I/O edge: stdin loop → spawn tool / `which` probes / project readdir → stream progress → result/error (manual, test-plan §14)
 │   ├── src-tauri/              # native Rust shell: lib.rs spawns host.mjs, streams stdout as `sidecar` events, sidecar_send + open_video commands
 │   │   ├── src/{main,lib}.rs   #   (Cargo.toml, build.rs, tauri.conf.json, capabilities/default.json, icons/)

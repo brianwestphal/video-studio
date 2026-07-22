@@ -43,10 +43,11 @@ test("desktop stages, protocol flows, permissions, and interactions run through 
         else if (message.step === "project-open" || message.step === "project-create") result(snapshot);
         else if (message.step === "agent-run") { emit({ type: "progress", id: message.id, progress: { label: "Planning", detail: "the edit" } }); result({ sessionId: "session-1", landedCut: true }); }
         else if (message.step === "review-start") result({ url: "about:blank" });
+        else if (message.step === "export-preview") result({ outPath: "/tmp/preview.mp4", audioMap: [{ startSeconds: 3, endSeconds: 7, kind: "vocal", text: "Vocal section" }] });
         else if (message.step.startsWith("export-")) result({ outPath: "/tmp/out.mp4" });
         else result({});
         return null;
-      } },
+      }, convertFileSrc: () => "about:blank" },
     };
   });
   await page.goto(origin);
@@ -63,6 +64,14 @@ test("desktop stages, protocol flows, permissions, and interactions run through 
   await expect(page.locator("textarea")).toHaveValue(/teaser/);
   await page.getByRole("button", { name: "Make my cut" }).click();
   await expect(page.locator('[data-screen="export"]')).toBeVisible();
+  await expect(page.locator("#export-preview-video")).toBeVisible();
+  await expect(page.locator(".preview-transcript")).toContainText("Vocal section");
+  await page.locator("#export-preview-video").evaluate((video) => {
+    Object.defineProperty(video, "currentTime", { value: 0, writable: true, configurable: true });
+    video.play = async () => {};
+  });
+  await page.locator('[data-action="preview-cue"]').click();
+  await expect(page.locator("#export-preview-video")).toHaveJSProperty("currentTime", 3);
   await page.locator('[data-kind="mp4"] [data-action="export-run"]').click();
   await expect(page.locator('[data-kind="mp4"] .export-status')).toHaveText("done");
   await expect(page.locator('[data-kind="mp4"] [data-action="reveal"]')).toBeVisible();
@@ -78,5 +87,5 @@ test("desktop stages, protocol flows, permissions, and interactions run through 
   await page.getByRole("button", { name: "Allow once" }).click();
   const messages = await page.evaluate(() => globalThis.__desktopRequests);
   expect(messages).toEqual(expect.arrayContaining([expect.objectContaining({ type: "interaction-response", interactionId: "ask-1", decision: "allow-once" })]));
-  expect(messages.map((message) => message.step).filter(Boolean)).toEqual(expect.arrayContaining(["doctor", "project-open", "agent-run", "export-mp4", "review-start", "config-get"]));
+  expect(messages.map((message) => message.step).filter(Boolean)).toEqual(expect.arrayContaining(["doctor", "project-open", "agent-run", "export-preview", "export-mp4", "review-start", "config-get"]));
 });

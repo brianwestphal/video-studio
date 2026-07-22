@@ -306,6 +306,8 @@ export const REQUIREMENT_COVERAGE = {
   "R-EX3": { status: "manual", note: "per-outcome streamed progress + ready/rendering/done status in the Export screen (§15.10) (VS-88)" },
   "R-EX4": { status: "manual", note: "Reveal in Finder (open -R) via the reveal_in_finder Rust command (§15.11) (VS-88)" },
   "R-EX5": { status: "unit", tests: ["sidecar-protocol.test.mjs"], note: "defaults + advanced width/height/crf overrides in the pure exportCommand (crf only on the mp4 renderer; no fps) — desktop/sidecar/steps.mjs; the UI advanced-disclosure toggle is a follow-up (VS-88/95)" },
+  "R-EX6": { status: "gate", note: "640x360 proxy command is unit-tested; desktop Chromium covers automatic render result, embedded video, and cue seeking (VS-110)" },
+  "R-EX7": { status: "unit", tests: ["sidecar-protocol.test.mjs"], note: "post-edit audio-map filtering/clipping/rebasing; Chromium covers rendered cue interaction (VS-110)" },
 
   // Desktop app — pluggable AI agent control bridge (docs/desktop-app-agent-bridge.md, VS-83).
   // Design only. Backends: Claude (Agent SDK, first/reference), Codex, Ollama, behind one

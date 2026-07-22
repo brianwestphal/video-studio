@@ -7,7 +7,7 @@ Part of the desktop-app initiative — see the umbrella [`desktop-app.md`](deskt
 (shell + sidecar host + project model). Reuses the multi-cam export/render tools documented
 in [`multicam.md`](multicam.md) + [`render-transitions.md`](render-transitions.md).
 
-Status: **Partial** — the export step descriptors + the Export screen are built; the heavy
+Status: **Implemented** — the export step descriptors, embedded proxy preview, and Export screen are built; the heavy
 ffmpeg render itself is manual-test territory (external tool). Depends on VS-90 (sidecar +
 project model) and a cut (`switches.json`, VS-87); works on a single angle without one.
 
@@ -45,7 +45,18 @@ project model) and a cut (`switches.json`, VS-87); works on a single angle witho
   `render-multicam-preview` / `export-multicam-fcpxml`, which keep their own tests + manual
   coverage.
 
-## 4. Cross-references
+## 4. Embedded cut preview + audio map
+
+- **R-EX6** Entering Export automatically renders a lightweight **640×360 CRF 32 proxy**
+  of the current cut and embeds it in a native, scrubbable video control. Returning from
+  Design regenerates the proxy so it follows the latest edit; failures remain retryable.
+- **R-EX7** When `audio-events.json` exists, Export shows a clickable **post-edit audio
+  map** (vocal/instrumental/quiet/section cues). Single-source cue times are clipped and
+  rebased through `cut.json`; multi-camera edits retain the group timeline. Clicking a cue
+  seeks and plays the proxy. This is an audio-activity transcript; verbatim speech text
+  remains dependent on a retained Whisper transcript.
+
+## 5. Cross-references
 
 - [`desktop-app.md`](desktop-app.md) — the sidecar host + project model this builds on.
 - [`multicam.md`](multicam.md) — the export/render tools + the `--switches` handoff.

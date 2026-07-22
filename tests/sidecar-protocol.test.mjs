@@ -50,6 +50,7 @@ import {
   isAuthFailure,
 } from "../desktop/sidecar/agent.mjs";
 import { CUT_TARGETS, proposeCutSpec, flatRenderCommand, cutPlanToCutSpec } from "../desktop/sidecar/cutspec.mjs";
+import { buildPostEditAudioMap } from "../desktop/sidecar/export-preview.mjs";
 import {
   CATEGORIES,
   DEFAULT_POLICY,
@@ -350,6 +351,11 @@ describe("steps — buildCommand descriptors", () => {
 });
 
 describe("steps — exportCommand", () => {
+  it("preview: builds a low-resolution proxy in the exports cache", () => {
+    const command = exportCommand("preview", "/proj", { hasSwitches: true, crf: 32 });
+    expect(command.args).toEqual(expect.arrayContaining(["640", "360", "--crf", "32", "/proj/switches.json"]));
+    expect(command.outPath).toBe("/proj/exports/.preview.mp4");
+  });
   it("mp4: 16:9 render over multicam + switches, into exports/", () => {
     expect(exportCommand("mp4", "/proj", { hasSwitches: true })).toEqual({
       tool: "render-preview",
@@ -402,6 +408,33 @@ describe("steps — exportCommand", () => {
     expect(c.args).toContain("--crf"); // social uses the render-preview tool
     const f = exportCommand("fcpxml", "/proj", { crf: 20 });
     expect(f.args).not.toContain("--crf"); // fcpxml has no encode pass
+  });
+});
+
+describe("export preview — post-edit audio map", () => {
+  const audio = { events: [
+    { kind: "vocal", startSeconds: 1, endSeconds: 4, description: "Verse" },
+    { kind: "onset", startSeconds: 2, endSeconds: 2, description: "Beat" },
+    { kind: "instrumental", startSeconds: 10, endSeconds: 14 },
+    { kind: "quiet", startSeconds: 30, endSeconds: 31, description: "Silence" },
+  ] };
+  it("keeps the group clock for multi-camera edits and filters instantaneous events", () => {
+    expect(buildPostEditAudioMap(audio)).toEqual([
+      { startSeconds: 1, endSeconds: 4, kind: "vocal", text: "Verse" },
+      { startSeconds: 10, endSeconds: 14, kind: "instrumental", text: "instrumental" },
+      { startSeconds: 30, endSeconds: 31, kind: "quiet", text: "Silence" },
+    ]);
+    expect(buildPostEditAudioMap(null)).toEqual([]);
+  });
+  it("clips and rebases events onto a concatenated single-source output clock", () => {
+    expect(buildPostEditAudioMap(audio, { clips: [{ in: 2, out: 5 }, { in: 11, out: 13 }] })).toEqual([
+      { startSeconds: 0, endSeconds: 2, kind: "vocal", text: "Verse" },
+      { startSeconds: 3, endSeconds: 5, kind: "instrumental", text: "instrumental" },
+    ]);
+  });
+  it("tolerates empty and zero-duration clips", () => {
+    expect(buildPostEditAudioMap(audio, { clips: [{ in: 5, out: 5 }] })).toEqual([]);
+    expect(buildPostEditAudioMap(audio, { clips: [] })).toEqual([]);
   });
 });
 

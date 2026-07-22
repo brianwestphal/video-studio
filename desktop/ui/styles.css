@@ -195,6 +195,17 @@ body {
 .review-frame { width: 100%; border: 1px solid var(--line); border-radius: 8px; background: #0d0f13; min-height: 520px; margin-top: 18px; }
 
 .export-cards { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 8px; }
+.export-preview { margin: 0 0 22px; padding: 16px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
+.export-preview h2, .export-preview h3 { margin: 0 0 10px; }
+.export-preview h3 { margin-top: 16px; font-size: 14px; }
+.export-preview video { display: block; width: min(100%, 720px); max-height: 405px; background: #000; border-radius: 8px; }
+.preview-status { color: var(--muted); margin-bottom: 8px; }
+.preview-transcript { max-height: 220px; overflow: auto; margin: 0; padding: 0; list-style: none; border: 1px solid var(--line); border-radius: 8px; }
+.preview-transcript button { width: 100%; display: grid; grid-template-columns: 52px 90px 1fr; gap: 8px; text-align: left; align-items: baseline; padding: 8px 10px; border: 0; border-bottom: 1px solid var(--line); background: transparent; color: inherit; cursor: pointer; }
+.preview-transcript li:last-child button { border-bottom: 0; }
+.preview-transcript button:hover, .preview-transcript button:focus-visible { background: var(--bg); }
+.preview-transcript time { color: var(--accent); font-variant-numeric: tabular-nums; }
+.audio-kind { color: var(--muted); text-transform: uppercase; font-size: 11px; letter-spacing: .04em; }
 .export-card {
   flex: 1 1 200px;
   max-width: 240px;
